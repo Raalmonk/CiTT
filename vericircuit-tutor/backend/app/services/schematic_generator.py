@@ -3,8 +3,12 @@ from __future__ import annotations
 from html import escape
 from math import cos, pi, sin
 
-import schemdraw
-import schemdraw.elements as elm
+try:
+    import schemdraw
+    import schemdraw.elements as elm
+except ImportError:  # pragma: no cover - exercised only when dependencies are absent.
+    schemdraw = None
+    elm = None
 
 from app.models.circuit_ir import CircuitProblem, Component
 
@@ -17,6 +21,22 @@ LABEL_OFFSET_SMALL = 0.35
 LABEL_OFFSET_MEDIUM = 0.65
 LABEL_OFFSET_LARGE = 0.95
 CANVAS_PADDING = 0.55
+
+
+def _configure_schemdraw_backend() -> None:
+    if schemdraw is None:
+        return
+    try:
+        schemdraw.use("svg")
+    except Exception:
+        pass
+    try:
+        schemdraw.svgconfig.text = "text"
+    except Exception:
+        pass
+
+
+_configure_schemdraw_backend()
 
 
 def _fmt(value: float, unit: str) -> str:
@@ -38,7 +58,15 @@ def _components(problem: CircuitProblem) -> dict[str, Component]:
 
 
 def _schemdraw_svg(drawing: schemdraw.Drawing, renderer: str) -> str:
-    svg = drawing.get_imagedata("svg").decode("utf-8")
+    raw = drawing.get_imagedata("svg")
+    if isinstance(raw, bytes):
+        svg = raw.decode("utf-8")
+    else:
+        svg = str(raw)
+    svg = svg.lstrip()
+    svg_start = svg.find("<svg")
+    if svg_start > 0:
+        svg = svg[svg_start:]
     return _tag_svg(svg, renderer)
 
 
@@ -54,7 +82,7 @@ def _component_label(
     element: elm.Element,
     component: Component,
     loc: str,
-    ofst: float = LABEL_OFFSET_MEDIUM,
+    ofst: float | tuple[float, float] = LABEL_OFFSET_MEDIUM,
 ) -> elm.Element:
     return element.label(
         format_component_label(component),
@@ -66,7 +94,17 @@ def _component_label(
 
 
 def _node_label(text: str, at: tuple[float, float]) -> elm.Label:
-    return elm.Label(text, fontsize=FONT_SIZE_NODE).at(at)
+    label = elm.Label().at(at)
+    try:
+        return label.label(
+            text,
+            fontsize=FONT_SIZE_NODE,
+            loc="center",
+            ofst=0,
+            rotate=False,
+        )
+    except Exception:
+        return elm.Label().at(at).label(text, fontsize=FONT_SIZE_NODE)
 
 
 def _dot(at: tuple[float, float]) -> elm.Dot:
@@ -74,6 +112,8 @@ def _dot(at: tuple[float, float]) -> elm.Dot:
 
 
 def _base_drawing() -> schemdraw.Drawing:
+    if schemdraw is None:
+        raise RuntimeError("schemdraw is not installed")
     d = schemdraw.Drawing(show=False)
     d.config(
         unit=UNIT,
@@ -94,7 +134,7 @@ def _render_voltage_divider(problem: CircuitProblem) -> str:
     mid = (4.5, 2.5)
     bottom = (4.5, 0)
 
-    d += _component_label(elm.SourceV().at(bottom_left).to(top_left), c["V1"], "left", LABEL_OFFSET_LARGE)
+    d += _component_label(elm.SourceV().at(bottom_left).to(top_left), c["V1"], "left", (-0.75, 0.1))
     d += elm.Line().at(top_left).to(top)
     d += elm.Dot().at(top_left)
     d += _dot(top)
@@ -124,7 +164,7 @@ def _render_current_divider(problem: CircuitProblem) -> str:
     bottom_r1 = (4, 0)
     bottom_r2 = (8, 0)
 
-    d += _component_label(elm.SourceI().at(bottom_left).to(top_left), c["I1"], "left", LABEL_OFFSET_LARGE)
+    d += _component_label(elm.SourceI().at(bottom_left).to(top_left), c["I1"], "left", (-0.75, 0.1))
     d += elm.Line().at(top_left).to(top_r2)
     d += elm.Line().at(bottom_r2).to(bottom_left)
     d += _dot(top_r1)
@@ -156,30 +196,30 @@ def _render_bridge(problem: CircuitProblem) -> str:
     left_mid_xy = (left_branch_x, 3)
     right_mid_xy = (right_branch_x, 3)
 
-    d += _component_label(elm.SourceV().at(bottom_left).to(top_left), c["V1"], "left", LABEL_OFFSET_LARGE)
+    d += _component_label(elm.SourceV().at(bottom_left).to(top_left), c["V1"], "left", (-0.9, 0.25))
     d += elm.Line().at(top_left).to(top_bus_right)
     d += elm.Line().at(bottom_bus_right).to(bottom_left)
     d += elm.Dot().at(top_bus_left)
-    d += _node_label(source_node, (top_bus_left[0] + 0.2, top_bus_left[1] + 0.8))
+    d += _node_label(source_node, (top_bus_left[0] + 0.25, top_bus_left[1] + 1.05))
     d += elm.Dot().at(bottom_bus_left)
-    d += _node_label("0", (bottom_bus_left[0] + 0.35, bottom_bus_left[1] - 0.9))
+    d += _node_label("0", (bottom_bus_left[0] + 0.4, bottom_bus_left[1] - 1.15))
     d += elm.Ground().at(bottom_left)
 
     d += elm.Line().at(top_bus_left).to((left_branch_x, 6))
-    d += _component_label(elm.Resistor().at((left_branch_x, 6)).to(left_mid_xy), c["R1"], "left", LABEL_OFFSET_LARGE)
+    d += _component_label(elm.Resistor().at((left_branch_x, 6)).to(left_mid_xy), c["R1"], "left", (-0.65, 0.1))
     d += _dot(left_mid_xy)
-    d += _node_label(left_mid, (left_mid_xy[0] - 0.8, left_mid_xy[1] - 0.15))
-    d += _component_label(elm.Resistor().at(left_mid_xy).to((left_branch_x, 0)), c["R2"], "left", LABEL_OFFSET_LARGE)
+    d += _node_label(left_mid, (left_mid_xy[0] - 1.15, left_mid_xy[1]))
+    d += _component_label(elm.Resistor().at(left_mid_xy).to((left_branch_x, 0)), c["R2"], "left", (-0.65, -0.1))
     d += elm.Line().at((left_branch_x, 0)).to(bottom_bus_left)
 
     d += elm.Line().at(top_bus_right).to((right_branch_x, 6))
-    d += _component_label(elm.Resistor().at((right_branch_x, 6)).to(right_mid_xy), c["R3"], "right", LABEL_OFFSET_LARGE)
+    d += _component_label(elm.Resistor().at((right_branch_x, 6)).to(right_mid_xy), c["R3"], "right", (0.65, 0.1))
     d += _dot(right_mid_xy)
-    d += _node_label(right_mid, (right_mid_xy[0] + 0.8, right_mid_xy[1] - 0.15))
-    d += _component_label(elm.Resistor().at(right_mid_xy).to((right_branch_x, 0)), c["R4"], "right", LABEL_OFFSET_LARGE)
+    d += _node_label(right_mid, (right_mid_xy[0] + 1.15, right_mid_xy[1]))
+    d += _component_label(elm.Resistor().at(right_mid_xy).to((right_branch_x, 0)), c["R4"], "right", (0.65, -0.1))
     d += elm.Line().at((right_branch_x, 0)).to(bottom_bus_right)
 
-    d += _component_label(elm.Resistor().at(left_mid_xy).to(right_mid_xy), c["R5"], "top", LABEL_OFFSET_LARGE)
+    d += _component_label(elm.Resistor().at(left_mid_xy).to(right_mid_xy), c["R5"], "top", (0, 0.85))
     return _schemdraw_svg(d, "schemdraw_bridge_network")
 
 
@@ -231,7 +271,7 @@ def _svg(width: int, height: int, body: str, renderer: str) -> str:
     return _tag_svg(svg, renderer)
 
 
-def _render_fallback_graph(problem: CircuitProblem) -> str:
+def _render_fallback_graph(problem: CircuitProblem, renderer: str = "fallback_graph") -> str:
     width = 560
     height = 360
     nodes = sorted(problem.nodes)
@@ -254,7 +294,7 @@ def _render_fallback_graph(problem: CircuitProblem) -> str:
             pieces.append(_fallback_source(component, (x1 + x2) / 2, (y1 + y2) / 2))
     for node, (x, y) in positions.items():
         pieces.append(_node(node, x, y))
-    return _svg(width, height, "\n  ".join(pieces), "fallback_graph")
+    return _svg(width, height, "\n  ".join(pieces), renderer)
 
 
 def _normalized_base_id(circuit_id: str) -> str:
@@ -275,21 +315,19 @@ def _renderer_key(circuit: CircuitProblem) -> str:
     return _normalized_base_id(circuit.id)
 
 
+def _render_template_or_fallback(circuit: CircuitProblem, renderer) -> str:
+    try:
+        return renderer(circuit)
+    except Exception:
+        return _render_fallback_graph(circuit, "fallback_graph_after_schemdraw_error")
+
+
 def render_schematic_svg(circuit: CircuitProblem) -> str:
     key = _renderer_key(circuit)
     if key == "voltage_divider":
-        try:
-            return _render_voltage_divider(circuit)
-        except KeyError:
-            return _render_fallback_graph(circuit)
+        return _render_template_or_fallback(circuit, _render_voltage_divider)
     if key == "current_divider":
-        try:
-            return _render_current_divider(circuit)
-        except KeyError:
-            return _render_fallback_graph(circuit)
+        return _render_template_or_fallback(circuit, _render_current_divider)
     if key in {"bridge_network", "bridge_network_alt"}:
-        try:
-            return _render_bridge(circuit)
-        except KeyError:
-            return _render_fallback_graph(circuit)
+        return _render_template_or_fallback(circuit, _render_bridge)
     return _render_fallback_graph(circuit)

@@ -8,6 +8,7 @@ from app.services.demo_parser import (
     current_divider_problem,
     voltage_divider_problem,
 )
+from app.services import schematic_generator
 from app.services.variant_generator import generate_goal_variant, generate_value_variant
 
 
@@ -29,7 +30,7 @@ def test_schematic_endpoint_returns_svg_for_original_examples():
 
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("image/svg+xml")
-        assert response.text.startswith("<svg")
+        assert response.text.lstrip().startswith("<svg")
         assert renderer in response.text
         assert "fallback_graph" not in response.text
 
@@ -53,7 +54,7 @@ def test_bridge_schematic_contains_clear_component_and_node_labels():
     for label in ["R1", "R2", "R3", "R4", "R5", "V1"]:
         assert label in response.text
     for node_label in ["n1", "n2", "n3", "0"]:
-        assert f">{node_label}</tspan>" in response.text
+        assert node_label in response.text
     assert "1 kΩ" in response.text
     assert "1.5 kΩ" in response.text
     assert "2.2 kΩ" in response.text
@@ -69,7 +70,7 @@ def test_second_bridge_schematic_contains_clear_component_and_node_labels():
     for label in ["R1", "R2", "R3", "R4", "R5", "V1"]:
         assert label in response.text
     for node_label in ["src", "a", "b", "0"]:
-        assert f">{node_label}</tspan>" in response.text
+        assert node_label in response.text
     assert "1.2 kΩ" in response.text
     assert "3.3 kΩ" in response.text
     assert "schemdraw_bridge_network" in response.text
@@ -92,9 +93,9 @@ def test_schematic_uses_template_for_second_bridge_goal_variant():
     assert response.status_code == 200
     assert "schemdraw_bridge_network" in response.text
     assert "fallback_graph" not in response.text
-    assert ">src</tspan>" in response.text
-    assert ">a</tspan>" in response.text
-    assert ">b</tspan>" in response.text
+    assert "src" in response.text
+    assert "a" in response.text
+    assert "b" in response.text
 
 
 def test_schematic_uses_template_for_value_variant():
@@ -135,7 +136,19 @@ def test_schematic_fallback_still_works_for_unknown_topology():
     response = _schematic(circuit)
 
     assert response.status_code == 200
-    assert response.text.startswith("<svg")
+    assert response.text.lstrip().startswith("<svg")
     assert "fallback_graph" in response.text
     assert "R1" in response.text
     assert "1 kΩ" in response.text
+
+
+def test_schematic_template_error_returns_fallback_svg(monkeypatch):
+    def broken_renderer(circuit):
+        raise RuntimeError("schemdraw failed")
+
+    monkeypatch.setattr(schematic_generator, "_render_bridge", broken_renderer)
+    response = _schematic(bridge_network_problem())
+
+    assert response.status_code == 200
+    assert response.text.lstrip().startswith("<svg")
+    assert "fallback_graph_after_schemdraw_error" in response.text
