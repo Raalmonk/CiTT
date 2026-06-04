@@ -1,0 +1,249 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+import numpy as np
+
+from app.models.circuit_ir import CircuitProblem
+from app.models.solution_packet import ComponentResult, QuantityValue
+
+
+SOURCE_SIGN_CONVENTION = (
+    "Voltage is V(nodes[0]) - V(nodes[1]); current is positive from nodes[0] "
+    "to nodes[1]; power is voltage times current. Negative source power means "
+    "the source supplies power to the circuit."
+)
+
+
+@dataclass
+class SolveResult:
+    success: bool
+    message: str | None = None
+    node_voltages: dict[str, float] = field(default_factory=dict)
+    voltage_source_currents: dict[str, float] = field(default_factory=dict)
+    component_results: dict[str, ComponentResult] = field(default_factory=dict)
+    requested_answers: dict[str, QuantityValue] = field(default_factory=dict)
+
+
+def _node_voltage(node: str, node_voltages: dict[str, float]) -> float:
+    if node not in node_voltages:
+        raise KeyError(f"Node {node!r} was not solved and cannot be used as a voltage reference.")
+    return node_voltages[node]
+
+
+def _component_voltage(nodes: list[str], node_voltages: dict[str, float]) -> float:
+    return _node_voltage(nodes[0], node_voltages) - _node_voltage(nodes[1], node_voltages)
+
+
+def _quantity(
+    value: float,
+    unit: str,
+    explanation_key: str | None = None,
+    reference: dict[str, str] | None = None,
+) -> QuantityValue:
+    return QuantityValue(
+        value=float(value),
+        unit=unit,
+        explanation_key=explanation_key,
+        reference=reference,
+    )
+
+
+def _build_requested_answers(
+    problem: CircuitProblem,
+    node_voltages: dict[str, float],
+    component_results: dict[str, ComponentResult],
+) -> dict[str, QuantityValue]:
+    answers: dict[str, QuantityValue] = {}
+    components_by_id = {component.id: component for component in problem.components}
+
+    for goal in problem.goals:
+        key = f"{goal.quantity}:{goal.target}"
+        if goal.quantity == "node_voltage":
+            value = node_voltages[goal.target]
+            answers[goal.id] = _quantity(
+                value,
+                "V",
+                explanation_key=key,
+                reference={"positive_node": goal.target, "negative_node": problem.ground_node},
+            )
+            continue
+
+        component = components_by_id[goal.target]
+        result = component_results[goal.target]
+
+        if goal.quantity == "component_voltage":
+            if goal.reference and {"positive_node", "negative_node"} <= set(goal.reference):
+                value = (
+                    _node_voltage(str(goal.reference["positive_node"]), node_voltages)
+                    - _node_voltage(str(goal.reference["negative_node"]), node_voltages)
+                )
+                reference = {
+                    "positive_node": str(goal.reference["positive_node"]),
+                    "negative_node": str(goal.reference["negative_node"]),
+                }
+            else:
+                value = result.voltage.value
+                reference = {
+                    "positive_node": component.nodes[0],
+                    "negative_node": component.nodes[1],
+                }
+            answers[goal.id] = _quantity(value, "V", explanation_key=key, reference=reference)
+        elif goal.quantity == "component_current":
+            answers[goal.id] = _quantity(
+                result.current.value,
+                "A",
+                explanation_key=key,
+                reference={"from_node": component.nodes[0], "to_node": component.nodes[1]},
+            )
+        elif goal.quantity in {"component_power", "source_power"}:
+            answers[goal.id] = _quantity(
+                result.power.value,
+                "W",
+                explanation_key=key,
+                reference={"component": component.id},
+            )
+
+    return answers
+
+
+def solve_mna(problem: CircuitProblem) -> SolveResult:
+    ground = problem.ground_node
+    non_ground_nodes = [node for node in problem.nodes if node != ground]
+    node_index = {node: idx for idx, node in enumerate(non_ground_nodes)}
+    voltage_sources = [
+        component for component in problem.components if component.type == "voltage_source"
+    ]
+    source_index = {
+        component.id: len(non_ground_nodes) + idx
+        for idx, component in enumerate(voltage_sources)
+    }
+
+    size = len(non_ground_nodes) + len(voltage_sources)
+    if size == 0:
+        return SolveResult(success=False, message="Circuit has no unknowns to solve.")
+
+    # Matrix layout:
+    # [ G  B ] [v_node]   [i_injected]
+    # [ C  D ] [i_vs  ] = [v_source  ]
+    #
+    # G holds KCL conductance terms for non-ground nodes. The voltage-source
+    # columns/rows add the extra unknown currents needed by Modified Nodal
+    # Analysis. Ground is not an unknown; its voltage is fixed at 0 V.
+    matrix = np.zeros((size, size), dtype=float)
+    rhs = np.zeros(size, dtype=float)
+
+    for component in problem.components:
+        node_a, node_b = component.nodes
+        idx_a = node_index.get(node_a)
+        idx_b = node_index.get(node_b)
+
+        if component.type == "resistor":
+            conductance = 1.0 / component.value
+            # Resistor stamp: current leaving node a is g*(Va - Vb), and
+            # current leaving node b is g*(Vb - Va). This adds +g to each
+            # connected diagonal and -g to each off-diagonal coupling.
+            if idx_a is not None:
+                matrix[idx_a, idx_a] += conductance
+            if idx_b is not None:
+                matrix[idx_b, idx_b] += conductance
+            if idx_a is not None and idx_b is not None:
+                matrix[idx_a, idx_b] -= conductance
+                matrix[idx_b, idx_a] -= conductance
+
+        elif component.type == "current_source":
+            current = component.value
+            # Current source direction is nodes[0] -> nodes[1]. KCL rows use
+            # current injected into a node on the RHS, so current leaves node a
+            # (-I injection) and enters node b (+I injection).
+            if idx_a is not None:
+                rhs[idx_a] -= current
+            if idx_b is not None:
+                rhs[idx_b] += current
+
+        elif component.type == "voltage_source":
+            vs_idx = source_index[component.id]
+            # Voltage source stamp: the source current is an extra unknown in
+            # the KCL rows. The extra constraint row enforces Va - Vb = Vsource.
+            if idx_a is not None:
+                matrix[idx_a, vs_idx] += 1.0
+                matrix[vs_idx, idx_a] += 1.0
+            if idx_b is not None:
+                matrix[idx_b, vs_idx] -= 1.0
+                matrix[vs_idx, idx_b] -= 1.0
+            rhs[vs_idx] = component.value
+        else:
+            return SolveResult(
+                success=False,
+                message=f"Unsupported component type {component.type!r} reached the MNA solver.",
+            )
+
+    try:
+        solution = np.linalg.solve(matrix, rhs)
+    except np.linalg.LinAlgError as exc:
+        return SolveResult(
+            success=False,
+            message=f"MNA matrix is singular or ill-conditioned: {exc}",
+        )
+
+    node_voltages = {ground: 0.0}
+    for node, idx in node_index.items():
+        node_voltages[node] = float(solution[idx])
+
+    voltage_source_currents = {
+        component.id: float(solution[source_index[component.id]])
+        for component in voltage_sources
+    }
+
+    component_results: dict[str, ComponentResult] = {}
+    for component in problem.components:
+        voltage = _component_voltage(component.nodes, node_voltages)
+        if component.type == "resistor":
+            current = voltage / component.value
+            sign_convention = (
+                "Passive sign convention: current is positive from nodes[0] "
+                "to nodes[1], and resistor power is absorbed when positive."
+            )
+        elif component.type == "current_source":
+            current = component.value
+            sign_convention = SOURCE_SIGN_CONVENTION
+        elif component.type == "voltage_source":
+            current = voltage_source_currents[component.id]
+            sign_convention = SOURCE_SIGN_CONVENTION
+        else:
+            return SolveResult(
+                success=False,
+                message=f"Unsupported component type {component.type!r} reached result derivation.",
+            )
+
+        power = voltage * current
+        component_results[component.id] = ComponentResult(
+            voltage=_quantity(
+                voltage,
+                "V",
+                reference={
+                    "positive_node": component.nodes[0],
+                    "negative_node": component.nodes[1],
+                },
+            ),
+            current=_quantity(
+                current,
+                "A",
+                reference={"from_node": component.nodes[0], "to_node": component.nodes[1]},
+            ),
+            power=_quantity(power, "W", reference={"component": component.id}),
+            sign_convention=sign_convention,
+        )
+
+    requested_answers = _build_requested_answers(
+        problem,
+        node_voltages,
+        component_results,
+    )
+    return SolveResult(
+        success=True,
+        node_voltages=node_voltages,
+        voltage_source_currents=voltage_source_currents,
+        component_results=component_results,
+        requested_answers=requested_answers,
+    )

@@ -1,0 +1,22 @@
+[project]
+name = "vericircuit-tutor-backend"
+version = "0.1.0"
+description = "Simulation-grounded AI tutor MVP for undergraduate linear DC circuit analysis."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111",
+  "numpy>=1.26",
+  "pydantic>=2.7",
+  "uvicorn[standard]>=0.29",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "httpx>=0.27",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+

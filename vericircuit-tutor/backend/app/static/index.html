@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VeriCircuit Tutor</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8fb;
+        --panel: #ffffff;
+        --ink: #17202a;
+        --muted: #5f6b7a;
+        --line: #d9dee7;
+        --accent: #1768ac;
+        --accent-dark: #0f4e82;
+        --ok: #117a4b;
+        --bad: #b42318;
+        --warn: #9a5b00;
+        --neutral: #455468;
+        --code: #111827;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      header {
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+        padding: 18px 24px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 720;
+      }
+
+      .subtitle {
+        margin-top: 4px;
+        color: var(--muted);
+        max-width: 880px;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: minmax(320px, 460px) 1fr;
+        gap: 18px;
+        padding: 18px;
+      }
+
+      section,
+      aside {
+        min-width: 0;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      select,
+      textarea,
+      button {
+        font: inherit;
+      }
+
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        padding: 10px;
+      }
+
+      textarea {
+        min-height: 190px;
+        resize: vertical;
+        line-height: 1.45;
+      }
+
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 6px;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+        padding: 10px 12px;
+        font-weight: 700;
+      }
+
+      button.secondary {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--accent-dark);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .authority {
+        border-left: 4px solid var(--accent);
+        background: #eef6fc;
+        border-radius: 6px;
+        color: #123f61;
+        padding: 10px 12px;
+        line-height: 1.45;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .wide {
+        grid-column: 1 / -1;
+      }
+
+      h2 {
+        margin: 0 0 10px;
+        font-size: 15px;
+        letter-spacing: 0;
+      }
+
+      pre {
+        margin: 0;
+        overflow: auto;
+        max-height: 420px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        border-radius: 6px;
+        background: #111827;
+        color: #e5e7eb;
+        padding: 12px;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .answers,
+      .checks,
+      .variants {
+        display: grid;
+        gap: 8px;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 8px;
+      }
+
+      .row:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .badge {
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .badge-large {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 8px;
+        font-size: 20px;
+        font-weight: 800;
+        min-height: 44px;
+        padding: 8px 12px;
+      }
+
+      .pass {
+        background: #e6f4ee;
+        color: var(--ok);
+      }
+
+      .fail {
+        background: #fee4e2;
+        color: var(--bad);
+      }
+
+      .ambiguous {
+        background: #fff4df;
+        color: var(--warn);
+      }
+
+      .unsupported {
+        background: #eef1f5;
+        color: var(--neutral);
+      }
+
+      .message {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .explanation {
+        white-space: pre-wrap;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 980px) {
+        main,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>VeriCircuit Tutor</h1>
+      <div class="subtitle">
+        Professor-facing MVP: natural language is parsed into Circuit IR, solved
+        with MNA, verified with circuit-law checks, then explained from the
+        verified Solution Packet. The parser may use an LLM; the final numbers
+        do not come directly from an LLM.
+      </div>
+    </header>
+
+    <main>
+      <aside class="panel stack">
+        <div>
+          <label for="exampleSelect">Example</label>
+          <select id="exampleSelect"></select>
+        </div>
+        <div>
+          <label for="problemText">Problem</label>
+          <textarea id="problemText"></textarea>
+        </div>
+        <div>
+          <label for="modeSelect">Parser mode</label>
+          <select id="modeSelect">
+            <option value="demo">Demo parser</option>
+            <option value="gemini">Gemini with demo fallback</option>
+          </select>
+        </div>
+        <div class="button-row">
+          <button id="runButton">Run pipeline</button>
+          <button class="secondary" id="valueVariantButton">Value variant</button>
+          <button class="secondary" id="goalVariantButton">Goal variant</button>
+        </div>
+        <div class="authority">
+          <strong>Source of truth:</strong> Circuit IR validation, MNA solving,
+          and deterministic verification. Tutor text is generated only after
+          verified values exist.
+        </div>
+        <div id="status" class="message">Ready.</div>
+      </aside>
+
+      <section class="grid">
+        <div class="panel">
+          <h2>Parsed Circuit IR</h2>
+          <pre id="irPanel">{}</pre>
+        </div>
+        <div class="panel">
+          <h2>Generated Netlist</h2>
+          <pre id="netlistPanel"></pre>
+        </div>
+        <div class="panel">
+          <h2>Verification Badge</h2>
+          <div id="badgePanel" class="message">No badge yet.</div>
+        </div>
+        <div class="panel">
+          <h2>Requested Answers</h2>
+          <div id="answersPanel" class="answers message">No solution yet.</div>
+        </div>
+        <div class="panel">
+          <h2>Verification</h2>
+          <div id="verificationPanel" class="checks message">No checks yet.</div>
+        </div>
+        <div class="panel wide">
+          <h2>Tutor Explanation</h2>
+          <div id="explanationPanel" class="explanation message"></div>
+        </div>
+        <div class="panel wide">
+          <h2>Variants</h2>
+          <div id="variantsPanel" class="variants message">No variants yet.</div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const exampleSelect = document.getElementById("exampleSelect");
+      const problemText = document.getElementById("problemText");
+      const modeSelect = document.getElementById("modeSelect");
+      const runButton = document.getElementById("runButton");
+      const valueVariantButton = document.getElementById("valueVariantButton");
+      const goalVariantButton = document.getElementById("goalVariantButton");
+      const statusEl = document.getElementById("status");
+      const irPanel = document.getElementById("irPanel");
+      const netlistPanel = document.getElementById("netlistPanel");
+      const badgePanel = document.getElementById("badgePanel");
+      const answersPanel = document.getElementById("answersPanel");
+      const verificationPanel = document.getElementById("verificationPanel");
+      const explanationPanel = document.getElementById("explanationPanel");
+      const variantsPanel = document.getElementById("variantsPanel");
+
+      let currentCircuit = null;
+
+      function pretty(data) {
+        return JSON.stringify(data, null, 2);
+      }
+
+      function formatValue(answer) {
+        if (!answer) return "";
+        return `${Number(answer.value).toPrecision(7)} ${answer.unit}`;
+      }
+
+      function renderAnswers(packet) {
+        if (packet.verification_badge?.label !== "PASS") {
+          answersPanel.textContent = `No verified answers displayed. Badge: ${packet.verification_badge?.label || "FAIL"}.`;
+          return;
+        }
+        const entries = Object.entries(packet.requested_answers || {});
+        if (!entries.length) {
+          answersPanel.textContent = "No requested answers were produced.";
+          return;
+        }
+        answersPanel.innerHTML = entries
+          .map(([id, answer]) => {
+            return `<div class="row"><strong>${id}</strong><span>${formatValue(answer)}</span></div>`;
+          })
+          .join("");
+      }
+
+      function badgeClass(label) {
+        if (label === "PASS") return "pass";
+        if (label === "AMBIGUOUS") return "ambiguous";
+        if (label === "UNSUPPORTED") return "unsupported";
+        return "fail";
+      }
+
+      function renderBadge(packet) {
+        const badge = packet.verification_badge || {
+          label: "FAIL",
+          message: "No verification badge was returned.",
+        };
+        badgePanel.innerHTML = `<div class="stack"><span class="badge-large ${badgeClass(badge.label)}">${badge.label}</span><div class="message">${badge.message}</div><div class="message"><strong>Answer authority:</strong> numerical values are from the MNA solver and verification engine, not direct LLM generation.</div></div>`;
+      }
+
+      function renderVerification(report) {
+        const checks = report?.checks || [];
+        if (!checks.length) {
+          verificationPanel.textContent = "No verification checks were produced.";
+          return;
+        }
+        verificationPanel.innerHTML = checks
+          .map((check) => {
+            const cls = check.passed ? "pass" : "fail";
+            const label = check.passed ? "pass" : "fail";
+            return `<div class="row"><div><strong>${check.name}</strong><div class="message">${check.message}</div></div><span class="badge ${cls}">${label}</span></div>`;
+          })
+          .join("");
+      }
+
+      function renderVariants(variants) {
+        if (!variants || !variants.length) {
+          variantsPanel.textContent = "No variants generated.";
+          return;
+        }
+        variantsPanel.innerHTML = variants
+          .map((variant) => {
+            const circuit = variant.circuit_ir || {};
+            return `<div class="row"><div><strong>${variant.kind}</strong><div class="message">${circuit.title || ""}</div></div><button class="secondary" data-variant-id="${circuit.id}">Load</button></div>`;
+          })
+          .join("");
+        [...variantsPanel.querySelectorAll("button[data-variant-id]")].forEach((button) => {
+          button.addEventListener("click", () => {
+            const variant = variants.find((item) => item.circuit_ir.id === button.dataset.variantId);
+            if (variant) {
+              currentCircuit = variant.circuit_ir;
+              irPanel.textContent = pretty(currentCircuit);
+              statusEl.textContent = "Loaded variant Circuit IR. Run pipeline from the edited problem text, or solve through the API.";
+            }
+          });
+        });
+      }
+
+      async function requestJson(url, body) {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`${response.status}: ${text}`);
+        }
+        return response.json();
+      }
+
+      async function loadExamples() {
+        const examples = await fetch("/examples").then((response) => response.json());
+        exampleSelect.innerHTML = examples
+          .map((example) => `<option value="${example.id}">${example.title}</option>`)
+          .join("");
+        exampleSelect.addEventListener("change", () => {
+          const selected = examples.find((example) => example.id === exampleSelect.value);
+          problemText.value = selected?.problem_text || "";
+        });
+        if (examples[0]) {
+          exampleSelect.value = examples[0].id;
+          problemText.value = examples[0].problem_text;
+        }
+      }
+
+      async function runPipeline() {
+        statusEl.textContent = "Running parser, solver, verifier, and explainer...";
+        runButton.disabled = true;
+        try {
+          const result = await requestJson("/full_pipeline", {
+            problem_text: problemText.value,
+            mode: modeSelect.value,
+          });
+          currentCircuit = result.circuit_ir;
+          irPanel.textContent = pretty(result.circuit_ir);
+          netlistPanel.textContent = result.solution_packet.generated_netlist || "";
+          renderBadge(result.solution_packet);
+          renderAnswers(result.solution_packet);
+          renderVerification(result.solution_packet.verification);
+          explanationPanel.textContent = result.explanation;
+          renderVariants(result.variants);
+          statusEl.textContent = `Done. Parser used: ${result.parser_used}. Badge: ${result.solution_packet.verification_badge.label}.`;
+        } catch (error) {
+          statusEl.textContent = `Error: ${error.message}`;
+        } finally {
+          runButton.disabled = false;
+        }
+      }
+
+      async function generateVariant(kind) {
+        if (!currentCircuit) {
+          statusEl.textContent = "Run the pipeline first so there is a Circuit IR to vary.";
+          return;
+        }
+        const result = await requestJson("/variant", {
+          circuit_ir: currentCircuit,
+          kind,
+        });
+        renderVariants(result.variants);
+        statusEl.textContent = "Variant generated.";
+      }
+
+      runButton.addEventListener("click", runPipeline);
+      valueVariantButton.addEventListener("click", () => generateVariant("value"));
+      goalVariantButton.addEventListener("click", () => generateVariant("goal"));
+      loadExamples().catch((error) => {
+        statusEl.textContent = `Could not load examples: ${error.message}`;
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "id": "bridge_network",
+  "title": "Five-Resistor Bridge Network",
+  "analysis_type": "dc_operating_point",
+  "ground_node": "0",
+  "nodes": ["0", "n1", "n2", "n3"],
+  "components": [
+    {"id": "V1", "type": "voltage_source", "nodes": ["n1", "0"], "value": 12.0, "unit": "V", "label": "12 V DC source"},
+    {"id": "R1", "type": "resistor", "nodes": ["n1", "n2"], "value": 1000.0, "unit": "ohm"},
+    {"id": "R2", "type": "resistor", "nodes": ["n2", "0"], "value": 2000.0, "unit": "ohm"},
+    {"id": "R3", "type": "resistor", "nodes": ["n1", "n3"], "value": 1500.0, "unit": "ohm"},
+    {"id": "R4", "type": "resistor", "nodes": ["n3", "0"], "value": 3000.0, "unit": "ohm"},
+    {"id": "R5", "type": "resistor", "nodes": ["n2", "n3"], "value": 2200.0, "unit": "ohm"}
+  ],
+  "goals": [
+    {"id": "n2_voltage", "quantity": "node_voltage", "target": "n2", "reference": {"positive_node": "n2", "negative_node": "0"}},
+    {"id": "n3_voltage", "quantity": "node_voltage", "target": "n3", "reference": {"positive_node": "n3", "negative_node": "0"}},
+    {"id": "R5_current", "quantity": "component_current", "target": "R5", "reference": {"from_node": "n2", "to_node": "n3"}}
+  ],
+  "assumptions": [
+    "The bridge source fixes node n1 at +12 V relative to ground.",
+    "R5 current is reported positive from n2 to n3."
+  ],
+  "ambiguities": [],
+  "unsupported_features": []
+}
+

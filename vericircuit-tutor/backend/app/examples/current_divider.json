@@ -1,0 +1,66 @@
+{
+  "id": "current_divider",
+  "title": "Current Source Feeding Parallel Resistors",
+  "analysis_type": "dc_operating_point",
+  "ground_node": "0",
+  "nodes": ["0", "top"],
+  "components": [
+    {
+      "id": "I1",
+      "type": "current_source",
+      "nodes": ["0", "top"],
+      "value": 0.003,
+      "unit": "A",
+      "label": "3 mA source feeding the top node",
+      "current_reference": {"from_node": "0", "to_node": "top"},
+      "voltage_reference": {"positive_node": "0", "negative_node": "top"}
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "nodes": ["top", "0"],
+      "value": 2000.0,
+      "unit": "ohm",
+      "label": "2 kOhm branch",
+      "current_reference": {"from_node": "top", "to_node": "0"},
+      "voltage_reference": {"positive_node": "top", "negative_node": "0"}
+    },
+    {
+      "id": "R2",
+      "type": "resistor",
+      "nodes": ["top", "0"],
+      "value": 1000.0,
+      "unit": "ohm",
+      "label": "1 kOhm branch",
+      "current_reference": {"from_node": "top", "to_node": "0"},
+      "voltage_reference": {"positive_node": "top", "negative_node": "0"}
+    }
+  ],
+  "goals": [
+    {
+      "id": "top_node_voltage",
+      "quantity": "node_voltage",
+      "target": "top",
+      "reference": {"positive_node": "top", "negative_node": "0"}
+    },
+    {
+      "id": "R1_current",
+      "quantity": "component_current",
+      "target": "R1",
+      "reference": {"from_node": "top", "to_node": "0"}
+    },
+    {
+      "id": "R2_current",
+      "quantity": "component_current",
+      "target": "R2",
+      "reference": {"from_node": "top", "to_node": "0"}
+    }
+  ],
+  "assumptions": [
+    "The current source points from ground into the top node.",
+    "Both resistors connect from the top node to ground."
+  ],
+  "ambiguities": [],
+  "unsupported_features": []
+}
+
