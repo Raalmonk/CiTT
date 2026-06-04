@@ -52,6 +52,22 @@ class VerificationBadge(BaseModel):
     message: str = "Solution has not passed verification."
 
 
+class CalculationTrace(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    parser_used: str | None = None
+    llm_used_for_numerical_answer: bool = False
+    solver_name: str = "internal_mna_v1"
+    solver_method: str = "Modified Nodal Analysis"
+    solver_backend: str = "numpy.linalg.solve"
+    answer_source: str = "mna_solver"
+    verification_source: str = "verifier.py"
+    unknown_order: list[str] = Field(default_factory=list)
+    mna_matrix: list[list[float]] = Field(default_factory=list)
+    rhs_vector: list[float] = Field(default_factory=list)
+    solution_vector: list[float] = Field(default_factory=list)
+
+
 class SolutionPacket(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -62,6 +78,7 @@ class SolutionPacket(BaseModel):
     requested_answers: dict[str, QuantityValue] = Field(default_factory=dict)
     verification: VerificationReport = Field(default_factory=VerificationReport)
     verification_badge: VerificationBadge = Field(default_factory=VerificationBadge)
+    calculation_trace: CalculationTrace = Field(default_factory=CalculationTrace)
     generated_netlist: str = ""
     warnings: list[str] = Field(default_factory=list)
     assumptions_used: list[str] = Field(default_factory=list)

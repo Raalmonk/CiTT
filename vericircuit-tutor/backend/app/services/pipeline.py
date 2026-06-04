@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.models.circuit_ir import CircuitProblem
 from app.models.solution_packet import (
+    CalculationTrace,
     CheckResult,
     SolutionPacket,
     VerificationBadge,
@@ -19,6 +20,7 @@ def _failed_packet(
     message: str,
     checks: list[CheckResult],
     warnings: list[str] | None = None,
+    calculation_trace: CalculationTrace | None = None,
 ) -> SolutionPacket:
     netlist = ""
     try:
@@ -45,13 +47,14 @@ def _failed_packet(
             label=badge_label,  # type: ignore[arg-type]
             message=message,
         ),
+        calculation_trace=calculation_trace or CalculationTrace(),
         generated_netlist=netlist,
         warnings=warnings or [message],
         assumptions_used=circuit.assumptions,
     )
 
 
-def solve_circuit(problem: CircuitProblem) -> SolutionPacket:
+def solve_circuit(problem: CircuitProblem, parser_used: str | None = None) -> SolutionPacket:
     validation = validate_circuit(problem)
     circuit = validation.circuit or problem
 
@@ -65,6 +68,7 @@ def solve_circuit(problem: CircuitProblem) -> SolutionPacket:
             message=validation_message,
             checks=validation.checks,
             warnings=[*validation.warnings, *validation.errors],
+            calculation_trace=CalculationTrace(parser_used=parser_used),
         )
 
     solve_result = solve_mna(circuit)
@@ -75,14 +79,19 @@ def solve_circuit(problem: CircuitProblem) -> SolutionPacket:
             message=solve_result.message or "Circuit could not be solved.",
             checks=validation.checks,
             warnings=[*validation.warnings, solve_result.message or "Circuit could not be solved."],
+            calculation_trace=solve_result.calculation_trace.model_copy(
+                update={"parser_used": parser_used}
+            ),
         )
 
+    trace = solve_result.calculation_trace.model_copy(update={"parser_used": parser_used})
     packet = SolutionPacket(
         circuit_id=circuit.id,
         status="solved",
         node_voltages=solve_result.node_voltages,
         component_results=solve_result.component_results,
         requested_answers=solve_result.requested_answers,
+        calculation_trace=trace,
         generated_netlist=generate_netlist(circuit),
         warnings=validation.warnings,
         assumptions_used=circuit.assumptions,

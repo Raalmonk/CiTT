@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -14,6 +14,7 @@ from app.services.demo_parser import get_demo_examples
 from app.services.explainer import explain_solution
 from app.services.parser_service import parse_problem
 from app.services.pipeline import solve_circuit
+from app.services.schematic_generator import render_schematic_svg
 from app.services.variant_generator import (
     generate_goal_variant,
     generate_value_variant,
@@ -99,6 +100,14 @@ def solve_endpoint(request: SolveRequest) -> SolutionPacket:
     return solve_circuit(request.circuit_ir)
 
 
+@app.post("/schematic", response_class=Response)
+def schematic_endpoint(request: SolveRequest) -> Response:
+    return Response(
+        content=render_schematic_svg(request.circuit_ir),
+        media_type="image/svg+xml",
+    )
+
+
 @app.post("/explain")
 def explain_endpoint(request: ExplainRequest) -> dict[str, str]:
     return {"explanation": explain_solution(request.solution_packet)}
@@ -128,7 +137,7 @@ def variant_endpoint(request: VariantRequest) -> dict[str, object]:
 @app.post("/full_pipeline", response_model=FullPipelineResponse)
 def full_pipeline(request: FullPipelineRequest) -> FullPipelineResponse:
     parsed = parse_problem(request.problem_text, request.mode)
-    packet = solve_circuit(parsed.circuit)
+    packet = solve_circuit(parsed.circuit, parser_used=parsed.parser_used)
     warnings = [*parsed.warnings, *packet.warnings]
     variants = (
         generate_variants(parsed.circuit)

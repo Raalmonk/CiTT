@@ -31,6 +31,8 @@ The MVP supports linear DC operating point analysis with:
 - Source power with an explicit signed-power convention
 - Simple practice variants
 - SPICE-like netlist generation for transparency
+- Deterministic SVG circuit diagrams generated from Circuit IR
+- Answer provenance showing parser, solver, MNA matrix, RHS, and solution vector
 
 Unsupported in this first version:
 
@@ -74,6 +76,10 @@ Unsupported or ambiguous requests are reported honestly rather than forced throu
 6. **Explainer**
    - Template-based for the MVP.
    - Explains only values present in the Solution Packet.
+
+7. **Schematic generator**
+   - Creates deterministic SVG diagrams from Circuit IR.
+   - Uses named templates for bundled demos and a fallback graph renderer for other supported layouts.
 
 ## Sign Convention
 
@@ -125,6 +131,12 @@ Open:
 ```text
 http://127.0.0.1:8000
 ```
+
+## Optional Gemini Parser Setup
+
+Gemini mode uses the official Google GenAI SDK on the backend only. It may produce CircuitProblem JSON, but it never produces final numerical answers.
+
+Copy `.env.example` as a reference and see [docs/api_setup.md](docs/api_setup.md) for Windows PowerShell and macOS/Linux setup.
 
 ## Run Tests
 

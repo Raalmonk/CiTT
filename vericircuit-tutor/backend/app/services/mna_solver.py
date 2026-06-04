@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from app.models.circuit_ir import CircuitProblem
-from app.models.solution_packet import ComponentResult, QuantityValue
+from app.models.solution_packet import CalculationTrace, ComponentResult, QuantityValue
 
 
 SOURCE_SIGN_CONVENTION = (
@@ -23,6 +23,7 @@ class SolveResult:
     voltage_source_currents: dict[str, float] = field(default_factory=dict)
     component_results: dict[str, ComponentResult] = field(default_factory=dict)
     requested_answers: dict[str, QuantityValue] = field(default_factory=dict)
+    calculation_trace: CalculationTrace = field(default_factory=CalculationTrace)
 
 
 def _node_voltage(node: str, node_voltages: dict[str, float]) -> float:
@@ -118,10 +119,18 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
         component.id: len(non_ground_nodes) + idx
         for idx, component in enumerate(voltage_sources)
     }
+    unknown_order = [
+        *(f"V({node})" for node in non_ground_nodes),
+        *(f"I({component.id})" for component in voltage_sources),
+    ]
 
     size = len(non_ground_nodes) + len(voltage_sources)
     if size == 0:
-        return SolveResult(success=False, message="Circuit has no unknowns to solve.")
+        return SolveResult(
+            success=False,
+            message="Circuit has no unknowns to solve.",
+            calculation_trace=CalculationTrace(unknown_order=unknown_order),
+        )
 
     # Matrix layout:
     # [ G  B ] [v_node]   [i_injected]
@@ -176,15 +185,29 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
             return SolveResult(
                 success=False,
                 message=f"Unsupported component type {component.type!r} reached the MNA solver.",
+                calculation_trace=CalculationTrace(
+                    unknown_order=unknown_order,
+                    mna_matrix=matrix.tolist(),
+                    rhs_vector=rhs.tolist(),
+                ),
             )
+
+    trace = CalculationTrace(
+        unknown_order=unknown_order,
+        mna_matrix=matrix.tolist(),
+        rhs_vector=rhs.tolist(),
+    )
 
     try:
         solution = np.linalg.solve(matrix, rhs)
     except np.linalg.LinAlgError as exc:
+        trace.solution_vector = []
         return SolveResult(
             success=False,
             message=f"MNA matrix is singular or ill-conditioned: {exc}",
+            calculation_trace=trace,
         )
+    trace.solution_vector = solution.tolist()
 
     node_voltages = {ground: 0.0}
     for node, idx in node_index.items():
@@ -214,6 +237,7 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
             return SolveResult(
                 success=False,
                 message=f"Unsupported component type {component.type!r} reached result derivation.",
+                calculation_trace=trace,
             )
 
         power = voltage * current
@@ -246,4 +270,5 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
         voltage_source_currents=voltage_source_currents,
         component_results=component_results,
         requested_answers=requested_answers,
+        calculation_trace=trace,
     )

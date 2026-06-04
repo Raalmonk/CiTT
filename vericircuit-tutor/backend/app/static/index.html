@@ -240,6 +240,29 @@
         line-height: 1.55;
       }
 
+      details {
+        border-top: 1px solid var(--line);
+        margin-top: 10px;
+        padding-top: 10px;
+      }
+
+      summary {
+        color: var(--accent-dark);
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .diagram {
+        min-height: 260px;
+        overflow: auto;
+      }
+
+      .diagram svg {
+        display: block;
+        height: auto;
+        max-width: 100%;
+      }
+
       @media (max-width: 980px) {
         main,
         .grid {
@@ -295,6 +318,10 @@
           <pre id="irPanel">{}</pre>
         </div>
         <div class="panel">
+          <h2>Circuit Diagram</h2>
+          <div id="diagramPanel" class="diagram message">No diagram yet.</div>
+        </div>
+        <div class="panel">
           <h2>Generated Netlist</h2>
           <pre id="netlistPanel"></pre>
         </div>
@@ -305,6 +332,10 @@
         <div class="panel">
           <h2>Requested Answers</h2>
           <div id="answersPanel" class="answers message">No solution yet.</div>
+        </div>
+        <div class="panel wide">
+          <h2>Answer Provenance</h2>
+          <div id="provenancePanel" class="message">No provenance yet.</div>
         </div>
         <div class="panel">
           <h2>Verification</h2>
@@ -330,9 +361,11 @@
       const goalVariantButton = document.getElementById("goalVariantButton");
       const statusEl = document.getElementById("status");
       const irPanel = document.getElementById("irPanel");
+      const diagramPanel = document.getElementById("diagramPanel");
       const netlistPanel = document.getElementById("netlistPanel");
       const badgePanel = document.getElementById("badgePanel");
       const answersPanel = document.getElementById("answersPanel");
+      const provenancePanel = document.getElementById("provenancePanel");
       const verificationPanel = document.getElementById("verificationPanel");
       const explanationPanel = document.getElementById("explanationPanel");
       const variantsPanel = document.getElementById("variantsPanel");
@@ -395,6 +428,32 @@
           .join("");
       }
 
+      function renderProvenance(packet) {
+        const trace = packet.calculation_trace || {};
+        provenancePanel.innerHTML = `
+          <div class="answers">
+            <div class="row"><strong>Parser used</strong><span>${trace.parser_used || "not recorded"}</span></div>
+            <div class="row"><strong>LLM numerical answer allowed</strong><span>NO</span></div>
+            <div class="row"><strong>Solver name</strong><span>${trace.solver_name || "internal_mna_v1"}</span></div>
+            <div class="row"><strong>Solver method</strong><span>${trace.solver_method || "Modified Nodal Analysis"}</span></div>
+            <div class="row"><strong>KCL residual</strong><span>${Number(packet.verification?.max_kcl_residual_a || 0).toExponential(3)} A</span></div>
+            <div class="row"><strong>Power balance error</strong><span>${Number(packet.verification?.power_balance_error_w || 0).toExponential(3)} W</span></div>
+          </div>
+          <details>
+            <summary>MNA matrix trace</summary>
+            <pre>${pretty({
+              unknown_order: trace.unknown_order || [],
+              mna_matrix: trace.mna_matrix || [],
+              rhs_vector: trace.rhs_vector || [],
+              solution_vector: trace.solution_vector || [],
+              answer_source: trace.answer_source || "mna_solver",
+              verification_source: trace.verification_source || "verifier.py",
+              llm_used_for_numerical_answer: trace.llm_used_for_numerical_answer === true,
+            })}</pre>
+          </details>
+        `;
+      }
+
       function renderVariants(variants) {
         if (!variants || !variants.length) {
           variantsPanel.textContent = "No variants generated.";
@@ -412,6 +471,9 @@
             if (variant) {
               currentCircuit = variant.circuit_ir;
               irPanel.textContent = pretty(currentCircuit);
+              renderDiagram(currentCircuit).catch((error) => {
+                diagramPanel.textContent = `Could not render diagram: ${error.message}`;
+              });
               statusEl.textContent = "Loaded variant Circuit IR. Run pipeline from the edited problem text, or solve through the API.";
             }
           });
@@ -429,6 +491,24 @@
           throw new Error(`${response.status}: ${text}`);
         }
         return response.json();
+      }
+
+      async function requestSvg(url, body) {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`${response.status}: ${text}`);
+        }
+        return response.text();
+      }
+
+      async function renderDiagram(circuitIr) {
+        const svg = await requestSvg("/schematic", { circuit_ir: circuitIr });
+        diagramPanel.innerHTML = svg;
       }
 
       async function loadExamples() {
@@ -456,9 +536,11 @@
           });
           currentCircuit = result.circuit_ir;
           irPanel.textContent = pretty(result.circuit_ir);
+          await renderDiagram(result.circuit_ir);
           netlistPanel.textContent = result.solution_packet.generated_netlist || "";
           renderBadge(result.solution_packet);
           renderAnswers(result.solution_packet);
+          renderProvenance(result.solution_packet);
           renderVerification(result.solution_packet.verification);
           explanationPanel.textContent = result.explanation;
           renderVariants(result.variants);

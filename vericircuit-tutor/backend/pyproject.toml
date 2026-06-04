@@ -5,6 +5,7 @@ description = "Simulation-grounded AI tutor MVP for undergraduate linear DC circ
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.111",
+  "google-genai>=1.0",
   "numpy>=1.26",
   "pydantic>=2.7",
   "uvicorn[standard]>=0.29",
@@ -19,4 +20,3 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-
