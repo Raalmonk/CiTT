@@ -39,11 +39,40 @@ def test_schematic_contains_component_ids_and_values():
 
     assert response.status_code == 200
     assert "R1" in response.text
-    assert "2 kOhm" in response.text
+    assert "2 kΩ" in response.text
     assert "R2" in response.text
-    assert "3 kOhm" in response.text
+    assert "3 kΩ" in response.text
     assert "V1" in response.text
     assert "10 V" in response.text
+
+
+def test_bridge_schematic_contains_clear_component_and_node_labels():
+    response = _schematic(bridge_network_problem())
+
+    assert response.status_code == 200
+    for label in ["R1", "R2", "R3", "R4", "R5", "V1"]:
+        assert label in response.text
+    for node_label in ["n1", "n2", "n3", "0"]:
+        assert f">{node_label}</tspan>" in response.text
+    assert "1 kΩ" in response.text
+    assert "1.5 kΩ" in response.text
+    assert "2.2 kΩ" in response.text
+    assert "schemdraw_bridge_network" in response.text
+    for component_id in ["R1", "R2", "R3", "R4", "R5", "V1"]:
+        assert response.text.count(component_id) >= 1
+
+
+def test_second_bridge_schematic_contains_clear_component_and_node_labels():
+    response = _schematic(bridge_network_alt_problem())
+
+    assert response.status_code == 200
+    for label in ["R1", "R2", "R3", "R4", "R5", "V1"]:
+        assert label in response.text
+    for node_label in ["src", "a", "b", "0"]:
+        assert f">{node_label}</tspan>" in response.text
+    assert "1.2 kΩ" in response.text
+    assert "3.3 kΩ" in response.text
+    assert "schemdraw_bridge_network" in response.text
 
 
 def test_schematic_uses_template_for_goal_variant():
@@ -54,6 +83,18 @@ def test_schematic_uses_template_for_goal_variant():
     assert "schemdraw_bridge_network" in response.text
     assert "fallback_graph" not in response.text
     assert variant.topology_id == "bridge_network"
+
+
+def test_schematic_uses_template_for_second_bridge_goal_variant():
+    variant = generate_goal_variant(bridge_network_alt_problem())
+    response = _schematic(variant)
+
+    assert response.status_code == 200
+    assert "schemdraw_bridge_network" in response.text
+    assert "fallback_graph" not in response.text
+    assert ">src</tspan>" in response.text
+    assert ">a</tspan>" in response.text
+    assert ">b</tspan>" in response.text
 
 
 def test_schematic_uses_template_for_value_variant():
@@ -97,4 +138,4 @@ def test_schematic_fallback_still_works_for_unknown_topology():
     assert response.text.startswith("<svg")
     assert "fallback_graph" in response.text
     assert "R1" in response.text
-    assert "1 kOhm" in response.text
+    assert "1 kΩ" in response.text
