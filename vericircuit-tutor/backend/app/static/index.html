@@ -253,7 +253,7 @@
       }
 
       .diagram {
-        min-height: 260px;
+        min-height: 380px;
         overflow: auto;
       }
 
@@ -261,6 +261,7 @@
         display: block;
         height: auto;
         max-width: 100%;
+        min-width: min(760px, 100%);
       }
 
       @media (max-width: 980px) {
@@ -317,7 +318,7 @@
           <h2>Parsed Circuit IR</h2>
           <pre id="irPanel">{}</pre>
         </div>
-        <div class="panel">
+        <div class="panel wide">
           <h2>Circuit Diagram</h2>
           <div id="diagramPanel" class="diagram message">No diagram yet.</div>
         </div>

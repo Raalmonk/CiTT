@@ -35,6 +35,8 @@ def voltage_divider_problem() -> CircuitProblem:
         id="voltage_divider",
         title="Voltage Divider",
         analysis_type="dc_operating_point",
+        topology_id="voltage_divider",
+        layout_hint={"renderer": "schemdraw_voltage_divider"},
         ground_node="0",
         nodes=["0", "n1", "n2"],
         components=[
@@ -97,6 +99,8 @@ def current_divider_problem() -> CircuitProblem:
         id="current_divider",
         title="Current Source Feeding Parallel Resistors",
         analysis_type="dc_operating_point",
+        topology_id="current_divider",
+        layout_hint={"renderer": "schemdraw_current_divider"},
         ground_node="0",
         nodes=["0", "top"],
         components=[
@@ -165,6 +169,8 @@ def bridge_network_problem() -> CircuitProblem:
         id="bridge_network",
         title="Five-Resistor Bridge Network",
         analysis_type="dc_operating_point",
+        topology_id="bridge_network",
+        layout_hint={"renderer": "schemdraw_bridge_network"},
         ground_node="0",
         nodes=["0", "n1", "n2", "n3"],
         components=[
@@ -216,6 +222,8 @@ def bridge_network_alt_problem() -> CircuitProblem:
         id="bridge_network_alt",
         title="Second Five-Resistor Bridge Network",
         analysis_type="dc_operating_point",
+        topology_id="bridge_network",
+        layout_hint={"renderer": "schemdraw_bridge_network"},
         ground_node="0",
         nodes=["0", "src", "a", "b"],
         components=[

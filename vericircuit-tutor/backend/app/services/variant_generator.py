@@ -7,6 +7,8 @@ def generate_value_variant(problem: CircuitProblem) -> CircuitProblem:
     variant = problem.model_copy(deep=True)
     variant.id = f"{problem.id}_value_variant"
     variant.title = f"{problem.title} - Changed Values"
+    variant.topology_id = problem.topology_id
+    variant.layout_hint = problem.layout_hint.copy() if problem.layout_hint else None
     variant.assumptions = [
         *problem.assumptions,
         "Practice variant: topology is unchanged; component values were adjusted deterministically.",
@@ -87,6 +89,8 @@ def generate_goal_variant(problem: CircuitProblem) -> CircuitProblem:
     variant = problem.model_copy(deep=True)
     variant.id = f"{problem.id}_goal_variant"
     variant.title = f"{problem.title} - Different Target"
+    variant.topology_id = problem.topology_id
+    variant.layout_hint = problem.layout_hint.copy() if problem.layout_hint else None
     variant.goals = [selected]
     variant.assumptions = [
         *problem.assumptions,
@@ -110,4 +114,3 @@ def generate_variants(problem: CircuitProblem) -> list[dict[str, object]]:
             "circuit_ir": goal_variant.model_dump(),
         },
     ]
-

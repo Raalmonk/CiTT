@@ -2,6 +2,8 @@
   "id": "bridge_network",
   "title": "Five-Resistor Bridge Network",
   "analysis_type": "dc_operating_point",
+  "topology_id": "bridge_network",
+  "layout_hint": {"renderer": "schemdraw_bridge_network"},
   "ground_node": "0",
   "nodes": ["0", "n1", "n2", "n3"],
   "components": [
@@ -24,4 +26,3 @@
   "ambiguities": [],
   "unsupported_features": []
 }
-

@@ -71,6 +71,8 @@ class CircuitProblem(BaseModel):
     id: str = Field(min_length=1)
     title: str = Field(min_length=1)
     analysis_type: AnalysisType = "dc_operating_point"
+    topology_id: str | None = None
+    layout_hint: dict[str, Any] | None = None
     ground_node: str = "0"
     nodes: list[str] = Field(default_factory=lambda: ["0"])
     components: list[Component] = Field(default_factory=list)

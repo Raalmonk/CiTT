@@ -8,6 +8,7 @@ dependencies = [
   "google-genai>=1.0",
   "numpy>=1.26",
   "pydantic>=2.7",
+  "schemdraw>=0.19",
   "uvicorn[standard]>=0.29",
 ]
 

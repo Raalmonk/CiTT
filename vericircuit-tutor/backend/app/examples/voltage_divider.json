@@ -2,6 +2,8 @@
   "id": "voltage_divider",
   "title": "Voltage Divider",
   "analysis_type": "dc_operating_point",
+  "topology_id": "voltage_divider",
+  "layout_hint": {"renderer": "schemdraw_voltage_divider"},
   "ground_node": "0",
   "nodes": ["0", "n1", "n2"],
   "components": [
@@ -57,4 +59,3 @@
   "ambiguities": [],
   "unsupported_features": []
 }
-
