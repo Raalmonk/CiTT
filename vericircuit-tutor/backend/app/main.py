@@ -24,7 +24,7 @@ from app.services.variant_generator import (
 
 class ParseRequest(BaseModel):
     problem_text: str = Field(min_length=1)
-    mode: Literal["demo", "gemini"] = "demo"
+    mode: Literal["demo", "gemini", "gemini_strict"] = "demo"
 
 
 class ParseResponse(BaseModel):
@@ -48,7 +48,7 @@ class VariantRequest(BaseModel):
 
 class FullPipelineRequest(BaseModel):
     problem_text: str = Field(min_length=1)
-    mode: Literal["demo", "gemini"] = "demo"
+    mode: Literal["demo", "gemini", "gemini_strict"] = "demo"
 
 
 class FullPipelineResponse(BaseModel):

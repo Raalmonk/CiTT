@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="560" viewBox="0 0 1100 560" role="img" aria-label="Circuit schematic"><desc>VeriCircuit Tutor renderer: manual_svg_bridge_network</desc>
+  <style>
+    .bg { fill: #ffffff; }
+    .wire { stroke: #111827; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .component { stroke: #111827; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .node { fill: #111827; stroke: #ffffff; stroke-width: 2; }
+    .source { stroke: #111827; stroke-width: 5; fill: #ffffff; }
+    .label, .node-label, .component-label, .source-label {
+      font: 22px system-ui, sans-serif;
+      fill: #111827;
+      paint-order: stroke;
+      stroke: #ffffff;
+      stroke-width: 6px;
+      stroke-linejoin: round;
+    }
+    .source-symbol { font: 700 28px system-ui, sans-serif; fill: #111827; text-anchor: middle; dominant-baseline: central; }
+  </style>
+  <rect class="bg" x="0" y="0" width="1100" height="560" />
+  <line class="wire" x1="120" y1="100" x2="910" y2="100" />
+  <line class="wire" x1="120" y1="440" x2="910" y2="440" />
+  <line class="wire" x1="120" y1="100" x2="120" y2="228" />
+  <line class="wire" x1="120" y1="312" x2="120" y2="440" />
+  <circle class="source" cx="120" cy="270" r="42" />
+  <text class="source-symbol" x="120" y="270" text-anchor="middle" dominant-baseline="middle">V</text>
+  <text class="component-label" x="50" y="495" text-anchor="middle" dominant-baseline="middle">V1 = 12 V</text>
+  <text class="node-label" x="175" y="72" text-anchor="start" dominant-baseline="middle">n1</text>
+  <text class="node-label" x="175" y="480" text-anchor="start" dominant-baseline="middle">0</text>
+  <line class="wire" x1="120" y1="440" x2="120" y2="460" />
+  <line class="wire" x1="90" y1="460" x2="150" y2="460" />
+  <line class="wire" x1="100" y1="472" x2="140" y2="472" />
+  <line class="wire" x1="110" y1="484" x2="130" y2="484" />
+  <circle class="node" cx="120" cy="100" r="8" />
+  <circle class="node" cx="120" cy="440" r="8" />
+  <circle class="node" cx="430" cy="100" r="8" />
+  <circle class="node" cx="430" cy="440" r="8" />
+  <circle class="node" cx="760" cy="100" r="8" />
+  <circle class="node" cx="760" cy="440" r="8" />
+  <line class="wire" x1="430" y1="100" x2="430" y2="128" />
+  <path class="component" d="M 430 128 L 448 136.625 L 412 145.25 L 448 153.875 L 412 162.5 L 448 171.125 L 412 179.75 L 448 188.375 L 430 197" />
+  <line class="wire" x1="430" y1="197" x2="430" y2="225" />
+  <text class="component-label" x="335" y="162.5" text-anchor="end" dominant-baseline="middle">R1 = 1 kΩ</text>
+  <line class="wire" x1="430" y1="225" x2="430" y2="270" />
+  <circle class="node" cx="430" cy="270" r="8" />
+  <text class="node-label" x="385" y="252" text-anchor="end" dominant-baseline="middle">n2</text>
+  <line class="wire" x1="430" y1="270" x2="430" y2="315" />
+  <line class="wire" x1="430" y1="315" x2="430" y2="343" />
+  <path class="component" d="M 430 343 L 448 351.625 L 412 360.25 L 448 368.875 L 412 377.5 L 448 386.125 L 412 394.75 L 448 403.375 L 430 412" />
+  <line class="wire" x1="430" y1="412" x2="430" y2="440" />
+  <text class="component-label" x="335" y="377.5" text-anchor="end" dominant-baseline="middle">R2 = 2 kΩ</text>
+  <line class="wire" x1="760" y1="100" x2="760" y2="128" />
+  <path class="component" d="M 760 128 L 778 136.625 L 742 145.25 L 778 153.875 L 742 162.5 L 778 171.125 L 742 179.75 L 778 188.375 L 760 197" />
+  <line class="wire" x1="760" y1="197" x2="760" y2="225" />
+  <text class="component-label" x="855" y="162.5" text-anchor="start" dominant-baseline="middle">R3 = 1.5 kΩ</text>
+  <line class="wire" x1="760" y1="225" x2="760" y2="270" />
+  <circle class="node" cx="760" cy="270" r="8" />
+  <text class="node-label" x="805" y="252" text-anchor="start" dominant-baseline="middle">n3</text>
+  <line class="wire" x1="760" y1="270" x2="760" y2="315" />
+  <line class="wire" x1="760" y1="315" x2="760" y2="343" />
+  <path class="component" d="M 760 343 L 778 351.625 L 742 360.25 L 778 368.875 L 742 377.5 L 778 386.125 L 742 394.75 L 778 403.375 L 760 412" />
+  <line class="wire" x1="760" y1="412" x2="760" y2="440" />
+  <text class="component-label" x="855" y="377.5" text-anchor="start" dominant-baseline="middle">R4 = 3 kΩ</text>
+  <line class="wire" x1="430" y1="270" x2="485" y2="270" />
+  <line class="wire" x1="485" y1="270" x2="513" y2="270" />
+  <path class="component" d="M 513 270 L 533.5 288 L 554 252 L 574.5 288 L 595 252 L 615.5 288 L 636 252 L 656.5 288 L 677 270" />
+  <line class="wire" x1="677" y1="270" x2="705" y2="270" />
+  <text class="component-label" x="595" y="212" text-anchor="middle" dominant-baseline="middle">R5 = 2.2 kΩ</text>
+  <line class="wire" x1="705" y1="270" x2="760" y2="270" />
+</svg>

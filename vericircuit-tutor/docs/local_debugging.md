@@ -28,3 +28,34 @@ In the Circuit Diagram panel, verify:
 
 Diagram generation is deterministic and based only on Circuit IR. It does not affect solver output, MNA verification, or tutor answers.
 
+## Export SVGs For Direct Inspection
+
+You can export the demo schematics without running the web UI:
+
+```powershell
+cd vericircuit-tutor\backend
+.\.venv\Scripts\python.exe scripts\export_schematics.py
+```
+
+This writes SVG files to:
+
+```text
+backend/schematic_exports/
+```
+
+Open these files directly in a browser:
+
+- `voltage_divider.svg`
+- `current_divider.svg`
+- `bridge_network.svg`
+- `bridge_network_alt.svg`
+- `bridge_network_goal_variant.svg`
+- `bridge_network_alt_value_variant.svg`
+
+For bridge diagrams, inspect the SVG source or browser dev tools and confirm the renderer descriptor contains:
+
+```text
+manual_svg_bridge_network
+```
+
+Pytest can confirm that the endpoint returns SVG, the correct renderer is selected, and required labels are present. It cannot fully prove that no visual label overlap exists, so the exported SVGs are the final local visual QA step.

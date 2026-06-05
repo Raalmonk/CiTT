@@ -21,6 +21,8 @@ LABEL_OFFSET_SMALL = 0.35
 LABEL_OFFSET_MEDIUM = 0.65
 LABEL_OFFSET_LARGE = 0.95
 CANVAS_PADDING = 0.55
+BRIDGE_WIDTH = 1100
+BRIDGE_HEIGHT = 560
 
 
 def _configure_schemdraw_backend() -> None:
@@ -76,6 +78,151 @@ def _tag_svg(svg: str, renderer: str) -> str:
         return svg
     desc = f'<desc>VeriCircuit Tutor renderer: {escape(renderer)}</desc>'
     return f"{svg[:insert_at]}{desc}{svg[insert_at:]}"
+
+
+def _manual_svg(width: int, height: int, body: str, renderer: str) -> str:
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="Circuit schematic">
+  <style>
+    .bg {{ fill: #ffffff; }}
+    .wire {{ stroke: #111827; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }}
+    .component {{ stroke: #111827; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }}
+    .node {{ fill: #111827; stroke: #ffffff; stroke-width: 2; }}
+    .source {{ stroke: #111827; stroke-width: 5; fill: #ffffff; }}
+    .label, .node-label, .component-label, .source-label {{
+      font: 22px system-ui, sans-serif;
+      fill: #111827;
+      paint-order: stroke;
+      stroke: #ffffff;
+      stroke-width: 6px;
+      stroke-linejoin: round;
+    }}
+    .source-symbol {{ font: 700 28px system-ui, sans-serif; fill: #111827; text-anchor: middle; dominant-baseline: central; }}
+  </style>
+  <rect class="bg" x="0" y="0" width="{width}" height="{height}" />
+  {body}
+</svg>"""
+    return _tag_svg(svg, renderer)
+
+
+def _svg_line(
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    class_name: str = "wire",
+) -> str:
+    return (
+        f'<line class="{class_name}" x1="{x1:g}" y1="{y1:g}" '
+        f'x2="{x2:g}" y2="{y2:g}" />'
+    )
+
+
+def _svg_dot(x: float, y: float) -> str:
+    return f'<circle class="node" cx="{x:g}" cy="{y:g}" r="8" />'
+
+
+def _svg_text(
+    x: float,
+    y: float,
+    text: str,
+    anchor: str = "middle",
+    cls: str = "label",
+) -> str:
+    return (
+        f'<text class="{cls}" x="{x:g}" y="{y:g}" text-anchor="{anchor}" '
+        f'dominant-baseline="middle">{escape(text)}</text>'
+    )
+
+
+def _svg_label(x: float, y: float, text: str, anchor: str = "middle") -> str:
+    return _svg_text(x, y, text, anchor=anchor, cls="component-label")
+
+
+def _svg_ground(x: float, y: float) -> str:
+    return "\n  ".join(
+        [
+            _svg_line(x, y, x, y + 20),
+            _svg_line(x - 30, y + 20, x + 30, y + 20),
+            _svg_line(x - 20, y + 32, x + 20, y + 32),
+            _svg_line(x - 10, y + 44, x + 10, y + 44),
+        ]
+    )
+
+
+def _zigzag_points_vertical(x: float, y1: float, y2: float) -> list[tuple[float, float]]:
+    steps = 8
+    span = y2 - y1
+    amplitude = 18
+    points = [(x, y1)]
+    for idx in range(1, steps):
+        y = y1 + span * idx / steps
+        offset = amplitude if idx % 2 else -amplitude
+        points.append((x + offset, y))
+    points.append((x, y2))
+    return points
+
+
+def _zigzag_points_horizontal(x1: float, y: float, x2: float) -> list[tuple[float, float]]:
+    steps = 8
+    span = x2 - x1
+    amplitude = 18
+    points = [(x1, y)]
+    for idx in range(1, steps):
+        x = x1 + span * idx / steps
+        offset = amplitude if idx % 2 else -amplitude
+        points.append((x, y + offset))
+    points.append((x2, y))
+    return points
+
+
+def _svg_path(points: list[tuple[float, float]], class_name: str = "component") -> str:
+    commands = [f"M {points[0][0]:g} {points[0][1]:g}"]
+    commands.extend(f"L {x:g} {y:g}" for x, y in points[1:])
+    return f'<path class="{class_name}" d="{" ".join(commands)}" />'
+
+
+def _svg_resistor_vertical(
+    x: float,
+    y1: float,
+    y2: float,
+    label: str,
+    label_x: float,
+    label_y: float,
+    label_anchor: str,
+) -> str:
+    body_margin = 28
+    z1 = y1 + body_margin
+    z2 = y2 - body_margin
+    return "\n  ".join(
+        [
+            _svg_line(x, y1, x, z1, "wire"),
+            _svg_path(_zigzag_points_vertical(x, z1, z2), "component"),
+            _svg_line(x, z2, x, y2, "wire"),
+            _svg_label(label_x, label_y, label, label_anchor),
+        ]
+    )
+
+
+def _svg_resistor_horizontal(
+    x1: float,
+    y: float,
+    x2: float,
+    label: str,
+    label_x: float,
+    label_y: float,
+    label_anchor: str,
+) -> str:
+    body_margin = 28
+    z1 = x1 + body_margin
+    z2 = x2 - body_margin
+    return "\n  ".join(
+        [
+            _svg_line(x1, y, z1, y, "wire"),
+            _svg_path(_zigzag_points_horizontal(z1, y, z2), "component"),
+            _svg_line(z2, y, x2, y, "wire"),
+            _svg_label(label_x, label_y, label, label_anchor),
+        ]
+    )
 
 
 def _component_label(
@@ -177,50 +324,108 @@ def _render_current_divider(problem: CircuitProblem) -> str:
     return _schemdraw_svg(d, "schemdraw_current_divider")
 
 
-def _render_bridge(problem: CircuitProblem) -> str:
+def _render_bridge_manual_svg(problem: CircuitProblem) -> str:
     c = _components(problem)
-    d = _base_drawing()
+    required = {"V1", "R1", "R2", "R3", "R4", "R5"}
+    if not required <= set(c):
+        return _render_fallback_graph(problem)
 
     source_node = "n1" if "n1" in problem.nodes else "src"
     left_mid = "n2" if "n2" in problem.nodes else "a"
     right_mid = "n3" if "n3" in problem.nodes else "b"
 
-    top_left = (0, 6)
-    bottom_left = (0, 0)
-    top_bus_left = (3, 6)
-    top_bus_right = (12, 6)
-    bottom_bus_left = (3, 0)
-    bottom_bus_right = (12, 0)
-    left_branch_x = 4.25
-    right_branch_x = 10.75
-    left_mid_xy = (left_branch_x, 3)
-    right_mid_xy = (right_branch_x, 3)
+    source_x = 120
+    top_y = 100
+    bottom_y = 440
+    left_x = 430
+    right_x = 760
+    mid_y = 270
+    top_bus_right = 910
+    bottom_bus_right = 910
+    source_radius = 42
 
-    d += _component_label(elm.SourceV().at(bottom_left).to(top_left), c["V1"], "left", (-0.9, 0.25))
-    d += elm.Line().at(top_left).to(top_bus_right)
-    d += elm.Line().at(bottom_bus_right).to(bottom_left)
-    d += elm.Dot().at(top_bus_left)
-    d += _node_label(source_node, (top_bus_left[0] + 0.25, top_bus_left[1] + 1.05))
-    d += elm.Dot().at(bottom_bus_left)
-    d += _node_label("0", (bottom_bus_left[0] + 0.4, bottom_bus_left[1] - 1.15))
-    d += elm.Ground().at(bottom_left)
+    r_top_end = mid_y - 45
+    r_bottom_start = mid_y + 45
+    r5_left = left_x + 55
+    r5_right = right_x - 55
+    r5_label_x = (left_x + right_x) / 2
 
-    d += elm.Line().at(top_bus_left).to((left_branch_x, 6))
-    d += _component_label(elm.Resistor().at((left_branch_x, 6)).to(left_mid_xy), c["R1"], "left", (-0.65, 0.1))
-    d += _dot(left_mid_xy)
-    d += _node_label(left_mid, (left_mid_xy[0] - 1.15, left_mid_xy[1]))
-    d += _component_label(elm.Resistor().at(left_mid_xy).to((left_branch_x, 0)), c["R2"], "left", (-0.65, -0.1))
-    d += elm.Line().at((left_branch_x, 0)).to(bottom_bus_left)
-
-    d += elm.Line().at(top_bus_right).to((right_branch_x, 6))
-    d += _component_label(elm.Resistor().at((right_branch_x, 6)).to(right_mid_xy), c["R3"], "right", (0.65, 0.1))
-    d += _dot(right_mid_xy)
-    d += _node_label(right_mid, (right_mid_xy[0] + 1.15, right_mid_xy[1]))
-    d += _component_label(elm.Resistor().at(right_mid_xy).to((right_branch_x, 0)), c["R4"], "right", (0.65, -0.1))
-    d += elm.Line().at((right_branch_x, 0)).to(bottom_bus_right)
-
-    d += _component_label(elm.Resistor().at(left_mid_xy).to(right_mid_xy), c["R5"], "top", (0, 0.85))
-    return _schemdraw_svg(d, "schemdraw_bridge_network")
+    body = "\n  ".join(
+        [
+            _svg_line(source_x, top_y, top_bus_right, top_y),
+            _svg_line(source_x, bottom_y, bottom_bus_right, bottom_y),
+            _svg_line(source_x, top_y, source_x, mid_y - source_radius),
+            _svg_line(source_x, mid_y + source_radius, source_x, bottom_y),
+            f'<circle class="source" cx="{source_x:g}" cy="{mid_y:g}" r="{source_radius:g}" />',
+            _svg_text(source_x, mid_y, "V", cls="source-symbol"),
+            _svg_label(source_x - 70, bottom_y + 55, format_component_label(c["V1"])),
+            _svg_text(source_x + 55, top_y - 28, source_node, anchor="start", cls="node-label"),
+            _svg_text(source_x + 55, bottom_y + 40, "0", anchor="start", cls="node-label"),
+            _svg_ground(source_x, bottom_y),
+            _svg_dot(source_x, top_y),
+            _svg_dot(source_x, bottom_y),
+            _svg_dot(left_x, top_y),
+            _svg_dot(left_x, bottom_y),
+            _svg_dot(right_x, top_y),
+            _svg_dot(right_x, bottom_y),
+            _svg_resistor_vertical(
+                left_x,
+                top_y,
+                r_top_end,
+                format_component_label(c["R1"]),
+                left_x - 95,
+                (top_y + r_top_end) / 2,
+                "end",
+            ),
+            _svg_line(left_x, r_top_end, left_x, mid_y),
+            _svg_dot(left_x, mid_y),
+            _svg_text(left_x - 45, mid_y - 18, left_mid, anchor="end", cls="node-label"),
+            _svg_line(left_x, mid_y, left_x, r_bottom_start),
+            _svg_resistor_vertical(
+                left_x,
+                r_bottom_start,
+                bottom_y,
+                format_component_label(c["R2"]),
+                left_x - 95,
+                (r_bottom_start + bottom_y) / 2,
+                "end",
+            ),
+            _svg_resistor_vertical(
+                right_x,
+                top_y,
+                r_top_end,
+                format_component_label(c["R3"]),
+                right_x + 95,
+                (top_y + r_top_end) / 2,
+                "start",
+            ),
+            _svg_line(right_x, r_top_end, right_x, mid_y),
+            _svg_dot(right_x, mid_y),
+            _svg_text(right_x + 45, mid_y - 18, right_mid, anchor="start", cls="node-label"),
+            _svg_line(right_x, mid_y, right_x, r_bottom_start),
+            _svg_resistor_vertical(
+                right_x,
+                r_bottom_start,
+                bottom_y,
+                format_component_label(c["R4"]),
+                right_x + 95,
+                (r_bottom_start + bottom_y) / 2,
+                "start",
+            ),
+            _svg_line(left_x, mid_y, r5_left, mid_y),
+            _svg_resistor_horizontal(
+                r5_left,
+                mid_y,
+                r5_right,
+                format_component_label(c["R5"]),
+                r5_label_x,
+                mid_y - 58,
+                "middle",
+            ),
+            _svg_line(r5_right, mid_y, right_x, mid_y),
+        ]
+    )
+    return _manual_svg(BRIDGE_WIDTH, BRIDGE_HEIGHT, body, "manual_svg_bridge_network")
 
 
 def _wire(x1: float, y1: float, x2: float, y2: float) -> str:
@@ -329,5 +534,5 @@ def render_schematic_svg(circuit: CircuitProblem) -> str:
     if key == "current_divider":
         return _render_template_or_fallback(circuit, _render_current_divider)
     if key in {"bridge_network", "bridge_network_alt"}:
-        return _render_template_or_fallback(circuit, _render_bridge)
+        return _render_template_or_fallback(circuit, _render_bridge_manual_svg)
     return _render_fallback_graph(circuit)
