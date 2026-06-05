@@ -86,34 +86,36 @@ def parse_with_gemini(problem_text: str) -> CircuitProblem:
 
     try:
         from google import genai
+        from google.genai import types
     except ImportError as exc:
         raise GeminiParserUnavailable(
             "google-genai is not installed. Install project dependencies before using Gemini mode."
         ) from exc
 
     model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
-    schema = GeminiCircuitProblem.model_json_schema()
 
     try:
         client = genai.Client()
         response = client.models.generate_content(
             model=model,
             contents=_schema_prompt(problem_text),
-            config={
-                "temperature": 0,
-                "response_format": {
-                    "text": {
-                        "mime_type": "application/json",
-                        "schema": schema,
-                    }
-                },
-            },
+            config=types.GenerateContentConfig(
+                temperature=0,
+                response_mime_type="application/json",
+                response_schema=GeminiCircuitProblem,
+            ),
         )
     except Exception as exc:
         raise GeminiParserUnavailable(f"Gemini structured parse failed: {exc}") from exc
 
     try:
-        parsed = GeminiCircuitProblem.model_validate_json(response.text)
+        response_parsed = getattr(response, "parsed", None)
+        if response_parsed is not None:
+            parsed = response_parsed
+            if not isinstance(parsed, GeminiCircuitProblem):
+                parsed = GeminiCircuitProblem.model_validate(parsed)
+        else:
+            parsed = GeminiCircuitProblem.model_validate_json(response.text)
         return CircuitProblem.model_validate(parsed.model_dump())
     except ValueError as exc:
         raise GeminiParserUnavailable(f"Gemini did not return valid CircuitProblem JSON: {exc}") from exc

@@ -4,7 +4,7 @@ VeriCircuit Tutor works without external API keys. In that mode, the determinist
 
 ## Get A Key
 
-Create an API key in Google AI Studio, then set it as a server-side environment variable before starting FastAPI. Never commit real API keys to `.env`, source files, tests, screenshots, or docs.
+Create an API key in Google AI Studio, then set it as a server-side environment variable before starting FastAPI. Never commit API keys. Never paste real API keys into chat or GitHub. Revoke keys if exposed.
 
 ## Windows PowerShell
 
@@ -43,6 +43,22 @@ Invoke-RestMethod `
 Run the manual Gemini smoke test:
 
 ```powershell
+.\.venv\Scripts\python.exe scripts\smoke_test_gemini.py
+```
+
+Windows CMD smoke test:
+
+```cmd
+set "GEMINI_API_KEY=your_key_here"
+set "GEMINI_MODEL=gemini-3.5-flash"
+.\.venv\Scripts\python.exe scripts\smoke_test_gemini.py
+```
+
+PowerShell smoke test:
+
+```powershell
+$env:GEMINI_API_KEY="your_key_here"
+$env:GEMINI_MODEL="gemini-3.5-flash"
 .\.venv\Scripts\python.exe scripts\smoke_test_gemini.py
 ```
 
@@ -94,3 +110,7 @@ Parser modes:
 - `demo`: deterministic offline parser for bundled examples.
 - `gemini`: Gemini parser with deterministic demo fallback if Gemini is unavailable.
 - `gemini_strict`: Gemini parser only. If Gemini is unavailable or returns invalid JSON, the API returns a controlled ambiguous CircuitProblem instead of silently falling back.
+
+## Packaging Note
+
+If `python -m pip install -e ".[dev]"` fails with `schematic_exports` discovered as a top-level package, `backend/pyproject.toml` should explicitly restrict setuptools package discovery to `app*`. Generated SVG exports may live in `backend/schematic_exports`, but they are not Python packages and should be ignored by Git.
