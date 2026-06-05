@@ -267,6 +267,72 @@
         margin: 2px 0 0;
       }
 
+      .editor-layout {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1.2fr);
+      }
+
+      .component-list,
+      .goal-list,
+      .editor-form {
+        display: grid;
+        gap: 8px;
+      }
+
+      .component-button {
+        background: #fff;
+        border: 1px solid var(--line);
+        color: var(--ink);
+        display: grid;
+        gap: 3px;
+        justify-items: start;
+        text-align: left;
+      }
+
+      .component-button.selected {
+        border-color: var(--accent);
+        background: #eef6fc;
+        color: #123f61;
+      }
+
+      .field-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      input[readonly],
+      select:disabled {
+        background: #f6f7f9;
+        color: var(--muted);
+      }
+
+      input[type="text"],
+      input[type="number"] {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        padding: 10px;
+        font: inherit;
+      }
+
+      .goal-item {
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        display: grid;
+        gap: 3px;
+        grid-template-columns: 22px 1fr;
+        padding: 8px;
+      }
+
+      .goal-item input {
+        margin-top: 3px;
+      }
+
       @keyframes pulse-dot {
         0%,
         100% {
@@ -413,6 +479,11 @@
         .steps {
           grid-template-columns: 1fr;
         }
+
+        .editor-layout,
+        .field-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -490,6 +561,30 @@
             Image/PDF OCR is not implemented in this MVP; current input is text only.
           </div>
         </div>
+        <div class="panel wide">
+          <h2>Circuit Editor</h2>
+          <div class="editor-layout">
+            <div>
+              <label>Components</label>
+              <div id="componentListPanel" class="component-list message">Run the pipeline to inspect components.</div>
+            </div>
+            <div>
+              <label>Selected Component</label>
+              <div id="componentEditorPanel" class="editor-form message">No component selected.</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel wide">
+          <h2>Requested Goals</h2>
+          <div id="goalsPanel" class="goal-list message">Run the pipeline to edit requested goals.</div>
+          <div class="button-row" style="margin-top: 10px">
+            <button id="updateGoalsButton" class="secondary" disabled>Update goals and re-solve</button>
+          </div>
+        </div>
+        <div class="panel wide">
+          <h2>What Changed</h2>
+          <div id="whatChangedPanel" class="message">No what-if edits yet.</div>
+        </div>
         <div class="panel">
           <h2>Parsed Circuit IR</h2>
           <pre id="irPanel">{}</pre>
@@ -548,12 +643,22 @@
       const variantsPanel = document.getElementById("variantsPanel");
       const progressFill = document.getElementById("progressFill");
       const stepsPanel = document.getElementById("stepsPanel");
+      const componentListPanel = document.getElementById("componentListPanel");
+      const componentEditorPanel = document.getElementById("componentEditorPanel");
+      const goalsPanel = document.getElementById("goalsPanel");
+      const updateGoalsButton = document.getElementById("updateGoalsButton");
+      const whatChangedPanel = document.getElementById("whatChangedPanel");
 
       let currentCircuit = null;
+      let currentParserUsed = null;
+      let currentPacket = null;
+      let previousPacket = null;
+      let selectedComponentId = null;
       let currentStepId = null;
 
       const pipelineSteps = [
         { id: "input", label: "Input received" },
+        { id: "edit", label: "Updating Circuit IR" },
         { id: "parse", label: "Parsing problem" },
         { id: "validate", label: "Validating Circuit IR" },
         { id: "diagram", label: "Rendering circuit diagram" },
@@ -622,6 +727,10 @@
 
       function resetResults() {
         currentCircuit = null;
+        currentParserUsed = null;
+        currentPacket = null;
+        previousPacket = null;
+        selectedComponentId = null;
         irPanel.textContent = "{}";
         diagramPanel.textContent = "No diagram yet.";
         netlistPanel.textContent = "";
@@ -631,11 +740,222 @@
         verificationPanel.textContent = "No checks yet.";
         explanationPanel.textContent = "";
         variantsPanel.textContent = "No variants yet.";
+        componentListPanel.textContent = "Run the pipeline to inspect components.";
+        componentEditorPanel.textContent = "No component selected.";
+        goalsPanel.textContent = "Run the pipeline to edit requested goals.";
+        updateGoalsButton.disabled = true;
+        whatChangedPanel.textContent = "No what-if edits yet.";
       }
 
       function formatValue(answer) {
         if (!answer) return "";
         return `${Number(answer.value).toPrecision(7)} ${answer.unit}`;
+      }
+
+      function parseEngineeringValue(text, unit) {
+        const raw = String(text || "")
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "")
+          .replaceAll("ω", "ohm");
+        const match = raw.match(/^([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)(.*)$/i);
+        if (!match) {
+          throw new Error("Enter a numeric value such as 3000, 3k, 3 kohm, 10V, or 3mA.");
+        }
+
+        let value = Number(match[1]);
+        const suffix = match[2];
+        if (!Number.isFinite(value)) {
+          throw new Error("Component value must be finite.");
+        }
+
+        if (unit === "ohm") {
+          if (["k", "kohm", "kilohm", "kiloohm"].includes(suffix)) {
+            value *= 1000;
+          } else if (!["", "ohm"].includes(suffix)) {
+            throw new Error("Resistor values must use ohm, kohm, k, or no suffix.");
+          }
+          if (value <= 0) {
+            throw new Error("Resistor values must be positive.");
+          }
+          return { value, unit: "ohm" };
+        }
+
+        if (unit === "V") {
+          if (!["", "v"].includes(suffix)) {
+            throw new Error("Voltage source values must use V or no suffix.");
+          }
+          return { value, unit: "V" };
+        }
+
+        if (unit === "A") {
+          if (suffix === "ma") {
+            value *= 0.001;
+          } else if (!["", "a"].includes(suffix)) {
+            throw new Error("Current source values must use A, mA, or no suffix.");
+          }
+          return { value, unit: "A" };
+        }
+
+        throw new Error(`Unsupported unit ${unit}.`);
+      }
+
+      function cloneData(data) {
+        return JSON.parse(JSON.stringify(data));
+      }
+
+      function componentSummary(component) {
+        return `${component.type} | ${component.nodes?.join(" -> ") || ""} | ${component.value} ${component.unit}`;
+      }
+
+      function renderCircuitEditor() {
+        const components = currentCircuit?.components || [];
+        if (!components.length) {
+          componentListPanel.textContent = "Run the pipeline to inspect components.";
+          componentEditorPanel.textContent = "No component selected.";
+          return;
+        }
+
+        if (!selectedComponentId || !components.some((component) => component.id === selectedComponentId)) {
+          selectedComponentId = components[0].id;
+        }
+
+        componentListPanel.innerHTML = components
+          .map((component) => {
+            const selected = component.id === selectedComponentId ? " selected" : "";
+            return `
+              <button class="component-button${selected}" data-component-id="${escapeHtml(component.id)}">
+                <strong>${escapeHtml(component.id)}</strong>
+                <span class="message">${escapeHtml(componentSummary(component))}</span>
+              </button>
+            `;
+          })
+          .join("");
+
+        [...componentListPanel.querySelectorAll("button[data-component-id]")].forEach((button) => {
+          button.addEventListener("click", () => {
+            selectedComponentId = button.dataset.componentId;
+            renderCircuitEditor();
+          });
+        });
+
+        const component = components.find((item) => item.id === selectedComponentId);
+        componentEditorPanel.innerHTML = `
+          <div class="field-grid">
+            <div>
+              <label for="componentType">Type</label>
+              <input id="componentType" type="text" value="${escapeHtml(component.type)}" readonly />
+            </div>
+            <div>
+              <label for="componentUnit">Unit</label>
+              <input id="componentUnit" type="text" value="${escapeHtml(component.unit)}" readonly />
+            </div>
+            <div>
+              <label for="componentNode0">Node 0</label>
+              <input id="componentNode0" type="text" value="${escapeHtml(component.nodes?.[0] || "")}" readonly />
+            </div>
+            <div>
+              <label for="componentNode1">Node 1</label>
+              <input id="componentNode1" type="text" value="${escapeHtml(component.nodes?.[1] || "")}" readonly />
+            </div>
+            <div>
+              <label for="componentValue">Value</label>
+              <input id="componentValue" type="text" value="${escapeHtml(component.value)}" />
+            </div>
+          </div>
+          <div class="button-row">
+            <button id="updateComponentButton">Update value and re-solve</button>
+          </div>
+        `;
+        document.getElementById("updateComponentButton").addEventListener("click", updateSelectedComponent);
+      }
+
+      function buildGoalCandidates() {
+        if (!currentCircuit) return [];
+        const ground = currentCircuit.ground_node || "0";
+        const candidates = [];
+        for (const node of currentCircuit.nodes || []) {
+          if (node !== ground) {
+            candidates.push({
+              id: `${node}_voltage`,
+              label: `Node voltage ${node}`,
+              quantity: "node_voltage",
+              target: node,
+              reference: { positive_node: node, negative_node: ground },
+            });
+          }
+        }
+        for (const component of currentCircuit.components || []) {
+          candidates.push(
+            {
+              id: `${component.id}_voltage`,
+              label: `Voltage across ${component.id}`,
+              quantity: "component_voltage",
+              target: component.id,
+              reference: {
+                positive_node: component.nodes?.[0],
+                negative_node: component.nodes?.[1],
+              },
+            },
+            {
+              id: `${component.id}_current`,
+              label: `Current through ${component.id}`,
+              quantity: "component_current",
+              target: component.id,
+              reference: {
+                from_node: component.nodes?.[0],
+                to_node: component.nodes?.[1],
+              },
+            },
+            {
+              id: `${component.id}_power`,
+              label: `Power in ${component.id}`,
+              quantity: "component_power",
+              target: component.id,
+              reference: { component: component.id },
+            },
+          );
+          if (["voltage_source", "current_source"].includes(component.type)) {
+            candidates.push({
+              id: `${component.id}_source_power`,
+              label: `Source power ${component.id}`,
+              quantity: "source_power",
+              target: component.id,
+              reference: { component: component.id },
+            });
+          }
+        }
+        return candidates;
+      }
+
+      function isGoalSelected(candidate) {
+        return (currentCircuit?.goals || []).some((goal) => {
+          return goal.id === candidate.id || (goal.quantity === candidate.quantity && goal.target === candidate.target);
+        });
+      }
+
+      function renderGoalEditor() {
+        const candidates = buildGoalCandidates();
+        if (!candidates.length) {
+          goalsPanel.textContent = "Run the pipeline to edit requested goals.";
+          updateGoalsButton.disabled = true;
+          return;
+        }
+        goalsPanel.innerHTML = candidates
+          .map((goal, index) => {
+            const checked = isGoalSelected(goal) ? " checked" : "";
+            return `
+              <label class="goal-item">
+                <input type="checkbox" data-goal-index="${index}"${checked} />
+                <span>
+                  <strong>${escapeHtml(goal.label)}</strong>
+                  <span class="message">${escapeHtml(goal.quantity)}: ${escapeHtml(goal.target)}</span>
+                </span>
+              </label>
+            `;
+          })
+          .join("");
+        updateGoalsButton.disabled = false;
       }
 
       function renderAnswers(packet) {
@@ -733,13 +1053,224 @@
             const variant = variants.find((item) => item.circuit_ir.id === button.dataset.variantId);
             if (variant) {
               currentCircuit = variant.circuit_ir;
+              currentPacket = null;
+              previousPacket = null;
+              selectedComponentId = null;
               irPanel.textContent = pretty(currentCircuit);
+              renderCircuitEditor();
+              renderGoalEditor();
+              whatChangedPanel.textContent = "Loaded variant Circuit IR. Re-solve to compare changes.";
               renderDiagram(currentCircuit).catch((error) => {
                 diagramPanel.textContent = `Could not render diagram: ${error.message}`;
               });
               statusEl.textContent = "Loaded variant Circuit IR. Run pipeline from the edited problem text, or solve through the API.";
             }
           });
+        });
+      }
+
+      function applyVerificationProgress(packet) {
+        const badge = packet.verification_badge?.label || "FAIL";
+        if (badge === "PASS") {
+          setStepStatus("validate", "done");
+          setStepStatus("solve", "done");
+          setStepStatus("verify", "done");
+        } else if (badge === "AMBIGUOUS") {
+          setStepStatus("validate", "failed", "Unresolved ambiguity");
+          setStepStatus("solve", "skipped", "Needs clarification");
+          setStepStatus("verify", "skipped", "No verified solve");
+          statusEl.textContent = "Ambiguity must be resolved before verified solving.";
+        } else if (badge === "UNSUPPORTED") {
+          setStepStatus("validate", "failed", "Outside MVP scope");
+          setStepStatus("solve", "skipped", "Unsupported circuit");
+          setStepStatus("verify", "skipped", "No verified solve");
+          statusEl.textContent = "Unsupported feature outside MVP scope.";
+        } else {
+          setStepStatus("validate", packet.status === "solved" ? "done" : "failed");
+          setStepStatus("solve", packet.status === "solved" ? "done" : "failed");
+          setStepStatus("verify", "failed", "Verification did not pass");
+          statusEl.textContent = "Validation, solving, or verification failed.";
+        }
+        return badge;
+      }
+
+      function renderPacket(packet) {
+        currentPacket = packet;
+        netlistPanel.textContent = packet.generated_netlist || "";
+        renderBadge(packet);
+        renderAnswers(packet);
+        renderProvenance(packet);
+        renderVerification(packet.verification);
+        renderCircuitEditor();
+        renderGoalEditor();
+      }
+
+      function renderWhatChanged(previous, next, changeSummary) {
+        if (!changeSummary) {
+          whatChangedPanel.textContent = "No what-if edits yet.";
+          return;
+        }
+
+        const rows = [];
+        if (changeSummary.kind === "component_value") {
+          rows.push(`
+            <div class="row">
+              <strong>${escapeHtml(changeSummary.componentId)} value</strong>
+              <span>${Number(changeSummary.oldValue).toPrecision(7)} ${escapeHtml(changeSummary.unit)} -> ${Number(changeSummary.newValue).toPrecision(7)} ${escapeHtml(changeSummary.unit)}</span>
+            </div>
+          `);
+        } else if (changeSummary.kind === "goals") {
+          rows.push(`
+            <div class="row">
+              <strong>Requested goals</strong>
+              <span>${changeSummary.oldCount} -> ${changeSummary.newCount}</span>
+            </div>
+          `);
+        }
+
+        const previousAnswers = previous?.requested_answers || {};
+        const nextAnswers = next?.requested_answers || {};
+        for (const [id, answer] of Object.entries(nextAnswers)) {
+          const oldAnswer = previousAnswers[id];
+          if (!oldAnswer) continue;
+          const delta = Number(answer.value) - Number(oldAnswer.value);
+          rows.push(`
+            <div class="row">
+              <strong>${escapeHtml(id)}</strong>
+              <span>${formatValue(oldAnswer)} -> ${formatValue(answer)}, delta ${delta >= 0 ? "+" : ""}${delta.toPrecision(7)} ${escapeHtml(answer.unit)}</span>
+            </div>
+          `);
+        }
+
+        if (rows.length === 1) {
+          rows.push(`<div class="message">No overlapping requested answer IDs to compare.</div>`);
+        }
+        whatChangedPanel.innerHTML = rows.join("");
+      }
+
+      async function explainAndVariant(circuitIr, packet, badge) {
+        setStepStatus("explain", "running");
+        const explanation = await requestJson("/explain", {
+          solution_packet: packet,
+        });
+        explanationPanel.textContent = explanation.explanation;
+        setStepStatus("explain", "done");
+        setProgressPercent(78);
+
+        if (badge === "PASS") {
+          setStepStatus("variants", "running");
+          const variantResult = await requestJson("/variant", {
+            circuit_ir: circuitIr,
+            kind: "both",
+          });
+          renderVariants(variantResult.variants);
+          setStepStatus("variants", "done");
+        } else {
+          renderVariants([]);
+          setStepStatus("variants", "skipped", "Requires PASS badge");
+        }
+      }
+
+      async function reSolveCurrentCircuit(changeSummary) {
+        if (!currentCircuit) {
+          statusEl.textContent = "Run the pipeline first so there is a Circuit IR to edit.";
+          return;
+        }
+
+        resetProgress();
+        runButton.disabled = true;
+        updateGoalsButton.disabled = true;
+        previousPacket = currentPacket;
+        currentStepId = "edit";
+
+        try {
+          setStepStatus("input", "skipped", "Using current text");
+          setStepStatus("edit", "done", "Circuit IR updated");
+          setStepStatus("parse", "skipped", "Using edited IR");
+          irPanel.textContent = pretty(currentCircuit);
+          setProgressPercent(18);
+
+          setStepStatus("diagram", "running");
+          await renderDiagram(currentCircuit);
+          setStepStatus("diagram", "done");
+          setProgressPercent(36);
+
+          setStepStatus("validate", "running");
+          setStepStatus("solve", "running");
+          const packet = await requestJson("/solve", {
+            circuit_ir: currentCircuit,
+            parser_used: currentParserUsed,
+          });
+          renderPacket(packet);
+          renderWhatChanged(previousPacket, packet, changeSummary);
+          const badge = applyVerificationProgress(packet);
+          setProgressPercent(64);
+
+          await explainAndVariant(currentCircuit, packet, badge);
+          setProgressPercent(92);
+          setStepStatus("done", "done");
+          setProgressPercent(100);
+          statusEl.textContent = `Re-solved edited Circuit IR. Badge: ${badge}.`;
+        } catch (error) {
+          if (currentStepId) {
+            setStepStatus(currentStepId, "failed", "API error");
+          }
+          setStepStatus("done", "failed");
+          statusEl.textContent = `Error: ${error.message}`;
+        } finally {
+          runButton.disabled = false;
+          renderGoalEditor();
+        }
+      }
+
+      async function updateSelectedComponent() {
+        const component = (currentCircuit?.components || []).find((item) => item.id === selectedComponentId);
+        if (!component) {
+          statusEl.textContent = "Select a component before updating.";
+          return;
+        }
+
+        try {
+          const parsed = parseEngineeringValue(document.getElementById("componentValue").value, component.unit);
+          const oldValue = component.value;
+          component.value = parsed.value;
+          component.unit = parsed.unit;
+          await reSolveCurrentCircuit({
+            kind: "component_value",
+            componentId: component.id,
+            oldValue,
+            newValue: parsed.value,
+            unit: parsed.unit,
+          });
+        } catch (error) {
+          statusEl.textContent = `Invalid component value: ${error.message}`;
+        }
+      }
+
+      async function updateGoalsAndResolve() {
+        if (!currentCircuit) {
+          statusEl.textContent = "Run the pipeline first so there is a Circuit IR to edit.";
+          return;
+        }
+
+        const candidates = buildGoalCandidates();
+        const selectedIndexes = [...goalsPanel.querySelectorAll("input[data-goal-index]:checked")]
+          .map((input) => Number(input.dataset.goalIndex));
+        const selectedGoals = selectedIndexes.map((index) => {
+          const { label, ...goal } = candidates[index];
+          return goal;
+        });
+        if (!selectedGoals.length) {
+          statusEl.textContent = "Select at least one requested goal.";
+          return;
+        }
+
+        const oldCount = currentCircuit.goals?.length || 0;
+        currentCircuit.goals = selectedGoals;
+        await reSolveCurrentCircuit({
+          kind: "goals",
+          oldCount,
+          newCount: selectedGoals.length,
         });
       }
 
@@ -797,6 +1328,7 @@
         currentStepId = "input";
         try {
           setStepStatus("input", "done", "Text ready");
+          setStepStatus("edit", "skipped", "No manual edit");
           setProgressPercent(8);
 
           setStepStatus("parse", "running");
@@ -808,7 +1340,11 @@
           setProgressPercent(22);
 
           currentCircuit = parsed.circuit_ir;
+          currentParserUsed = parsed.parser_used;
           irPanel.textContent = pretty(parsed.circuit_ir);
+          renderCircuitEditor();
+          renderGoalEditor();
+          whatChangedPanel.textContent = "No what-if edits yet.";
 
           setStepStatus("diagram", "running");
           await renderDiagram(parsed.circuit_ir);
@@ -822,55 +1358,11 @@
             parser_used: parsed.parser_used,
           });
 
-          netlistPanel.textContent = packet.generated_netlist || "";
-          renderBadge(packet);
-          renderAnswers(packet);
-          renderProvenance(packet);
-          renderVerification(packet.verification);
-
-          const badge = packet.verification_badge?.label || "FAIL";
-          if (badge === "PASS") {
-            setStepStatus("validate", "done");
-            setStepStatus("solve", "done");
-            setStepStatus("verify", "done");
-          } else if (badge === "AMBIGUOUS") {
-            setStepStatus("validate", "failed", "Unresolved ambiguity");
-            setStepStatus("solve", "skipped", "Needs clarification");
-            setStepStatus("verify", "skipped", "No verified solve");
-            statusEl.textContent = "Ambiguity must be resolved before verified solving.";
-          } else if (badge === "UNSUPPORTED") {
-            setStepStatus("validate", "failed", "Outside MVP scope");
-            setStepStatus("solve", "skipped", "Unsupported circuit");
-            setStepStatus("verify", "skipped", "No verified solve");
-            statusEl.textContent = "Unsupported feature outside MVP scope.";
-          } else {
-            setStepStatus("validate", packet.status === "solved" ? "done" : "failed");
-            setStepStatus("solve", packet.status === "solved" ? "done" : "failed");
-            setStepStatus("verify", "failed", "Verification did not pass");
-            statusEl.textContent = "Validation, solving, or verification failed.";
-          }
+          renderPacket(packet);
+          const badge = applyVerificationProgress(packet);
           setProgressPercent(64);
 
-          setStepStatus("explain", "running");
-          const explanation = await requestJson("/explain", {
-            solution_packet: packet,
-          });
-          explanationPanel.textContent = explanation.explanation;
-          setStepStatus("explain", "done");
-          setProgressPercent(78);
-
-          if (badge === "PASS") {
-            setStepStatus("variants", "running");
-            const variantResult = await requestJson("/variant", {
-              circuit_ir: parsed.circuit_ir,
-              kind: "both",
-            });
-            renderVariants(variantResult.variants);
-            setStepStatus("variants", "done");
-          } else {
-            renderVariants([]);
-            setStepStatus("variants", "skipped", "Requires PASS badge");
-          }
+          await explainAndVariant(parsed.circuit_ir, packet, badge);
           setProgressPercent(92);
 
           setStepStatus("done", "done");
@@ -907,6 +1399,7 @@
       runButton.addEventListener("click", runPipeline);
       valueVariantButton.addEventListener("click", () => generateVariant("value"));
       goalVariantButton.addEventListener("click", () => generateVariant("goal"));
+      updateGoalsButton.addEventListener("click", updateGoalsAndResolve);
       resetProgress();
       loadExamples().catch((error) => {
         statusEl.textContent = `Could not load examples: ${error.message}`;

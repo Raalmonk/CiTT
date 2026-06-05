@@ -75,6 +75,21 @@ Click **Goal variant**.
 
 Emphasize that variants are still Circuit IR and must go through the same solve-and-verify path.
 
+## Optional 2-Minute What-If Demo
+
+Use this when the next demo should emphasize simulation-grounded editing instead of broader component coverage.
+
+1. Select **Voltage Divider**, choose **Gemini strict** if an API key is configured, and click **Run pipeline**.
+2. Show the PASS badge, requested answers, and Answer Provenance.
+3. In **Circuit Editor**, select `R2`.
+4. Change `R2` from `3000` ohm / `3 kOhm` to `6 kOhm`.
+5. Click **Update value and re-solve**.
+6. Show that `V_R2` changes from `6 V` to `7.5 V`, and current changes from `2 mA` to `1.25 mA`.
+7. Show that verification still reports PASS.
+8. Explain that the edit updates Circuit IR and the deterministic solver recomputes the answer. The LLM does not calculate the new numerical answer.
+
+Then use **Requested Goals** to select `R1_power`, click **Update goals and re-solve**, and show that R1 power appears as a verified requested answer.
+
 ## 3:45-4:30 - Show A Harder MNA Example
 
 Select **Bridge Network** or **Second Bridge Network** and run the pipeline.
@@ -94,4 +109,3 @@ Close with:
 End on the research point:
 
 > The interesting part is not that an AI can talk about circuits. The interesting part is that the tutoring text is downstream of a formal circuit representation, a numerical solver, and verification checks. That is what makes this more than prompt engineering.
-
