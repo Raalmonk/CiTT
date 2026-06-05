@@ -121,11 +121,22 @@ Say:
 
 Point out node voltages and R5 current, then show the PASS badge.
 
+## Optional AC / Op-Amp Demo
+
+Use this when the demo should show the expanded scope beyond resistor-only DC.
+
+1. Select **RC Low-Pass AC** and run the pipeline.
+2. Show that the requested answer is reported as magnitude and phase, not a direct LLM number.
+3. Point to AC verification: complex KCL and finite phasor values pass; AC power balance is intentionally not verified in this MVP.
+4. Select **Ideal Non-Inverting Op-Amp** and run the pipeline.
+5. Show that `Vout` is about `10 V` and the inverting input is held near `1 V`.
+6. Emphasize that this is ideal closed-loop DC behavior only.
+
 ## 4:30-5:00 - Close With Honest Limits
 
 Close with:
 
-> The MVP scope is intentionally narrow: linear DC circuits with resistors and independent sources. It does not handle op-amps, capacitors, inductors, diodes, transistors, dependent sources, AC, transient analysis, or schematic/image parsing yet. Unsupported or ambiguous problems are marked as such instead of being guessed.
+> The MVP scope is intentionally controlled: DC operating point, AC single-frequency phasors, AC sweep data for linear R/C/source circuits, and ideal closed-loop op-amp DC. It does not handle transient analysis, inductors, diodes, transistors, nonlinear solving, or nonideal op-amp effects such as rails, saturation, slew rate, bias current, or frequency response. Unsupported or ambiguous problems are marked as such instead of being guessed.
 
 End on the research point:
 

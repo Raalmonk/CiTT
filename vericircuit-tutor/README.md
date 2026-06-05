@@ -20,11 +20,15 @@ The explanation layer is deliberately constrained. It cites values from the Solu
 
 ## Current Scope
 
-The MVP supports linear DC operating point analysis with:
+The MVP supports:
 
 - Resistors
 - Independent voltage sources
 - Independent current sources
+- Capacitors in DC operating point, treated as open circuits
+- Single-frequency AC phasor analysis for linear R/C/source circuits
+- AC sweep data for linear R/C/source circuits
+- Ideal op-amp closed-loop DC analysis
 - Ground node
 - Node voltages
 - Component voltages, currents, and powers
@@ -36,14 +40,13 @@ The MVP supports linear DC operating point analysis with:
 
 Unsupported in this first version:
 
-- Op-amps
-- Capacitors
 - Inductors
 - Diodes
 - Transistors
 - Dependent sources
-- AC analysis
 - Transient analysis
+- Nonlinear solving
+- Nonideal op-amp behavior, including rails, saturation, slew rate, input bias current, finite bandwidth, and op-amp frequency response
 - Handwritten image recognition
 - Arbitrary schematic recognition
 
@@ -59,17 +62,20 @@ Unsupported or ambiguous requests are reported honestly rather than forced throu
    - Pydantic models define the supported circuit graph, components, goals, assumptions, ambiguities, and unsupported features.
 
 3. **Validator**
-   - Checks ground, unique component IDs, finite values, positive resistors, normalized SI units, valid goal targets, and ground-connected graph structure.
+   - Checks ground, unique component IDs, finite values, positive resistors/capacitors, normalized SI units, valid goal targets, analysis-specific AC settings, ideal op-amp node shape, and ground-connected graph structure.
 
-4. **MNA solver**
+4. **Solvers**
    - Uses Modified Nodal Analysis with NumPy.
    - Unknowns are non-ground node voltages plus currents through independent voltage sources.
    - Current sources inject current according to their node order.
    - Voltage source currents are solved as MNA unknowns.
+   - AC analysis uses a complex MNA solver for phasor values.
+   - Ideal op-amps add an output-current unknown and enforce `V(+) = V(-)`.
 
 5. **Verifier**
    - Recomputes KCL residuals from solved component currents.
-   - Checks signed power balance.
+   - Checks signed power balance for DC.
+   - Checks complex KCL and finite phasor values for AC; AC complex power is not verified in this MVP.
    - Confirms every requested goal has a value.
    - Emits a verification badge: `PASS`, `FAIL`, `AMBIGUOUS`, or `UNSUPPORTED`.
 
@@ -94,6 +100,8 @@ For every two-terminal component:
 For resistors, positive signed power is absorbed under the passive sign convention. For independent sources, negative signed power means the source supplies power to the circuit. The verifier checks power balance by summing all signed component powers and requiring that sum to be approximately zero.
 
 Voltage-source currents are MNA unknowns. Their positive direction is also from `nodes[0]` to `nodes[1]`, so source power uses the same signed-power rule as every other component.
+
+For ideal op-amps, the Circuit IR node order is `[non_inverting, inverting, output, reference]`. The reported op-amp branch voltage is `V(output) - V(reference)`, and output current is positive from output to reference.
 
 ## Verification Badge
 
@@ -153,6 +161,8 @@ The deterministic parser recognizes:
 - Current source with parallel resistors: 3 mA into 2 kOhm and 1 kOhm to ground
 - Bridge-like resistor network: 5 resistors and one DC voltage source
 - Second bridge-like resistor network: different 5-resistor values and one DC voltage source
+- RC low-pass AC single-frequency example
+- Ideal non-inverting op-amp DC example
 
 The same examples are stored as Circuit IR JSON under:
 
@@ -187,6 +197,6 @@ and returns Circuit IR, Solution Packet, explanation, variants, parser used, and
 - Schematic rendering
 - Image/PDF circuit parsing
 - Dependent sources
-- AC and transient analysis
+- Inductors and transient analysis
 - Student-solution diagnosis
 - Benchmarking against general LLM answers

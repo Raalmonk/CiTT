@@ -71,15 +71,15 @@ def test_duplicate_component_ids_fail_validation_with_message():
 
 def test_unsupported_component_type_returns_unsupported_badge():
     circuit = CircuitProblem(
-        id="unsupported_capacitor",
-        title="Unsupported Capacitor",
+        id="unsupported_inductor",
+        title="Unsupported Inductor",
         ground_node="0",
         nodes=["0", "n1"],
         components=[
             Component(id="V1", type="voltage_source", nodes=["n1", "0"], value=5.0, unit="V"),
-            Component(id="C1", type="capacitor", nodes=["n1", "0"], value=1e-6, unit="F"),
+            Component(id="L1", type="inductor", nodes=["n1", "0"], value=1e-3, unit="H"),
         ],
-        goals=[Goal(id="C1_current", quantity="component_current", target="C1")],
+        goals=[Goal(id="L1_current", quantity="component_current", target="L1")],
     )
 
     packet = solve_circuit(circuit)
@@ -90,12 +90,12 @@ def test_unsupported_component_type_returns_unsupported_badge():
 
 
 def test_unsupported_natural_language_request_returns_unsupported_badge():
-    circuit = parse_demo_problem("A capacitor is connected to a 5 V source. Find the current.")
+    circuit = parse_demo_problem("Find the transient response of an RC circuit.")
     packet = solve_circuit(circuit)
 
     assert packet.status == "unsupported"
     assert packet.verification_badge.label == "UNSUPPORTED"
-    assert "Only linear DC resistor/source circuits are supported" in packet.verification_badge.message
+    assert "transient analysis" in packet.verification_badge.message
 
 
 def test_ambiguous_natural_language_request_returns_ambiguous_badge():

@@ -48,6 +48,10 @@ def _fmt(value: float, unit: str) -> str:
         return f"{value:g} Ω"
     if unit == "A" and 0 < abs(value) < 1:
         return f"{value * 1000:g} mA"
+    if unit == "F" and 0 < abs(value) < 1:
+        return f"{value * 1_000_000:g} uF"
+    if unit == "ideal":
+        return "ideal"
     return f"{value:g} {unit}"
 
 
@@ -716,12 +720,66 @@ def _fallback_resistor(component: Component, x1: float, y1: float, x2: float, y2
     )
 
 
+def _fallback_capacitor(component: Component, x1: float, y1: float, x2: float, y2: float) -> str:
+    mid_x = (x1 + x2) / 2
+    mid_y = (y1 + y2) / 2
+    dx = x2 - x1
+    dy = y2 - y1
+    length = max((dx * dx + dy * dy) ** 0.5, 1.0)
+    ux = dx / length
+    uy = dy / length
+    px = -uy
+    py = ux
+    gap = 10
+    plate = 18
+    ax = mid_x - ux * gap
+    ay = mid_y - uy * gap
+    bx = mid_x + ux * gap
+    by = mid_y + uy * gap
+    return "\n".join(
+        [
+            _wire(x1, y1, ax, ay),
+            _wire(bx, by, x2, y2),
+            f'<line class="component capacitor" x1="{ax + px * plate:g}" y1="{ay + py * plate:g}" x2="{ax - px * plate:g}" y2="{ay - py * plate:g}" />',
+            f'<line class="component capacitor" x1="{bx + px * plate:g}" y1="{by + py * plate:g}" x2="{bx - px * plate:g}" y2="{by - py * plate:g}" />',
+            f'<text class="component-label" x="{mid_x:g}" y="{mid_y - 32:g}">{escape(format_component_label(component))}</text>',
+        ]
+    )
+
+
 def _fallback_source(component: Component, x: float, y: float) -> str:
     symbol = "V" if component.type == "voltage_source" else "I"
     return (
         f'<circle class="source" cx="{x:g}" cy="{y:g}" r="24" />'
         f'<text class="source-symbol" x="{x:g}" y="{y + 6:g}">{symbol}</text>'
         f'<text class="component-label" x="{x:g}" y="{y + 44:g}">{escape(format_component_label(component))}</text>'
+    )
+
+
+def _fallback_op_amp(component: Component, positions: dict[str, tuple[float, float]]) -> str:
+    vp, vm, out, ref = component.nodes
+    node_points = [positions[node] for node in component.nodes]
+    center_x = sum(point[0] for point in node_points) / len(node_points)
+    center_y = sum(point[1] for point in node_points) / len(node_points)
+    left_x = center_x - 34
+    right_x = center_x + 42
+    top_y = center_y - 42
+    bottom_y = center_y + 42
+    out_x, out_y = positions[out]
+    ref_x, ref_y = positions[ref]
+    vp_x, vp_y = positions[vp]
+    vm_x, vm_y = positions[vm]
+    return "\n".join(
+        [
+            _wire(vp_x, vp_y, left_x, center_y - 18),
+            _wire(vm_x, vm_y, left_x, center_y + 18),
+            _wire(right_x, center_y, out_x, out_y),
+            _wire(center_x, bottom_y, ref_x, ref_y),
+            f'<polygon class="component opamp" points="{left_x:g},{top_y:g} {left_x:g},{bottom_y:g} {right_x:g},{center_y:g}" />',
+            f'<text class="source-symbol" x="{left_x + 12:g}" y="{center_y - 18:g}">+</text>',
+            f'<text class="source-symbol" x="{left_x + 12:g}" y="{center_y + 18:g}">-</text>',
+            f'<text class="component-label" x="{center_x:g}" y="{top_y - 10:g}">{escape(format_component_label(component))}</text>',
+        ]
     )
 
 
@@ -732,6 +790,8 @@ def _svg(width: int, height: int, body: str, renderer: str) -> str:
     .wire {{ stroke: #1f2937; stroke-width: 2.4; fill: none; }}
     .component {{ stroke: #1768ac; stroke-width: 4; stroke-linecap: round; fill: none; }}
     .resistor {{ stroke-dasharray: 7 5; }}
+    .capacitor {{ stroke: #1768ac; }}
+    .opamp {{ fill: #ffffff; stroke: #1768ac; }}
     .source {{ stroke: #117a4b; stroke-width: 3; fill: #eef8f3; }}
     .node {{ fill: #111827; }}
     .node-label {{ fill: #4b5563; font: 12px sans-serif; }}
@@ -759,13 +819,20 @@ def _render_fallback_graph(problem: CircuitProblem, renderer: str = "fallback_gr
 
     pieces = [f'<text class="title" x="24" y="28">{escape(problem.title)}</text>']
     for component in problem.components:
+        if component.type == "op_amp_ideal":
+            pieces.append(_fallback_op_amp(component, positions))
+            continue
         x1, y1 = positions[component.nodes[0]]
         x2, y2 = positions[component.nodes[1]]
-        pieces.append(_wire(x1, y1, x2, y2))
         if component.type == "resistor":
             pieces.append(_fallback_resistor(component, x1, y1, x2, y2))
-        else:
+        elif component.type == "capacitor":
+            pieces.append(_fallback_capacitor(component, x1, y1, x2, y2))
+        elif component.type in {"voltage_source", "current_source"}:
+            pieces.append(_wire(x1, y1, x2, y2))
             pieces.append(_fallback_source(component, (x1 + x2) / 2, (y1 + y2) / 2))
+        else:
+            pieces.append(_wire(x1, y1, x2, y2))
     for node, (x, y) in positions.items():
         pieces.append(_node(node, x, y))
     return _svg(width, height, "\n  ".join(pieces), renderer)

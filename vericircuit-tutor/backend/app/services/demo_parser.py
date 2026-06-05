@@ -29,6 +29,17 @@ BRIDGE_NETWORK_ALT_TEXT = (
     "the current through R5."
 )
 
+RC_LOW_PASS_TEXT = (
+    "An RC low-pass filter has a 1 V AC source at 159.154943 Hz, R1 = 1 kOhm "
+    "from input to output, and C1 = 1 uF from output to ground. Find Vout."
+)
+
+OP_AMP_NON_INVERTING_TEXT = (
+    "An ideal non-inverting op-amp has Vplus driven by a 1 V source, Rg = 1 kOhm "
+    "from the inverting input to ground, and Rf = 9 kOhm from output to the "
+    "inverting input. Find Vout."
+)
+
 
 def voltage_divider_problem() -> CircuitProblem:
     return CircuitProblem(
@@ -270,6 +281,68 @@ def bridge_network_alt_problem() -> CircuitProblem:
     )
 
 
+def rc_low_pass_problem() -> CircuitProblem:
+    return CircuitProblem(
+        id="rc_low_pass",
+        title="RC Low-Pass AC Single-Frequency",
+        analysis_type="ac_single_frequency",
+        topology_id="rc_low_pass",
+        ground_node="0",
+        nodes=["0", "in", "out"],
+        frequency_hz=159.154943,
+        components=[
+            Component(
+                id="V1",
+                type="voltage_source",
+                nodes=["in", "0"],
+                value=0.0,
+                unit="V",
+                ac_magnitude=1.0,
+                ac_phase_deg=0.0,
+            ),
+            Component(id="R1", type="resistor", nodes=["in", "out"], value=1000.0, unit="ohm"),
+            Component(id="C1", type="capacitor", nodes=["out", "0"], value=1e-6, unit="F"),
+        ],
+        goals=[
+            Goal(
+                id="vout",
+                quantity="node_voltage",
+                target="out",
+                reference={"positive_node": "out", "negative_node": "0"},
+            )
+        ],
+        assumptions=["The AC source value is a phasor amplitude."],
+    )
+
+
+def op_amp_non_inverting_problem() -> CircuitProblem:
+    return CircuitProblem(
+        id="op_amp_non_inverting",
+        title="Ideal Non-Inverting Op-Amp",
+        analysis_type="dc_operating_point",
+        topology_id="op_amp_non_inverting",
+        ground_node="0",
+        nodes=["0", "vp", "vm", "out"],
+        components=[
+            Component(id="V1", type="voltage_source", nodes=["vp", "0"], value=1.0, unit="V"),
+            Component(id="Rg", type="resistor", nodes=["vm", "0"], value=1000.0, unit="ohm"),
+            Component(id="Rf", type="resistor", nodes=["out", "vm"], value=9000.0, unit="ohm"),
+            Component(
+                id="U1",
+                type="op_amp_ideal",
+                nodes=["vp", "vm", "out", "0"],
+                value=0.0,
+                unit="ideal",
+            ),
+        ],
+        goals=[
+            Goal(id="vout", quantity="node_voltage", target="out"),
+            Goal(id="vminus", quantity="node_voltage", target="vm"),
+        ],
+        assumptions=["The op-amp is ideal and operated with closed-loop negative feedback."],
+    )
+
+
 def unsupported_problem(problem_text: str, feature: str) -> CircuitProblem:
     return CircuitProblem(
         id="unsupported_request",
@@ -325,13 +398,25 @@ def get_demo_examples() -> list[dict[str, str]]:
             "title": "Second Bridge Network",
             "problem_text": BRIDGE_NETWORK_ALT_TEXT,
         },
+        {
+            "id": "rc_low_pass",
+            "title": "RC Low-Pass AC",
+            "problem_text": RC_LOW_PASS_TEXT,
+        },
+        {
+            "id": "op_amp_non_inverting",
+            "title": "Ideal Non-Inverting Op-Amp",
+            "problem_text": OP_AMP_NON_INVERTING_TEXT,
+        },
     ]
 
 
 def parse_demo_problem(problem_text: str) -> CircuitProblem:
     lowered = " ".join(problem_text.lower().split())
-    if any(term in lowered for term in ["op amp", "op-amp", "capacitor", "inductor", "diode", "transistor", "ac ", "transient"]):
-        return unsupported_problem(problem_text, "Only linear DC resistor/source circuits are supported.")
+    if "transient" in lowered or "time-domain" in lowered:
+        return unsupported_problem(problem_text, "transient analysis")
+    if any(term in lowered for term in ["inductor", "diode", "transistor"]):
+        return unsupported_problem(problem_text, "Unsupported component outside the current MVP scope.")
     if "10 v voltage source" in lowered and "r1 = 2 kohm" in lowered and "r2 = 3 kohm" in lowered:
         return voltage_divider_problem()
     if "3 ma current source" in lowered and "parallel resistors" in lowered:
@@ -340,4 +425,8 @@ def parse_demo_problem(problem_text: str) -> CircuitProblem:
         return bridge_network_alt_problem()
     if "bridge" in lowered and "r5" in lowered:
         return bridge_network_problem()
+    if "low-pass" in lowered and "1 uf" in lowered and "159.154943" in lowered:
+        return rc_low_pass_problem()
+    if "non-inverting" in lowered and ("op-amp" in lowered or "op amp" in lowered):
+        return op_amp_non_inverting_problem()
     return ambiguous_problem(problem_text)

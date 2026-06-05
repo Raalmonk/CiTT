@@ -449,6 +449,19 @@
         gap: 8px;
       }
 
+      .sweep-table {
+        border-collapse: collapse;
+        font-size: 13px;
+        width: 100%;
+      }
+
+      .sweep-table th,
+      .sweep-table td {
+        border-bottom: 1px solid var(--line);
+        padding: 8px 6px;
+        text-align: left;
+      }
+
       .row {
         display: flex;
         align-items: center;
@@ -607,7 +620,7 @@
             </div>
             <div>
               <dt>UNSUPPORTED</dt>
-              <dd>Problem contains unsupported components or analysis types, such as capacitors, inductors, op-amps, diodes, transistors, AC, or transient analysis. No numerical answer is shown.</dd>
+              <dd>Problem contains unsupported components or analysis types, such as transient analysis, inductors, diodes, transistors, nonlinear devices, or nonideal op-amp behavior. No numerical answer is shown.</dd>
             </div>
             <div>
               <dt>FAIL</dt>
@@ -756,8 +769,8 @@
         { id: "parse", label: "Parsing problem" },
         { id: "validate", label: "Validating Circuit IR" },
         { id: "diagram", label: "Rendering circuit diagram" },
-        { id: "solve", label: "Solving with MNA" },
-        { id: "verify", label: "Verifying KCL / power balance" },
+        { id: "solve", label: "DC / AC solve" },
+        { id: "verify", label: "Verifying circuit laws" },
         { id: "explain", label: "Generating tutor explanation" },
         { id: "variants", label: "Generating variants" },
         { id: "done", label: "Done" },
@@ -854,7 +867,40 @@
 
       function formatValue(answer) {
         if (!answer) return "";
+        if (answer.magnitude !== undefined) {
+          const mag = Number(answer.magnitude);
+          const phase = Number(answer.phase_deg);
+          return `${mag.toPrecision(7)} ${answer.unit} \u2220 ${phase.toFixed(3)}\u00b0`;
+        }
         return `${Number(answer.value).toPrecision(7)} ${answer.unit}`;
+      }
+
+      function renderSweepTable(points) {
+        if (!points || !points.length) {
+          answersPanel.textContent = "No AC sweep points were produced.";
+          return;
+        }
+        const rows = points.map((point) => {
+          const requestedEntries = Object.entries(point.requested_answers || {});
+          const [id, answer] = requestedEntries[0] || Object.entries(point.node_voltages || {}).find(([node]) => node !== "0") || [];
+          if (!answer) {
+            return `<tr><td>${Number(point.frequency_hz).toPrecision(7)}</td><td colspan="3">No requested phasor answer</td></tr>`;
+          }
+          return `
+            <tr>
+              <td>${Number(point.frequency_hz).toPrecision(7)}</td>
+              <td>${escapeHtml(id)}</td>
+              <td>${Number(answer.magnitude).toPrecision(7)} ${escapeHtml(answer.unit)}</td>
+              <td>${Number(answer.phase_deg).toFixed(3)}\u00b0</td>
+            </tr>
+          `;
+        });
+        answersPanel.innerHTML = `
+          <table class="sweep-table">
+            <thead><tr><th>Frequency (Hz)</th><th>Answer</th><th>Magnitude</th><th>Phase</th></tr></thead>
+            <tbody>${rows.join("")}</tbody>
+          </table>
+        `;
       }
 
       function formatEngineering(value, unit) {
@@ -1258,7 +1304,12 @@
           answersPanel.textContent = `No verified answers displayed. ${guidance[label] || `Badge: ${label}.`}`;
           return;
         }
-        const entries = Object.entries(packet.requested_answers || {});
+        if (packet.ac_sweep && packet.ac_sweep.length) {
+          renderSweepTable(packet.ac_sweep);
+          return;
+        }
+        const acEntries = Object.entries(packet.ac_requested_answers || {});
+        const entries = acEntries.length ? acEntries : Object.entries(packet.requested_answers || {});
         if (!entries.length) {
           answersPanel.textContent = "No requested answers were produced.";
           return;
@@ -1302,6 +1353,10 @@
 
       function renderProvenance(packet) {
         const trace = packet.calculation_trace || {};
+        const isAc = (packet.ac_requested_answers && Object.keys(packet.ac_requested_answers).length) || (packet.ac_sweep && packet.ac_sweep.length);
+        const powerBalance = isAc
+          ? "not checked for AC MVP"
+          : `${Number(packet.verification?.power_balance_error_w || 0).toExponential(3)} W`;
         provenancePanel.innerHTML = `
           <div class="answers">
             <div class="row"><strong>Parser used</strong><span>${trace.parser_used || "not recorded"}</span></div>
@@ -1309,7 +1364,7 @@
             <div class="row"><strong>Solver name</strong><span>${trace.solver_name || "internal_mna_v1"}</span></div>
             <div class="row"><strong>Solver method</strong><span>${trace.solver_method || "Modified Nodal Analysis"}</span></div>
             <div class="row"><strong>KCL residual</strong><span>${Number(packet.verification?.max_kcl_residual_a || 0).toExponential(3)} A</span></div>
-            <div class="row"><strong>Power balance error</strong><span>${Number(packet.verification?.power_balance_error_w || 0).toExponential(3)} W</span></div>
+            <div class="row"><strong>Power balance error</strong><span>${powerBalance}</span></div>
           </div>
           <details>
             <summary>MNA matrix trace</summary>
@@ -1421,12 +1476,12 @@
           `);
         }
 
-        const previousAnswers = previous?.requested_answers || {};
-        const nextAnswers = next?.requested_answers || {};
+        const previousAnswers = previous?.ac_requested_answers || previous?.requested_answers || {};
+        const nextAnswers = next?.ac_requested_answers || next?.requested_answers || {};
         for (const [id, answer] of Object.entries(nextAnswers)) {
           const oldAnswer = previousAnswers[id];
           if (!oldAnswer) continue;
-          const delta = Number(answer.value) - Number(oldAnswer.value);
+          const delta = Number(answer.value ?? answer.magnitude) - Number(oldAnswer.value ?? oldAnswer.magnitude);
           rows.push(`
             <div class="row">
               <strong>${escapeHtml(id)}</strong>

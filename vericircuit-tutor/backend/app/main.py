@@ -70,7 +70,7 @@ class FullPipelineResponse(BaseModel):
 
 app = FastAPI(
     title="VeriCircuit Tutor",
-    description="Simulation-grounded AI tutor MVP for linear DC circuit analysis.",
+    description="Simulation-grounded AI tutor MVP for controlled linear circuit analysis.",
     version="0.1.0",
 )
 

@@ -47,6 +47,14 @@ def build_analysis_view(circuit: CircuitProblem, packet: SolutionPacket) -> Anal
             component_flows={},
             node_kcl={},
         )
+    if circuit.analysis_type != "dc_operating_point" or not packet.component_results:
+        return AnalysisView(
+            status="blocked",
+            badge=badge,
+            reason="Analysis view is currently available only for verified DC operating-point solutions.",
+            component_flows={},
+            node_kcl={},
+        )
 
     component_flows: dict[str, ComponentFlow] = {}
     for component in circuit.components:

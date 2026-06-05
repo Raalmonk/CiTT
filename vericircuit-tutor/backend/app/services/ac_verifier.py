@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import math
+
 from app.models.circuit_ir import CircuitProblem
 from app.models.solution_packet import CheckResult, SolutionPacket, VerificationReport
+from app.services.ac_solver import quantity_to_complex
 from app.services.validator import NORMALIZED_UNITS, reachable_from_ground
 
 
@@ -9,11 +12,26 @@ def _check(name: str, passed: bool, message: str, value: float | str | None = No
     return CheckResult(name=name, passed=passed, message=message, value=value)
 
 
-def verify_solution(
+def _finite_complex_values(solution: SolutionPacket) -> bool:
+    values = [
+        *solution.ac_node_voltages.values(),
+        *[result.voltage for result in solution.ac_component_results.values()],
+        *[result.current for result in solution.ac_component_results.values()],
+        *solution.ac_requested_answers.values(),
+    ]
+    return all(
+        math.isfinite(value.real)
+        and math.isfinite(value.imag)
+        and math.isfinite(value.magnitude)
+        and math.isfinite(value.phase_deg)
+        for value in values
+    )
+
+
+def verify_ac_solution(
     problem: CircuitProblem,
     solution: SolutionPacket,
     current_tol: float = 1e-8,
-    power_tol: float = 1e-8,
 ) -> VerificationReport:
     checks: list[CheckResult] = []
 
@@ -67,12 +85,14 @@ def verify_solution(
         )
     )
 
-    node_residuals = {node: 0.0 for node in problem.nodes if node != problem.ground_node}
+    node_residuals = {node: 0.0 + 0.0j for node in problem.nodes if node != problem.ground_node}
+    missing_component_result = False
     for component in problem.components:
-        result = solution.component_results.get(component.id)
+        result = solution.ac_component_results.get(component.id)
         if result is None:
+            missing_component_result = True
             continue
-        current = result.current.value
+        current = quantity_to_complex(result.current)
         if component.type == "op_amp_ideal":
             node_a, node_b = component.nodes[2], component.nodes[3]
         else:
@@ -83,44 +103,39 @@ def verify_solution(
             node_residuals[node_b] -= current
 
     max_kcl_residual = max((abs(value) for value in node_residuals.values()), default=0.0)
-    kcl_passed = max_kcl_residual <= current_tol
+    kcl_passed = max_kcl_residual <= current_tol and not missing_component_result
     checks.append(
         _check(
-            "kcl_residuals",
+            "ac_kcl_residuals",
             kcl_passed,
-            "KCL residuals are within tolerance."
+            "Complex KCL residuals are within tolerance."
             if kcl_passed
-            else "KCL residuals exceed tolerance.",
+            else "Complex KCL residuals exceed tolerance or a component result is missing.",
             value=max_kcl_residual,
         )
     )
 
-    signed_power_sum = sum(
-        result.power.value for result in solution.component_results.values()
-    )
-    power_balance_error = abs(signed_power_sum)
-    power_passed = power_balance_error <= power_tol
-    checks.append(
-        _check(
-            "power_balance",
-            power_passed,
-            "Signed component powers sum to zero within tolerance."
-            if power_passed
-            else "Power supplied and absorbed do not balance within tolerance.",
-            value=power_balance_error,
-        )
-    )
-
     requested_goal_ids = {goal.id for goal in problem.goals}
-    answer_ids = set(solution.requested_answers)
+    answer_ids = set(solution.ac_requested_answers)
     requested_answers_present = requested_goal_ids <= answer_ids
     checks.append(
         _check(
             "requested_answers_present",
             requested_answers_present,
-            "Every requested goal has a verified answer."
+            "Every requested goal has a verified phasor answer."
             if requested_answers_present
-            else "One or more requested goals is missing an answer.",
+            else "One or more requested goals is missing a phasor answer.",
+        )
+    )
+
+    finite = _finite_complex_values(solution)
+    checks.append(
+        _check(
+            "finite_complex_values",
+            finite,
+            "All complex values are finite."
+            if finite
+            else "One or more complex values is not finite.",
         )
     )
 
@@ -128,6 +143,6 @@ def verify_solution(
     return VerificationReport(
         passed=passed,
         max_kcl_residual_a=float(max_kcl_residual),
-        power_balance_error_w=float(power_balance_error),
+        power_balance_error_w=0.0,
         checks=checks,
     )

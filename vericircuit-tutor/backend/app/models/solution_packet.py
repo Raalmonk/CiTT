@@ -18,6 +18,18 @@ class QuantityValue(BaseModel):
     reference: dict[str, str] | None = None
 
 
+class ComplexQuantityValue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    real: float
+    imag: float
+    magnitude: float
+    phase_deg: float
+    unit: str
+    explanation_key: str | None = None
+    reference: dict[str, str] | None = None
+
+
 class ComponentResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -25,6 +37,14 @@ class ComponentResult(BaseModel):
     current: QuantityValue
     power: QuantityValue
     sign_convention: str
+
+
+class ACComponentResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    voltage: ComplexQuantityValue
+    current: ComplexQuantityValue
+    power_note: str = "AC complex power is not verified in this MVP."
 
 
 class CheckResult(BaseModel):
@@ -68,6 +88,16 @@ class CalculationTrace(BaseModel):
     solution_vector: list[float] = Field(default_factory=list)
 
 
+class ACFrequencyPoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    frequency_hz: float
+    node_voltages: dict[str, ComplexQuantityValue] = Field(default_factory=dict)
+    component_results: dict[str, ACComponentResult] = Field(default_factory=dict)
+    requested_answers: dict[str, ComplexQuantityValue] = Field(default_factory=dict)
+    verification: VerificationReport = Field(default_factory=VerificationReport)
+
+
 class SolutionPacket(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -76,6 +106,11 @@ class SolutionPacket(BaseModel):
     node_voltages: dict[str, float] = Field(default_factory=dict)
     component_results: dict[str, ComponentResult] = Field(default_factory=dict)
     requested_answers: dict[str, QuantityValue] = Field(default_factory=dict)
+    ac_node_voltages: dict[str, ComplexQuantityValue] = Field(default_factory=dict)
+    ac_component_results: dict[str, ACComponentResult] = Field(default_factory=dict)
+    ac_requested_answers: dict[str, ComplexQuantityValue] = Field(default_factory=dict)
+    frequency_hz: float | None = None
+    ac_sweep: list[ACFrequencyPoint] = Field(default_factory=list)
     verification: VerificationReport = Field(default_factory=VerificationReport)
     verification_badge: VerificationBadge = Field(default_factory=VerificationBadge)
     calculation_trace: CalculationTrace = Field(default_factory=CalculationTrace)

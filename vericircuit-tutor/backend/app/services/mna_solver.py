@@ -21,6 +21,7 @@ class SolveResult:
     message: str | None = None
     node_voltages: dict[str, float] = field(default_factory=dict)
     voltage_source_currents: dict[str, float] = field(default_factory=dict)
+    op_amp_output_currents: dict[str, float] = field(default_factory=dict)
     component_results: dict[str, ComponentResult] = field(default_factory=dict)
     requested_answers: dict[str, QuantityValue] = field(default_factory=dict)
     calculation_trace: CalculationTrace = field(default_factory=CalculationTrace)
@@ -34,6 +35,10 @@ def _node_voltage(node: str, node_voltages: dict[str, float]) -> float:
 
 def _component_voltage(nodes: list[str], node_voltages: dict[str, float]) -> float:
     return _node_voltage(nodes[0], node_voltages) - _node_voltage(nodes[1], node_voltages)
+
+
+def _op_amp_output_voltage(nodes: list[str], node_voltages: dict[str, float]) -> float:
+    return _node_voltage(nodes[2], node_voltages) - _node_voltage(nodes[3], node_voltages)
 
 
 def _quantity(
@@ -115,16 +120,22 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
     voltage_sources = [
         component for component in problem.components if component.type == "voltage_source"
     ]
+    op_amps = [component for component in problem.components if component.type == "op_amp_ideal"]
     source_index = {
         component.id: len(non_ground_nodes) + idx
         for idx, component in enumerate(voltage_sources)
     }
+    op_amp_index = {
+        component.id: len(non_ground_nodes) + len(voltage_sources) + idx
+        for idx, component in enumerate(op_amps)
+    }
     unknown_order = [
         *(f"V({node})" for node in non_ground_nodes),
         *(f"I({component.id})" for component in voltage_sources),
+        *(f"I({component.id}_out)" for component in op_amps),
     ]
 
-    size = len(non_ground_nodes) + len(voltage_sources)
+    size = len(non_ground_nodes) + len(voltage_sources) + len(op_amps)
     if size == 0:
         return SolveResult(
             success=False,
@@ -143,7 +154,7 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
     rhs = np.zeros(size, dtype=float)
 
     for component in problem.components:
-        node_a, node_b = component.nodes
+        node_a, node_b = component.nodes[0], component.nodes[1]
         idx_a = node_index.get(node_a)
         idx_b = node_index.get(node_b)
 
@@ -159,6 +170,10 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
             if idx_a is not None and idx_b is not None:
                 matrix[idx_a, idx_b] -= conductance
                 matrix[idx_b, idx_a] -= conductance
+
+        elif component.type == "capacitor":
+            # DC operating point: ideal capacitors are open circuits.
+            continue
 
         elif component.type == "current_source":
             current = component.value
@@ -181,6 +196,35 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
                 matrix[idx_b, vs_idx] -= 1.0
                 matrix[vs_idx, idx_b] -= 1.0
             rhs[vs_idx] = component.value
+        elif component.type == "op_amp_ideal":
+            if len(component.nodes) != 4:
+                return SolveResult(
+                    success=False,
+                    message=(
+                        f"{component.id} ideal op-amp must have nodes "
+                        "[non_inverting, inverting, output, reference]."
+                    ),
+                    calculation_trace=CalculationTrace(
+                        unknown_order=unknown_order,
+                        mna_matrix=matrix.tolist(),
+                        rhs_vector=rhs.tolist(),
+                    ),
+                )
+            vp, vm, out, ref = component.nodes
+            op_idx = op_amp_index[component.id]
+            idx_vp = node_index.get(vp)
+            idx_vm = node_index.get(vm)
+            idx_out = node_index.get(out)
+            idx_ref = node_index.get(ref)
+
+            if idx_out is not None:
+                matrix[idx_out, op_idx] += 1.0
+            if idx_ref is not None:
+                matrix[idx_ref, op_idx] -= 1.0
+            if idx_vp is not None:
+                matrix[op_idx, idx_vp] += 1.0
+            if idx_vm is not None:
+                matrix[op_idx, idx_vm] -= 1.0
         else:
             return SolveResult(
                 success=False,
@@ -202,9 +246,15 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
         solution = np.linalg.solve(matrix, rhs)
     except np.linalg.LinAlgError as exc:
         trace.solution_vector = []
+        message = f"MNA matrix is singular or ill-conditioned: {exc}"
+        if op_amps:
+            message += (
+                " Ideal op-amp circuit may require a closed-loop feedback path "
+                "or additional constraints."
+            )
         return SolveResult(
             success=False,
-            message=f"MNA matrix is singular or ill-conditioned: {exc}",
+            message=message,
             calculation_trace=trace,
         )
     trace.solution_vector = solution.tolist()
@@ -217,15 +267,29 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
         component.id: float(solution[source_index[component.id]])
         for component in voltage_sources
     }
+    op_amp_output_currents = {
+        component.id: float(solution[op_amp_index[component.id]])
+        for component in op_amps
+    }
 
     component_results: dict[str, ComponentResult] = {}
     for component in problem.components:
-        voltage = _component_voltage(component.nodes, node_voltages)
+        voltage = (
+            _op_amp_output_voltage(component.nodes, node_voltages)
+            if component.type == "op_amp_ideal"
+            else _component_voltage(component.nodes, node_voltages)
+        )
         if component.type == "resistor":
             current = voltage / component.value
             sign_convention = (
                 "Passive sign convention: current is positive from nodes[0] "
                 "to nodes[1], and resistor power is absorbed when positive."
+            )
+        elif component.type == "capacitor":
+            current = 0.0
+            sign_convention = (
+                "DC operating point: ideal capacitor is treated as an open circuit. "
+                "Voltage is V(nodes[0]) - V(nodes[1]); current is 0 A."
             )
         elif component.type == "current_source":
             current = component.value
@@ -233,6 +297,12 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
         elif component.type == "voltage_source":
             current = voltage_source_currents[component.id]
             sign_convention = SOURCE_SIGN_CONVENTION
+        elif component.type == "op_amp_ideal":
+            current = op_amp_output_currents[component.id]
+            sign_convention = (
+                "Ideal op-amp sign convention: voltage is V(output) - V(reference), "
+                "and output current is positive from output to reference."
+            )
         else:
             return SolveResult(
                 success=False,
@@ -246,14 +316,25 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
                 voltage,
                 "V",
                 reference={
-                    "positive_node": component.nodes[0],
-                    "negative_node": component.nodes[1],
+                    "positive_node": component.nodes[2]
+                    if component.type == "op_amp_ideal"
+                    else component.nodes[0],
+                    "negative_node": component.nodes[3]
+                    if component.type == "op_amp_ideal"
+                    else component.nodes[1],
                 },
             ),
             current=_quantity(
                 current,
                 "A",
-                reference={"from_node": component.nodes[0], "to_node": component.nodes[1]},
+                reference={
+                    "from_node": component.nodes[2]
+                    if component.type == "op_amp_ideal"
+                    else component.nodes[0],
+                    "to_node": component.nodes[3]
+                    if component.type == "op_amp_ideal"
+                    else component.nodes[1],
+                },
             ),
             power=_quantity(power, "W", reference={"component": component.id}),
             sign_convention=sign_convention,
@@ -268,6 +349,7 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
         success=True,
         node_voltages=node_voltages,
         voltage_source_currents=voltage_source_currents,
+        op_amp_output_currents=op_amp_output_currents,
         component_results=component_results,
         requested_answers=requested_answers,
         calculation_trace=trace,
