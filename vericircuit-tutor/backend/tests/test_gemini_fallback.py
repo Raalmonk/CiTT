@@ -3,6 +3,9 @@ import json
 from app.models.circuit_ir import CircuitProblem
 from app.services.demo_parser import VOLTAGE_DIVIDER_TEXT
 from app.services.gemini_parser import (
+    GeminiAPICircuitProblem,
+    GeminiAPIComponent,
+    GeminiAPIGoal,
     GeminiCircuitProblem,
     GeminiComponent,
     GeminiGoal,
@@ -10,6 +13,51 @@ from app.services.gemini_parser import (
     parse_with_gemini,
 )
 from app.services.parser_service import parse_problem
+
+
+def gemini_api_voltage_divider() -> GeminiAPICircuitProblem:
+    return GeminiAPICircuitProblem(
+        id="gemini_voltage_divider",
+        title="Gemini Voltage Divider Parse",
+        analysis_type="dc_operating_point",
+        topology_id="voltage_divider",
+        ground_node="0",
+        nodes=["0", "n1", "n2"],
+        components=[
+            GeminiAPIComponent(
+                id="V1",
+                type="voltage_source",
+                nodes=["n1", "0"],
+                value=5.0,
+                unit="V",
+            ),
+            GeminiAPIComponent(
+                id="R1",
+                type="resistor",
+                nodes=["n1", "n2"],
+                value=1000.0,
+                unit="ohm",
+            ),
+            GeminiAPIComponent(
+                id="R2",
+                type="resistor",
+                nodes=["n2", "0"],
+                value=4000.0,
+                unit="ohm",
+            ),
+        ],
+        goals=[
+            GeminiAPIGoal(
+                id="voltage_across_R2",
+                quantity="component_voltage",
+                target="R2",
+                reference={"positive_node": "n2", "negative_node": "0"},
+            )
+        ],
+        assumptions=["Voltage source positive terminal is node n1."],
+        ambiguities=[],
+        unsupported_features=[],
+    )
 
 
 def gemini_voltage_divider() -> GeminiCircuitProblem:
@@ -126,7 +174,7 @@ def test_gemini_fallback_when_parser_raises(monkeypatch):
 
 
 def test_parse_with_gemini_uses_parsed_model(monkeypatch):
-    parsed = gemini_voltage_divider()
+    parsed = gemini_api_voltage_divider()
     fake_client = install_fake_gemini_client(monkeypatch, GeminiResponse(parsed=parsed))
 
     circuit = parse_with_gemini("mock parse request")
@@ -135,11 +183,11 @@ def test_parse_with_gemini_uses_parsed_model(monkeypatch):
     assert circuit.id == "gemini_voltage_divider"
     assert circuit.components[0].id == "V1"
     assert fake_client.models.config.response_mime_type == "application/json"
-    assert fake_client.models.config.response_schema is GeminiCircuitProblem
+    assert fake_client.models.config.response_schema is GeminiAPICircuitProblem
 
 
 def test_parse_with_gemini_falls_back_to_response_text_json(monkeypatch):
-    parsed = gemini_voltage_divider()
+    parsed = gemini_api_voltage_divider()
     install_fake_gemini_client(
         monkeypatch,
         GeminiResponse(parsed=None, text=json.dumps(parsed.model_dump())),
@@ -150,6 +198,13 @@ def test_parse_with_gemini_falls_back_to_response_text_json(monkeypatch):
     assert isinstance(circuit, CircuitProblem)
     assert circuit.id == "gemini_voltage_divider"
     assert circuit.goals[0].id == "voltage_across_R2"
+
+
+def test_gemini_api_schema_omits_additional_properties():
+    schema = GeminiAPICircuitProblem.model_json_schema()
+    serialized = json.dumps(schema)
+
+    assert "additionalProperties" not in serialized
 
 
 def test_gemini_strict_succeeds_when_gemini_parse_succeeds(monkeypatch):

@@ -142,6 +142,143 @@
         line-height: 1.45;
       }
 
+      .progress-panel {
+        display: grid;
+        gap: 10px;
+      }
+
+      .progress-bar {
+        background: #e8edf4;
+        border-radius: 999px;
+        height: 10px;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        background: var(--accent);
+        height: 100%;
+        transition: width 180ms ease;
+        width: 0%;
+      }
+
+      .steps {
+        display: grid;
+        gap: 6px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .step {
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--muted);
+        display: grid;
+        gap: 2px;
+        grid-template-columns: 22px 1fr;
+        min-height: 54px;
+        padding: 8px;
+      }
+
+      .step .step-icon {
+        align-items: center;
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 13px;
+        font-weight: 800;
+        height: 20px;
+        justify-content: center;
+        width: 20px;
+      }
+
+      .step .step-label {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .step .step-detail {
+        color: var(--muted);
+        font-size: 12px;
+        grid-column: 2;
+        min-height: 16px;
+      }
+
+      .step.pending .step-icon {
+        background: #eef1f5;
+        color: var(--neutral);
+      }
+
+      .step.running {
+        border-color: #9bc2df;
+        background: #f0f7fd;
+      }
+
+      .step.running .step-icon {
+        background: #d8ecfb;
+        color: var(--accent-dark);
+      }
+
+      .step.running .step-icon::before {
+        animation: pulse-dot 900ms ease-in-out infinite;
+        content: "";
+        background: var(--accent);
+        border-radius: 999px;
+        height: 8px;
+        width: 8px;
+      }
+
+      .step.done .step-icon {
+        background: #e6f4ee;
+        color: var(--ok);
+      }
+
+      .step.failed {
+        border-color: #f3b5af;
+        background: #fff4f3;
+      }
+
+      .step.failed .step-icon {
+        background: #fee4e2;
+        color: var(--bad);
+      }
+
+      .step.skipped .step-icon {
+        background: #eef1f5;
+        color: var(--neutral);
+      }
+
+      .status-meaning {
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+      }
+
+      .status-meaning dl {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+      }
+
+      .status-meaning dt {
+        font-weight: 800;
+      }
+
+      .status-meaning dd {
+        color: var(--muted);
+        margin: 2px 0 0;
+      }
+
+      @keyframes pulse-dot {
+        0%,
+        100% {
+          opacity: 0.35;
+          transform: scale(0.8);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.15);
+        }
+      }
+
       .grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -272,6 +409,10 @@
         .grid {
           grid-template-columns: 1fr;
         }
+
+        .steps {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -314,10 +455,41 @@
           and deterministic verification. Tutor text is generated only after
           verified values exist.
         </div>
+        <div class="status-meaning">
+          <h2>Status Meaning</h2>
+          <dl>
+            <div>
+              <dt>PASS</dt>
+              <dd>Circuit IR validated, MNA solver ran, deterministic verification passed.</dd>
+            </div>
+            <div>
+              <dt>AMBIGUOUS</dt>
+              <dd>Parser or validator found unresolved ambiguity. No numerical answer is shown; clarify topology, component directions, or missing ground/reference.</dd>
+            </div>
+            <div>
+              <dt>UNSUPPORTED</dt>
+              <dd>Problem contains unsupported components or analysis types, such as capacitors, inductors, op-amps, diodes, transistors, AC, or transient analysis. No numerical answer is shown.</dd>
+            </div>
+            <div>
+              <dt>FAIL</dt>
+              <dd>The circuit was parsed, but validation, solving, or verification failed.</dd>
+            </div>
+          </dl>
+        </div>
         <div id="status" class="message">Ready.</div>
       </aside>
 
       <section class="grid">
+        <div class="panel wide progress-panel">
+          <h2>Progress</h2>
+          <div class="progress-bar" aria-label="Pipeline progress">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+          <div id="stepsPanel" class="steps"></div>
+          <div class="message">
+            Image/PDF OCR is not implemented in this MVP; current input is text only.
+          </div>
+        </div>
         <div class="panel">
           <h2>Parsed Circuit IR</h2>
           <pre id="irPanel">{}</pre>
@@ -374,11 +546,91 @@
       const verificationPanel = document.getElementById("verificationPanel");
       const explanationPanel = document.getElementById("explanationPanel");
       const variantsPanel = document.getElementById("variantsPanel");
+      const progressFill = document.getElementById("progressFill");
+      const stepsPanel = document.getElementById("stepsPanel");
 
       let currentCircuit = null;
+      let currentStepId = null;
+
+      const pipelineSteps = [
+        { id: "input", label: "Input received" },
+        { id: "parse", label: "Parsing problem" },
+        { id: "validate", label: "Validating Circuit IR" },
+        { id: "diagram", label: "Rendering circuit diagram" },
+        { id: "solve", label: "Solving with MNA" },
+        { id: "verify", label: "Verifying KCL / power balance" },
+        { id: "explain", label: "Generating tutor explanation" },
+        { id: "variants", label: "Generating variants" },
+        { id: "done", label: "Done" },
+      ];
+
+      const stepState = {};
 
       function pretty(data) {
         return JSON.stringify(data, null, 2);
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      function resetProgress() {
+        pipelineSteps.forEach((step) => {
+          stepState[step.id] = { status: "pending", detail: "" };
+        });
+        currentStepId = null;
+        setProgressPercent(0);
+        renderProgress();
+      }
+
+      function setStepStatus(stepId, status, detail = "") {
+        if (!stepState[stepId]) return;
+        stepState[stepId] = { status, detail };
+        if (status === "running") currentStepId = stepId;
+        renderProgress();
+      }
+
+      function setProgressPercent(percent) {
+        progressFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+      }
+
+      function renderProgress() {
+        const icons = {
+          pending: "",
+          running: "",
+          done: "&check;",
+          failed: "&times;",
+          skipped: "&ndash;",
+        };
+        stepsPanel.innerHTML = pipelineSteps
+          .map((step) => {
+            const state = stepState[step.id] || { status: "pending", detail: "" };
+            return `
+              <div class="step ${state.status}">
+                <span class="step-icon">${icons[state.status] || ""}</span>
+                <span class="step-label">${step.label}</span>
+                <span class="step-detail">${escapeHtml(state.detail)}</span>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function resetResults() {
+        currentCircuit = null;
+        irPanel.textContent = "{}";
+        diagramPanel.textContent = "No diagram yet.";
+        netlistPanel.textContent = "";
+        badgePanel.textContent = "No badge yet.";
+        answersPanel.textContent = "No solution yet.";
+        provenancePanel.textContent = "No provenance yet.";
+        verificationPanel.textContent = "No checks yet.";
+        explanationPanel.textContent = "";
+        variantsPanel.textContent = "No variants yet.";
       }
 
       function formatValue(answer) {
@@ -388,7 +640,13 @@
 
       function renderAnswers(packet) {
         if (packet.verification_badge?.label !== "PASS") {
-          answersPanel.textContent = `No verified answers displayed. Badge: ${packet.verification_badge?.label || "FAIL"}.`;
+          const label = packet.verification_badge?.label || "FAIL";
+          const guidance = {
+            AMBIGUOUS: "Ambiguity must be resolved before verified solving.",
+            UNSUPPORTED: "Unsupported feature outside MVP scope.",
+            FAIL: "Validation, solving, or verification failed before answers could be trusted.",
+          };
+          answersPanel.textContent = `No verified answers displayed. ${guidance[label] || `Badge: ${label}.`}`;
           return;
         }
         const entries = Object.entries(packet.requested_answers || {});
@@ -532,25 +790,101 @@
       }
 
       async function runPipeline() {
-        statusEl.textContent = "Running parser, solver, verifier, and explainer...";
+        resetResults();
+        resetProgress();
+        statusEl.textContent = "Pipeline started.";
         runButton.disabled = true;
+        currentStepId = "input";
         try {
-          const result = await requestJson("/full_pipeline", {
+          setStepStatus("input", "done", "Text ready");
+          setProgressPercent(8);
+
+          setStepStatus("parse", "running");
+          const parsed = await requestJson("/parse", {
             problem_text: problemText.value,
             mode: modeSelect.value,
           });
-          currentCircuit = result.circuit_ir;
-          irPanel.textContent = pretty(result.circuit_ir);
-          await renderDiagram(result.circuit_ir);
-          netlistPanel.textContent = result.solution_packet.generated_netlist || "";
-          renderBadge(result.solution_packet);
-          renderAnswers(result.solution_packet);
-          renderProvenance(result.solution_packet);
-          renderVerification(result.solution_packet.verification);
-          explanationPanel.textContent = result.explanation;
-          renderVariants(result.variants);
-          statusEl.textContent = `Done. Parser used: ${result.parser_used}. Badge: ${result.solution_packet.verification_badge.label}.`;
+          setStepStatus("parse", "done", parsed.parser_used);
+          setProgressPercent(22);
+
+          currentCircuit = parsed.circuit_ir;
+          irPanel.textContent = pretty(parsed.circuit_ir);
+
+          setStepStatus("diagram", "running");
+          await renderDiagram(parsed.circuit_ir);
+          setStepStatus("diagram", "done");
+          setProgressPercent(36);
+
+          setStepStatus("validate", "running");
+          setStepStatus("solve", "running");
+          const packet = await requestJson("/solve", {
+            circuit_ir: parsed.circuit_ir,
+            parser_used: parsed.parser_used,
+          });
+
+          netlistPanel.textContent = packet.generated_netlist || "";
+          renderBadge(packet);
+          renderAnswers(packet);
+          renderProvenance(packet);
+          renderVerification(packet.verification);
+
+          const badge = packet.verification_badge?.label || "FAIL";
+          if (badge === "PASS") {
+            setStepStatus("validate", "done");
+            setStepStatus("solve", "done");
+            setStepStatus("verify", "done");
+          } else if (badge === "AMBIGUOUS") {
+            setStepStatus("validate", "failed", "Unresolved ambiguity");
+            setStepStatus("solve", "skipped", "Needs clarification");
+            setStepStatus("verify", "skipped", "No verified solve");
+            statusEl.textContent = "Ambiguity must be resolved before verified solving.";
+          } else if (badge === "UNSUPPORTED") {
+            setStepStatus("validate", "failed", "Outside MVP scope");
+            setStepStatus("solve", "skipped", "Unsupported circuit");
+            setStepStatus("verify", "skipped", "No verified solve");
+            statusEl.textContent = "Unsupported feature outside MVP scope.";
+          } else {
+            setStepStatus("validate", packet.status === "solved" ? "done" : "failed");
+            setStepStatus("solve", packet.status === "solved" ? "done" : "failed");
+            setStepStatus("verify", "failed", "Verification did not pass");
+            statusEl.textContent = "Validation, solving, or verification failed.";
+          }
+          setProgressPercent(64);
+
+          setStepStatus("explain", "running");
+          const explanation = await requestJson("/explain", {
+            solution_packet: packet,
+          });
+          explanationPanel.textContent = explanation.explanation;
+          setStepStatus("explain", "done");
+          setProgressPercent(78);
+
+          if (badge === "PASS") {
+            setStepStatus("variants", "running");
+            const variantResult = await requestJson("/variant", {
+              circuit_ir: parsed.circuit_ir,
+              kind: "both",
+            });
+            renderVariants(variantResult.variants);
+            setStepStatus("variants", "done");
+          } else {
+            renderVariants([]);
+            setStepStatus("variants", "skipped", "Requires PASS badge");
+          }
+          setProgressPercent(92);
+
+          setStepStatus("done", "done");
+          setProgressPercent(100);
+          if (badge === "PASS") {
+            statusEl.textContent = `Done. Parser used: ${parsed.parser_used}. Badge: ${badge}.`;
+          } else if (!statusEl.textContent) {
+            statusEl.textContent = `Done with badge ${badge}.`;
+          }
         } catch (error) {
+          if (currentStepId) {
+            setStepStatus(currentStepId, "failed", "API error");
+          }
+          setStepStatus("done", "failed");
           statusEl.textContent = `Error: ${error.message}`;
         } finally {
           runButton.disabled = false;
@@ -573,6 +907,7 @@
       runButton.addEventListener("click", runPipeline);
       valueVariantButton.addEventListener("click", () => generateVariant("value"));
       goalVariantButton.addEventListener("click", () => generateVariant("goal"));
+      resetProgress();
       loadExamples().catch((error) => {
         statusEl.textContent = `Could not load examples: ${error.message}`;
       });

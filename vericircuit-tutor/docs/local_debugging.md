@@ -59,3 +59,20 @@ manual_svg_bridge_network
 ```
 
 Pytest can confirm that the endpoint returns SVG, the correct renderer is selected, and required labels are present. It cannot fully prove that no visual label overlap exists, so the exported SVGs are the final local visual QA step.
+
+## Progress UI QA
+
+Run the app, open `http://127.0.0.1:8000`, and use the **Run pipeline** button.
+
+Check these paths:
+
+1. Run a Gemini strict voltage divider, if `GEMINI_API_KEY` is configured.
+2. Watch progress move through parse, diagram, solve, verify, explain, variants, and done.
+3. Confirm the voltage divider with `R1 = 2 kOhm`, `R2 = 3 kOhm`, and `V = 10 V` reports `V_R2 = 6 V` and circuit current `2 mA`.
+4. Run an ambiguous topology prompt.
+5. Confirm badge `AMBIGUOUS`, no answers are displayed, and variants are skipped.
+6. Run an unsupported capacitor or transient-analysis prompt.
+7. Confirm badge `UNSUPPORTED`, no answers are displayed, and variants are skipped.
+8. Confirm **Answer Provenance** still says `LLM numerical answer allowed: NO`.
+
+OCR and image/PDF recognition are not implemented in this MVP. Current input is text only.

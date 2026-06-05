@@ -12,6 +12,50 @@ class GeminiParserUnavailable(RuntimeError):
     """Raised when Gemini parsing is unavailable and the caller should fall back."""
 
 
+class GeminiGoalReference(BaseModel):
+    positive_node: str | None = None
+    negative_node: str | None = None
+    from_node: str | None = None
+    to_node: str | None = None
+    component: str | None = None
+
+
+class GeminiAPIComponent(BaseModel):
+    id: str = Field(min_length=1)
+    type: Literal["resistor", "voltage_source", "current_source"]
+    nodes: list[str] = Field(min_length=2, max_length=2)
+    value: float
+    unit: Literal["ohm", "V", "A"]
+    label: str | None = None
+
+
+class GeminiAPIGoal(BaseModel):
+    id: str = Field(min_length=1)
+    quantity: Literal[
+        "node_voltage",
+        "component_voltage",
+        "component_current",
+        "component_power",
+        "source_power",
+    ]
+    target: str = Field(min_length=1)
+    reference: GeminiGoalReference | None = None
+
+
+class GeminiAPICircuitProblem(BaseModel):
+    id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    analysis_type: Literal["dc_operating_point"]
+    topology_id: Literal["voltage_divider", "current_divider", "bridge_network"] | None = None
+    ground_node: str = "0"
+    nodes: list[str] = Field(default_factory=list)
+    components: list[GeminiAPIComponent] = Field(default_factory=list)
+    goals: list[GeminiAPIGoal] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    ambiguities: list[str] = Field(default_factory=list)
+    unsupported_features: list[str] = Field(default_factory=list)
+
+
 class GeminiComponent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -35,7 +79,7 @@ class GeminiGoal(BaseModel):
         "source_power",
     ]
     target: str = Field(min_length=1)
-    reference: dict[str, str] | None = None
+    reference: GeminiGoalReference | None = None
 
 
 class GeminiCircuitProblem(BaseModel):
@@ -102,7 +146,7 @@ def parse_with_gemini(problem_text: str) -> CircuitProblem:
             config=types.GenerateContentConfig(
                 temperature=0,
                 response_mime_type="application/json",
-                response_schema=GeminiCircuitProblem,
+                response_schema=GeminiAPICircuitProblem,
             ),
         )
     except Exception as exc:
@@ -111,11 +155,13 @@ def parse_with_gemini(problem_text: str) -> CircuitProblem:
     try:
         response_parsed = getattr(response, "parsed", None)
         if response_parsed is not None:
-            parsed = response_parsed
-            if not isinstance(parsed, GeminiCircuitProblem):
-                parsed = GeminiCircuitProblem.model_validate(parsed)
+            if isinstance(response_parsed, GeminiAPICircuitProblem):
+                api_parsed = response_parsed
+            else:
+                api_parsed = GeminiAPICircuitProblem.model_validate(response_parsed)
         else:
-            parsed = GeminiCircuitProblem.model_validate_json(response.text)
-        return CircuitProblem.model_validate(parsed.model_dump())
+            api_parsed = GeminiAPICircuitProblem.model_validate_json(response.text)
+        strict_parsed = GeminiCircuitProblem.model_validate(api_parsed.model_dump())
+        return CircuitProblem.model_validate(strict_parsed.model_dump())
     except ValueError as exc:
         raise GeminiParserUnavailable(f"Gemini did not return valid CircuitProblem JSON: {exc}") from exc

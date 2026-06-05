@@ -1,3 +1,6 @@
+from fastapi.testclient import TestClient
+
+from app.main import app
 from app.services.demo_parser import VOLTAGE_DIVIDER_TEXT
 from app.services.parser_service import parse_problem
 from app.services.pipeline import solve_circuit
@@ -26,3 +29,17 @@ def test_llm_used_for_numerical_answer_is_always_false_for_pipeline():
 
     assert packet.calculation_trace.llm_used_for_numerical_answer is False
 
+
+def test_solve_endpoint_preserves_parser_used():
+    parsed = parse_problem(VOLTAGE_DIVIDER_TEXT, mode="demo")
+
+    response = TestClient(app).post(
+        "/solve",
+        json={
+            "circuit_ir": parsed.circuit.model_dump(),
+            "parser_used": "gemini",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["calculation_trace"]["parser_used"] == "gemini"

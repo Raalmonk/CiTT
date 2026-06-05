@@ -35,6 +35,7 @@ class ParseResponse(BaseModel):
 
 class SolveRequest(BaseModel):
     circuit_ir: CircuitProblem
+    parser_used: str | None = None
 
 
 class ExplainRequest(BaseModel):
@@ -97,7 +98,7 @@ def parse_endpoint(request: ParseRequest) -> ParseResponse:
 
 @app.post("/solve", response_model=SolutionPacket)
 def solve_endpoint(request: SolveRequest) -> SolutionPacket:
-    return solve_circuit(request.circuit_ir)
+    return solve_circuit(request.circuit_ir, parser_used=request.parser_used)
 
 
 @app.post("/schematic", response_class=Response)
