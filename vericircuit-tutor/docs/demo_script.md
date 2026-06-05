@@ -90,6 +90,27 @@ Use this when the next demo should emphasize simulation-grounded editing instead
 
 Then use **Requested Goals** to select `R1_power`, click **Update goals and re-solve**, and show that R1 power appears as a verified requested answer.
 
+## Optional Probe Mode Demo
+
+Use this to show that the diagram is not just decoration: probes are derived from the verified Solution Packet.
+
+1. Parse and solve the voltage divider.
+2. Turn on **Show current pulse**.
+3. Click `R2` in the circuit diagram and show current, voltage, power, actual direction, and sign convention.
+4. Click node `n2` and show KCL:
+   - `R1` entering
+   - `R2` leaving
+   - residual approximately zero
+5. Parse the balanced bridge network.
+6. Turn on **Show current pulse**.
+7. Click `R5` and show that it has zero or near-zero current.
+8. Click `n2` and `n3` and show KCL PASS for both.
+9. Run an ambiguous prompt and confirm probe mode is blocked.
+
+Say:
+
+> This is a visual verification overlay, not transient simulation. The moving current marks are animated from DC solution values already verified by the solver and KCL/power checks.
+
 ## 3:45-4:30 - Show A Harder MNA Example
 
 Select **Bridge Network** or **Second Bridge Network** and run the pipeline.

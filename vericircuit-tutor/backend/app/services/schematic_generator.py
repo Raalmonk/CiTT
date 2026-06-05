@@ -88,6 +88,18 @@ def _manual_svg(width: int, height: int, body: str, renderer: str) -> str:
     .component {{ stroke: #111827; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }}
     .node {{ fill: #111827; stroke: #ffffff; stroke-width: 2; }}
     .source {{ stroke: #111827; stroke-width: 5; fill: #ffffff; }}
+    .circuit-component {{ cursor: pointer; }}
+    .circuit-node {{ cursor: pointer; }}
+    .circuit-component:hover .component-label,
+    .circuit-node:hover .node-label {{ fill: #1768ac; }}
+    .current-path {{
+      stroke: transparent;
+      stroke-width: 8;
+      fill: none;
+      pointer-events: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }}
     .label, .node-label, .component-label, .source-label {{
       font: 22px system-ui, sans-serif;
       fill: #111827;
@@ -136,6 +148,35 @@ def _svg_text(
 
 def _svg_label(x: float, y: float, text: str, anchor: str = "middle") -> str:
     return _svg_text(x, y, text, anchor=anchor, cls="component-label")
+
+
+def _attr(value: str) -> str:
+    return escape(value, quote=True)
+
+
+def _svg_component_group(component_id: str, body: str) -> str:
+    return (
+        f'<g class="circuit-component" data-component-id="{_attr(component_id)}">\n'
+        f"  {body}\n"
+        "</g>"
+    )
+
+
+def _svg_node_group(node_id: str, body: str) -> str:
+    return (
+        f'<g class="circuit-node" data-node-id="{_attr(node_id)}">\n'
+        f"  {body}\n"
+        "</g>"
+    )
+
+
+def _svg_current_path(component_id: str, points: list[tuple[float, float]]) -> str:
+    commands = [f"M {points[0][0]:g} {points[0][1]:g}"]
+    commands.extend(f"L {x:g} {y:g}" for x, y in points[1:])
+    return (
+        f'<path class="current-path" data-component-id="{_attr(component_id)}" '
+        f'd="{" ".join(commands)}" />'
+    )
 
 
 def _svg_ground(x: float, y: float) -> str:
@@ -225,6 +266,30 @@ def _svg_resistor_horizontal(
     )
 
 
+def _svg_source_vertical(
+    x: float,
+    y1: float,
+    y2: float,
+    component: Component,
+    symbol: str,
+    label_x: float,
+    label_y: float,
+    label_anchor: str = "middle",
+) -> str:
+    radius = 38
+    mid_y = (y1 + y2) / 2
+    return "\n  ".join(
+        [
+            _svg_line(x, y1, x, mid_y - radius, "wire"),
+            _svg_line(x, mid_y + radius, x, y2, "wire"),
+            f'<circle class="source" cx="{x:g}" cy="{mid_y:g}" r="{radius:g}" />',
+            _svg_text(x, mid_y, symbol, cls="source-symbol"),
+            _svg_label(label_x, label_y, format_component_label(component), label_anchor),
+            _svg_current_path(component.id, [(x, y1), (x, y2)]),
+        ]
+    )
+
+
 def _component_label(
     element: elm.Element,
     component: Component,
@@ -273,55 +338,183 @@ def _base_drawing() -> schemdraw.Drawing:
 
 def _render_voltage_divider(problem: CircuitProblem) -> str:
     c = _components(problem)
-    d = _base_drawing()
+    source_x = 120
+    branch_x = 430
+    top_y = 90
+    mid_y = 260
+    bottom_y = 430
 
-    top_left = (0, 5)
-    bottom_left = (0, 0)
-    top = (4.5, 5)
-    mid = (4.5, 2.5)
-    bottom = (4.5, 0)
-
-    d += _component_label(elm.SourceV().at(bottom_left).to(top_left), c["V1"], "left", (-0.75, 0.1))
-    d += elm.Line().at(top_left).to(top)
-    d += elm.Dot().at(top_left)
-    d += _dot(top)
-    d += _node_label("n1", (top[0] + 0.55, top[1] + 0.55))
-    d += _component_label(elm.Resistor().at(top).to(mid), c["R1"], "right", LABEL_OFFSET_LARGE)
-    d += _dot(mid)
-    d += _node_label("n2", (mid[0] - 0.65, mid[1]))
-    d += _component_label(elm.Resistor().at(mid).to(bottom), c["R2"], "right", LABEL_OFFSET_LARGE)
-    d += elm.Line().at(bottom).to(bottom_left)
-    d += _dot(bottom)
-    d += _node_label("0", (bottom[0] + 0.55, bottom[1] - 0.6))
-    d += elm.Ground().at(bottom_left)
-    return _schemdraw_svg(d, "schemdraw_voltage_divider")
+    body = "\n  ".join(
+        [
+            _svg_line(source_x, top_y, branch_x, top_y),
+            _svg_line(branch_x, bottom_y, source_x, bottom_y),
+            _svg_component_group(
+                "V1",
+                _svg_source_vertical(
+                    source_x,
+                    top_y,
+                    bottom_y,
+                    c["V1"],
+                    "V",
+                    source_x - 72,
+                    mid_y,
+                    "end",
+                ),
+            ),
+            _svg_component_group(
+                "R1",
+                "\n  ".join(
+                    [
+                        _svg_resistor_vertical(
+                            branch_x,
+                            top_y,
+                            mid_y,
+                            format_component_label(c["R1"]),
+                            branch_x + 85,
+                            (top_y + mid_y) / 2,
+                            "start",
+                        ),
+                        _svg_current_path("R1", [(branch_x, top_y), (branch_x, mid_y)]),
+                    ]
+                ),
+            ),
+            _svg_component_group(
+                "R2",
+                "\n  ".join(
+                    [
+                        _svg_resistor_vertical(
+                            branch_x,
+                            mid_y,
+                            bottom_y,
+                            format_component_label(c["R2"]),
+                            branch_x + 85,
+                            (mid_y + bottom_y) / 2,
+                            "start",
+                        ),
+                        _svg_current_path("R2", [(branch_x, mid_y), (branch_x, bottom_y)]),
+                    ]
+                ),
+            ),
+            _svg_node_group(
+                "n1",
+                "\n  ".join(
+                    [
+                        _svg_dot(source_x, top_y),
+                        _svg_dot(branch_x, top_y),
+                        _svg_text(branch_x + 42, top_y - 32, "n1", anchor="start", cls="node-label"),
+                    ]
+                ),
+            ),
+            _svg_node_group(
+                "n2",
+                "\n  ".join(
+                    [
+                        _svg_dot(branch_x, mid_y),
+                        _svg_text(branch_x - 42, mid_y, "n2", anchor="end", cls="node-label"),
+                    ]
+                ),
+            ),
+            _svg_node_group(
+                "0",
+                "\n  ".join(
+                    [
+                        _svg_dot(source_x, bottom_y),
+                        _svg_dot(branch_x, bottom_y),
+                        _svg_text(branch_x + 42, bottom_y + 38, "0", anchor="start", cls="node-label"),
+                        _svg_ground(source_x, bottom_y),
+                    ]
+                ),
+            ),
+        ]
+    )
+    return _manual_svg(620, 520, body, "schemdraw_voltage_divider")
 
 
 def _render_current_divider(problem: CircuitProblem) -> str:
     c = _components(problem)
-    d = _base_drawing()
+    source_x = 120
+    r1_x = 360
+    r2_x = 560
+    top_y = 90
+    bottom_y = 430
 
-    top_left = (0, 5)
-    bottom_left = (0, 0)
-    top_r1 = (4, 5)
-    bottom_r1 = (3, 0)
-    top_r2 = (8, 5)
-    bottom_r2 = (6, 0)
-
-    bottom_r1 = (4, 0)
-    bottom_r2 = (8, 0)
-
-    d += _component_label(elm.SourceI().at(bottom_left).to(top_left), c["I1"], "left", (-0.75, 0.1))
-    d += elm.Line().at(top_left).to(top_r2)
-    d += elm.Line().at(bottom_r2).to(bottom_left)
-    d += _dot(top_r1)
-    d += _node_label("top", (top_r1[0], top_r1[1] + 0.65))
-    d += _component_label(elm.Resistor().at(top_r1).to(bottom_r1), c["R1"], "left", LABEL_OFFSET_LARGE)
-    d += _component_label(elm.Resistor().at(top_r2).to(bottom_r2), c["R2"], "right", LABEL_OFFSET_LARGE)
-    d += _dot(bottom_r1)
-    d += _node_label("0", (bottom_r1[0], bottom_r1[1] - 0.75))
-    d += elm.Ground().at(bottom_left)
-    return _schemdraw_svg(d, "schemdraw_current_divider")
+    body = "\n  ".join(
+        [
+            _svg_line(source_x, top_y, r2_x, top_y),
+            _svg_line(r2_x, bottom_y, source_x, bottom_y),
+            _svg_component_group(
+                "I1",
+                _svg_source_vertical(
+                    source_x,
+                    bottom_y,
+                    top_y,
+                    c["I1"],
+                    "I",
+                    source_x - 72,
+                    (top_y + bottom_y) / 2,
+                    "end",
+                ),
+            ),
+            _svg_component_group(
+                "R1",
+                "\n  ".join(
+                    [
+                        _svg_resistor_vertical(
+                            r1_x,
+                            top_y,
+                            bottom_y,
+                            format_component_label(c["R1"]),
+                            r1_x - 80,
+                            (top_y + bottom_y) / 2,
+                            "end",
+                        ),
+                        _svg_current_path("R1", [(r1_x, top_y), (r1_x, bottom_y)]),
+                    ]
+                ),
+            ),
+            _svg_component_group(
+                "R2",
+                "\n  ".join(
+                    [
+                        _svg_resistor_vertical(
+                            r2_x,
+                            top_y,
+                            bottom_y,
+                            format_component_label(c["R2"]),
+                            r2_x + 80,
+                            (top_y + bottom_y) / 2,
+                            "start",
+                        ),
+                        _svg_current_path("R2", [(r2_x, top_y), (r2_x, bottom_y)]),
+                    ]
+                ),
+            ),
+            _svg_node_group(
+                "top",
+                "\n  ".join(
+                    [
+                        _svg_dot(source_x, top_y),
+                        _svg_dot(r1_x, top_y),
+                        _svg_dot(r2_x, top_y),
+                        _svg_text(r1_x, top_y - 38, "top", anchor="middle", cls="node-label"),
+                    ]
+                ),
+            ),
+            _svg_node_group(
+                "0",
+                "\n  ".join(
+                    [
+                        _svg_dot(source_x, bottom_y),
+                        _svg_dot(r1_x, bottom_y),
+                        _svg_dot(r2_x, bottom_y),
+                        _svg_text(r1_x, bottom_y + 38, "0", anchor="middle", cls="node-label"),
+                        _svg_ground(source_x, bottom_y),
+                    ]
+                ),
+            ),
+        ]
+    )
+    return _manual_svg(740, 520, body, "schemdraw_current_divider")
 
 
 def _render_bridge_manual_svg(problem: CircuitProblem) -> str:
@@ -354,75 +547,151 @@ def _render_bridge_manual_svg(problem: CircuitProblem) -> str:
         [
             _svg_line(source_x, top_y, top_bus_right, top_y),
             _svg_line(source_x, bottom_y, bottom_bus_right, bottom_y),
-            _svg_line(source_x, top_y, source_x, mid_y - source_radius),
-            _svg_line(source_x, mid_y + source_radius, source_x, bottom_y),
-            f'<circle class="source" cx="{source_x:g}" cy="{mid_y:g}" r="{source_radius:g}" />',
-            _svg_text(source_x, mid_y, "V", cls="source-symbol"),
-            _svg_label(source_x - 70, bottom_y + 55, format_component_label(c["V1"])),
-            _svg_text(source_x + 55, top_y - 28, source_node, anchor="start", cls="node-label"),
-            _svg_text(source_x + 55, bottom_y + 40, "0", anchor="start", cls="node-label"),
-            _svg_ground(source_x, bottom_y),
-            _svg_dot(source_x, top_y),
-            _svg_dot(source_x, bottom_y),
-            _svg_dot(left_x, top_y),
-            _svg_dot(left_x, bottom_y),
-            _svg_dot(right_x, top_y),
-            _svg_dot(right_x, bottom_y),
-            _svg_resistor_vertical(
-                left_x,
-                top_y,
-                r_top_end,
-                format_component_label(c["R1"]),
-                left_x - 95,
-                (top_y + r_top_end) / 2,
-                "end",
+            _svg_component_group(
+                "V1",
+                "\n  ".join(
+                    [
+                        _svg_line(source_x, top_y, source_x, mid_y - source_radius),
+                        _svg_line(source_x, mid_y + source_radius, source_x, bottom_y),
+                        f'<circle class="source" cx="{source_x:g}" cy="{mid_y:g}" r="{source_radius:g}" />',
+                        _svg_text(source_x, mid_y, "V", cls="source-symbol"),
+                        _svg_label(source_x - 70, bottom_y + 55, format_component_label(c["V1"])),
+                        _svg_current_path("V1", [(source_x, top_y), (source_x, bottom_y)]),
+                    ]
+                ),
             ),
-            _svg_line(left_x, r_top_end, left_x, mid_y),
-            _svg_dot(left_x, mid_y),
-            _svg_text(left_x - 45, mid_y - 18, left_mid, anchor="end", cls="node-label"),
-            _svg_line(left_x, mid_y, left_x, r_bottom_start),
-            _svg_resistor_vertical(
-                left_x,
-                r_bottom_start,
-                bottom_y,
-                format_component_label(c["R2"]),
-                left_x - 95,
-                (r_bottom_start + bottom_y) / 2,
-                "end",
+            _svg_component_group(
+                "R1",
+                "\n  ".join(
+                    [
+                        _svg_resistor_vertical(
+                            left_x,
+                            top_y,
+                            r_top_end,
+                            format_component_label(c["R1"]),
+                            left_x - 95,
+                            (top_y + r_top_end) / 2,
+                            "end",
+                        ),
+                        _svg_line(left_x, r_top_end, left_x, mid_y),
+                        _svg_current_path("R1", [(left_x, top_y), (left_x, mid_y)]),
+                    ]
+                ),
             ),
-            _svg_resistor_vertical(
-                right_x,
-                top_y,
-                r_top_end,
-                format_component_label(c["R3"]),
-                right_x + 95,
-                (top_y + r_top_end) / 2,
-                "start",
+            _svg_component_group(
+                "R2",
+                "\n  ".join(
+                    [
+                        _svg_line(left_x, mid_y, left_x, r_bottom_start),
+                        _svg_resistor_vertical(
+                            left_x,
+                            r_bottom_start,
+                            bottom_y,
+                            format_component_label(c["R2"]),
+                            left_x - 95,
+                            (r_bottom_start + bottom_y) / 2,
+                            "end",
+                        ),
+                        _svg_current_path("R2", [(left_x, mid_y), (left_x, bottom_y)]),
+                    ]
+                ),
             ),
-            _svg_line(right_x, r_top_end, right_x, mid_y),
-            _svg_dot(right_x, mid_y),
-            _svg_text(right_x + 45, mid_y - 18, right_mid, anchor="start", cls="node-label"),
-            _svg_line(right_x, mid_y, right_x, r_bottom_start),
-            _svg_resistor_vertical(
-                right_x,
-                r_bottom_start,
-                bottom_y,
-                format_component_label(c["R4"]),
-                right_x + 95,
-                (r_bottom_start + bottom_y) / 2,
-                "start",
+            _svg_component_group(
+                "R3",
+                "\n  ".join(
+                    [
+                        _svg_resistor_vertical(
+                            right_x,
+                            top_y,
+                            r_top_end,
+                            format_component_label(c["R3"]),
+                            right_x + 95,
+                            (top_y + r_top_end) / 2,
+                            "start",
+                        ),
+                        _svg_line(right_x, r_top_end, right_x, mid_y),
+                        _svg_current_path("R3", [(right_x, top_y), (right_x, mid_y)]),
+                    ]
+                ),
             ),
-            _svg_line(left_x, mid_y, r5_left, mid_y),
-            _svg_resistor_horizontal(
-                r5_left,
-                mid_y,
-                r5_right,
-                format_component_label(c["R5"]),
-                r5_label_x,
-                mid_y - 58,
-                "middle",
+            _svg_component_group(
+                "R4",
+                "\n  ".join(
+                    [
+                        _svg_line(right_x, mid_y, right_x, r_bottom_start),
+                        _svg_resistor_vertical(
+                            right_x,
+                            r_bottom_start,
+                            bottom_y,
+                            format_component_label(c["R4"]),
+                            right_x + 95,
+                            (r_bottom_start + bottom_y) / 2,
+                            "start",
+                        ),
+                        _svg_current_path("R4", [(right_x, mid_y), (right_x, bottom_y)]),
+                    ]
+                ),
             ),
-            _svg_line(r5_right, mid_y, right_x, mid_y),
+            _svg_component_group(
+                "R5",
+                "\n  ".join(
+                    [
+                        _svg_line(left_x, mid_y, r5_left, mid_y),
+                        _svg_resistor_horizontal(
+                            r5_left,
+                            mid_y,
+                            r5_right,
+                            format_component_label(c["R5"]),
+                            r5_label_x,
+                            mid_y - 58,
+                            "middle",
+                        ),
+                        _svg_line(r5_right, mid_y, right_x, mid_y),
+                        _svg_current_path("R5", [(left_x, mid_y), (right_x, mid_y)]),
+                    ]
+                ),
+            ),
+            _svg_node_group(
+                source_node,
+                "\n  ".join(
+                    [
+                        _svg_dot(source_x, top_y),
+                        _svg_dot(left_x, top_y),
+                        _svg_dot(right_x, top_y),
+                        _svg_text(source_x + 55, top_y - 28, source_node, anchor="start", cls="node-label"),
+                    ]
+                ),
+            ),
+            _svg_node_group(
+                "0",
+                "\n  ".join(
+                    [
+                        _svg_dot(source_x, bottom_y),
+                        _svg_dot(left_x, bottom_y),
+                        _svg_dot(right_x, bottom_y),
+                        _svg_text(source_x + 55, bottom_y + 40, "0", anchor="start", cls="node-label"),
+                        _svg_ground(source_x, bottom_y),
+                    ]
+                ),
+            ),
+            _svg_node_group(
+                left_mid,
+                "\n  ".join(
+                    [
+                        _svg_dot(left_x, mid_y),
+                        _svg_text(left_x - 45, mid_y - 18, left_mid, anchor="end", cls="node-label"),
+                    ]
+                ),
+            ),
+            _svg_node_group(
+                right_mid,
+                "\n  ".join(
+                    [
+                        _svg_dot(right_x, mid_y),
+                        _svg_text(right_x + 45, mid_y - 18, right_mid, anchor="start", cls="node-label"),
+                    ]
+                ),
+            ),
         ]
     )
     return _manual_svg(BRIDGE_WIDTH, BRIDGE_HEIGHT, body, "manual_svg_bridge_network")

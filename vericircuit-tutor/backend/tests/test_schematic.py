@@ -47,6 +47,20 @@ def test_schematic_contains_component_ids_and_values():
     assert "10 V" in response.text
 
 
+def test_known_schematics_include_probe_metadata_and_current_paths():
+    examples = [voltage_divider_problem(), current_divider_problem(), bridge_network_problem()]
+
+    for circuit in examples:
+        response = _schematic(circuit)
+
+        assert response.status_code == 200
+        for component in circuit.components:
+            assert f'data-component-id="{component.id}"' in response.text
+            assert f'class="current-path" data-component-id="{component.id}"' in response.text
+        for node in circuit.nodes:
+            assert f'data-node-id="{node}"' in response.text
+
+
 def test_bridge_schematic_contains_clear_component_and_node_labels():
     response = _schematic(bridge_network_problem())
 

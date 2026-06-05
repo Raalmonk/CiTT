@@ -8,9 +8,11 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from app.models.analysis_view import AnalysisView
 from app.models.circuit_ir import CircuitProblem
 from app.models.solution_packet import SolutionPacket
 from app.services.demo_parser import get_demo_examples
+from app.services.analysis_view import build_analysis_view
 from app.services.explainer import explain_solution
 from app.services.parser_service import parse_problem
 from app.services.pipeline import solve_circuit
@@ -45,6 +47,11 @@ class ExplainRequest(BaseModel):
 class VariantRequest(BaseModel):
     circuit_ir: CircuitProblem
     kind: Literal["value", "goal", "both"] = "both"
+
+
+class AnalysisViewRequest(BaseModel):
+    circuit_ir: CircuitProblem
+    solution_packet: SolutionPacket
 
 
 class FullPipelineRequest(BaseModel):
@@ -133,6 +140,11 @@ def variant_endpoint(request: VariantRequest) -> dict[str, object]:
     else:
         variants = generate_variants(request.circuit_ir)
     return {"variants": variants}
+
+
+@app.post("/analysis_view", response_model=AnalysisView)
+def analysis_view_endpoint(request: AnalysisViewRequest) -> AnalysisView:
+    return build_analysis_view(request.circuit_ir, request.solution_packet)
 
 
 @app.post("/full_pipeline", response_model=FullPipelineResponse)

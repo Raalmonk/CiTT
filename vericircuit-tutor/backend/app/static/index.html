@@ -333,6 +333,73 @@
         margin-top: 3px;
       }
 
+      .probe-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pulse-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .pulse-controls label {
+        align-items: center;
+        display: inline-flex;
+        gap: 6px;
+        margin: 0;
+      }
+
+      @keyframes currentFlowForward {
+        from {
+          stroke-dashoffset: 0;
+        }
+        to {
+          stroke-dashoffset: -32;
+        }
+      }
+
+      @keyframes currentFlowReverse {
+        from {
+          stroke-dashoffset: 0;
+        }
+        to {
+          stroke-dashoffset: 32;
+        }
+      }
+
+      .diagram svg .current-path.pulse-active {
+        stroke: #1768ac;
+        stroke-dasharray: 8 16;
+        animation: currentFlowForward var(--pulse-duration, 1.4s) linear infinite;
+        opacity: var(--pulse-opacity, 0.8);
+      }
+
+      .diagram svg .current-path.pulse-reverse {
+        animation-name: currentFlowReverse;
+      }
+
+      .diagram svg .current-path.pulse-zero {
+        stroke: #9ca3af;
+        stroke-dasharray: none;
+        animation: none;
+        opacity: 0.35;
+      }
+
+      .branch-current-label {
+        fill: #1768ac;
+        font: 700 16px system-ui, sans-serif;
+        paint-order: stroke;
+        pointer-events: none;
+        stroke: #ffffff;
+        stroke-linejoin: round;
+        stroke-width: 5px;
+        text-anchor: middle;
+      }
+
       @keyframes pulse-dot {
         0%,
         100% {
@@ -481,7 +548,8 @@
         }
 
         .editor-layout,
-        .field-grid {
+        .field-grid,
+        .probe-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -585,6 +653,23 @@
           <h2>What Changed</h2>
           <div id="whatChangedPanel" class="message">No what-if edits yet.</div>
         </div>
+        <div class="panel wide">
+          <h2>Current Pulse Controls</h2>
+          <div class="pulse-controls">
+            <label><input id="showPulseCheckbox" type="checkbox" disabled /> Show current pulse</label>
+            <label><input id="showBranchLabelsCheckbox" type="checkbox" disabled /> Show branch current labels</label>
+            <button id="clearProbeButton" class="secondary" disabled>Clear selection</button>
+          </div>
+          <div id="probeStatusPanel" class="message" style="margin-top: 8px">Probe mode is available after a verified PASS solution.</div>
+        </div>
+        <div class="panel wide">
+          <h2>Probe Panel</h2>
+          <div id="componentProbePanel" class="message">Click a component in a verified diagram.</div>
+        </div>
+        <div class="panel wide">
+          <h2>KCL Panel</h2>
+          <div id="kclPanel" class="message">Click a node in a verified diagram.</div>
+        </div>
         <div class="panel">
           <h2>Parsed Circuit IR</h2>
           <pre id="irPanel">{}</pre>
@@ -648,12 +733,21 @@
       const goalsPanel = document.getElementById("goalsPanel");
       const updateGoalsButton = document.getElementById("updateGoalsButton");
       const whatChangedPanel = document.getElementById("whatChangedPanel");
+      const showPulseCheckbox = document.getElementById("showPulseCheckbox");
+      const showBranchLabelsCheckbox = document.getElementById("showBranchLabelsCheckbox");
+      const clearProbeButton = document.getElementById("clearProbeButton");
+      const probeStatusPanel = document.getElementById("probeStatusPanel");
+      const componentProbePanel = document.getElementById("componentProbePanel");
+      const kclPanel = document.getElementById("kclPanel");
 
       let currentCircuit = null;
       let currentParserUsed = null;
       let currentPacket = null;
+      let currentAnalysisView = null;
       let previousPacket = null;
       let selectedComponentId = null;
+      let selectedProbeComponentId = null;
+      let selectedNodeId = null;
       let currentStepId = null;
 
       const pipelineSteps = [
@@ -729,8 +823,11 @@
         currentCircuit = null;
         currentParserUsed = null;
         currentPacket = null;
+        currentAnalysisView = null;
         previousPacket = null;
         selectedComponentId = null;
+        selectedProbeComponentId = null;
+        selectedNodeId = null;
         irPanel.textContent = "{}";
         diagramPanel.textContent = "No diagram yet.";
         netlistPanel.textContent = "";
@@ -745,11 +842,203 @@
         goalsPanel.textContent = "Run the pipeline to edit requested goals.";
         updateGoalsButton.disabled = true;
         whatChangedPanel.textContent = "No what-if edits yet.";
+        showPulseCheckbox.checked = false;
+        showPulseCheckbox.disabled = true;
+        showBranchLabelsCheckbox.checked = false;
+        showBranchLabelsCheckbox.disabled = true;
+        clearProbeButton.disabled = true;
+        probeStatusPanel.textContent = "Probe mode is available after a verified PASS solution.";
+        componentProbePanel.textContent = "Click a component in a verified diagram.";
+        kclPanel.textContent = "Click a node in a verified diagram.";
       }
 
       function formatValue(answer) {
         if (!answer) return "";
         return `${Number(answer.value).toPrecision(7)} ${answer.unit}`;
+      }
+
+      function formatEngineering(value, unit) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return "";
+        const absValue = Math.abs(numeric);
+        if (unit === "A" && absValue < 1) {
+          return `${(numeric * 1000).toFixed(3)} mA`;
+        }
+        if (unit === "W" && absValue < 1) {
+          return `${(numeric * 1000).toFixed(3)} mW`;
+        }
+        if (unit === "V") {
+          return `${numeric.toFixed(3)} V`;
+        }
+        return `${numeric.toPrecision(6)} ${unit}`;
+      }
+
+      function formatResidual(value, unit) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return "";
+        if (Math.abs(numeric) < 1e-6) {
+          return `${numeric.toExponential(3)} ${unit}`;
+        }
+        return formatEngineering(numeric, unit);
+      }
+
+      function clamp(min, max, value) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function attrSelectorValue(value) {
+        return String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+      }
+
+      function analysisIsAvailable() {
+        return currentAnalysisView?.status === "available" && currentAnalysisView?.badge === "PASS";
+      }
+
+      function setProbeUnavailable(message) {
+        showPulseCheckbox.checked = false;
+        showPulseCheckbox.disabled = true;
+        showBranchLabelsCheckbox.checked = false;
+        showBranchLabelsCheckbox.disabled = true;
+        clearProbeButton.disabled = true;
+        probeStatusPanel.textContent = message;
+        componentProbePanel.textContent = "Probe mode is unavailable because the circuit did not pass verification.";
+        kclPanel.textContent = "Probe mode is unavailable because the circuit did not pass verification.";
+        applyCurrentPulse();
+      }
+
+      function clearProbeSelection() {
+        selectedProbeComponentId = null;
+        selectedNodeId = null;
+        componentProbePanel.textContent = analysisIsAvailable()
+          ? "Click a component in the diagram."
+          : "Probe mode is unavailable because the circuit did not pass verification.";
+        kclPanel.textContent = analysisIsAvailable()
+          ? "Click a node in the diagram."
+          : "Probe mode is unavailable because the circuit did not pass verification.";
+      }
+
+      function renderAnalysisAvailability() {
+        if (!currentAnalysisView) {
+          setProbeUnavailable("Probe mode is unavailable until analysis data is loaded.");
+          return;
+        }
+        if (!analysisIsAvailable()) {
+          setProbeUnavailable(currentAnalysisView.reason || "Probe mode is unavailable because the circuit did not pass verification.");
+          return;
+        }
+
+        showPulseCheckbox.disabled = false;
+        showBranchLabelsCheckbox.disabled = false;
+        clearProbeButton.disabled = false;
+        probeStatusPanel.textContent = "Probe mode is available. Click diagram components or nodes to inspect verified quantities.";
+        if (!selectedProbeComponentId) componentProbePanel.textContent = "Click a component in the diagram.";
+        if (!selectedNodeId) kclPanel.textContent = "Click a node in the diagram.";
+        applyCurrentPulse();
+      }
+
+      function renderComponentProbe(componentId) {
+        if (!analysisIsAvailable()) {
+          setProbeUnavailable("Probe mode is unavailable because the circuit did not pass verification.");
+          return;
+        }
+        const flow = currentAnalysisView.component_flows[componentId];
+        if (!flow) {
+          componentProbePanel.textContent = `No verified component flow found for ${componentId}.`;
+          return;
+        }
+        componentProbePanel.innerHTML = `
+          <div class="answers">
+            <div class="row"><strong>Component</strong><span>${escapeHtml(flow.component_id)}</span></div>
+            <div class="row"><strong>Type</strong><span>${escapeHtml(flow.component_type)}</span></div>
+            <div class="row"><strong>Nodes</strong><span>${escapeHtml(flow.nodes.join(" -> "))}</span></div>
+            <div class="row"><strong>Voltage</strong><span>${formatEngineering(flow.voltage_v, "V")}</span></div>
+            <div class="row"><strong>Current</strong><span>${formatEngineering(flow.current_a, "A")}</span></div>
+            <div class="row"><strong>Actual direction</strong><span>${escapeHtml(flow.direction_from)} -> ${escapeHtml(flow.direction_to)}</span></div>
+            <div class="row"><strong>Power</strong><span>${formatEngineering(flow.power_w, "W")}</span></div>
+            <div class="row"><strong>Sign convention</strong><span>${escapeHtml(flow.sign_convention)}</span></div>
+          </div>
+        `;
+      }
+
+      function renderNodeKcl(nodeId) {
+        if (!analysisIsAvailable()) {
+          setProbeUnavailable("Probe mode is unavailable because the circuit did not pass verification.");
+          return;
+        }
+        const report = currentAnalysisView.node_kcl[nodeId];
+        if (!report) {
+          kclPanel.textContent = `No verified KCL report found for node ${nodeId}.`;
+          return;
+        }
+        const terms = report.terms
+          .map((term) => {
+            const signed = formatEngineering(term.signed_current_leaving_a, "A");
+            return `
+              <div class="row">
+                <strong>${escapeHtml(term.component_id)}</strong>
+                <span>${signed} ${escapeHtml(term.direction)}</span>
+              </div>
+            `;
+          })
+          .join("");
+        kclPanel.innerHTML = `
+          <div class="answers">
+            <div><strong>KCL at node ${escapeHtml(report.node)}</strong></div>
+            <div class="message">V(${escapeHtml(report.node)}) = ${formatEngineering(report.voltage_v, "V")}</div>
+            <div class="message">Positive current means leaving node ${escapeHtml(report.node)}.</div>
+            ${terms}
+            <div class="row"><strong>Sum leaving</strong><span>${formatEngineering(report.sum_leaving_a, "A")}</span></div>
+            <div class="row"><strong>Residual</strong><span>${formatResidual(report.residual_a, "A")}</span></div>
+            <div class="row"><strong>Status</strong><span class="badge ${report.passed ? "pass" : "fail"}">${report.passed ? "PASS" : "FAIL"}</span></div>
+          </div>
+        `;
+      }
+
+      function clearCurrentPulse() {
+        const svg = diagramPanel.querySelector("svg");
+        if (!svg) return;
+        svg.querySelectorAll(".current-path").forEach((path) => {
+          path.classList.remove("pulse-active", "pulse-reverse", "pulse-zero");
+          path.style.removeProperty("--pulse-duration");
+          path.style.removeProperty("--pulse-opacity");
+        });
+        svg.querySelectorAll(".branch-current-label").forEach((label) => label.remove());
+      }
+
+      function applyCurrentPulse() {
+        clearCurrentPulse();
+        if (!analysisIsAvailable()) return;
+
+        const svg = diagramPanel.querySelector("svg");
+        if (!svg) return;
+        const showPulse = showPulseCheckbox.checked;
+        const showLabels = showBranchLabelsCheckbox.checked;
+        if (!showPulse && !showLabels) return;
+
+        for (const [componentId, flow] of Object.entries(currentAnalysisView.component_flows)) {
+          const path = svg.querySelector(`.current-path[data-component-id="${attrSelectorValue(componentId)}"]`);
+          if (!path) continue;
+          const duration = clamp(0.6, 2.8, 0.003 / Math.max(flow.abs_current_a, 1e-6));
+          path.style.setProperty("--pulse-duration", `${duration}s`);
+          path.style.setProperty("--pulse-opacity", "0.8");
+
+          if (showPulse) {
+            path.classList.add("pulse-active");
+            if (flow.current_a < 0) path.classList.add("pulse-reverse");
+            if (flow.is_zero_current) path.classList.add("pulse-zero");
+          }
+
+          if (showLabels && typeof path.getTotalLength === "function") {
+            const length = path.getTotalLength();
+            const point = path.getPointAtLength(length / 2);
+            const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            label.setAttribute("class", "branch-current-label");
+            label.setAttribute("x", point.x);
+            label.setAttribute("y", point.y - 14);
+            label.textContent = formatEngineering(flow.current_a, "A");
+            svg.appendChild(label);
+          }
+        }
       }
 
       function parseEngineeringValue(text, unit) {
@@ -1054,12 +1343,16 @@
             if (variant) {
               currentCircuit = variant.circuit_ir;
               currentPacket = null;
+              currentAnalysisView = null;
               previousPacket = null;
               selectedComponentId = null;
+              selectedProbeComponentId = null;
+              selectedNodeId = null;
               irPanel.textContent = pretty(currentCircuit);
               renderCircuitEditor();
               renderGoalEditor();
               whatChangedPanel.textContent = "Loaded variant Circuit IR. Re-solve to compare changes.";
+              renderAnalysisAvailability();
               renderDiagram(currentCircuit).catch((error) => {
                 diagramPanel.textContent = `Could not render diagram: ${error.message}`;
               });
@@ -1204,6 +1497,7 @@
           renderPacket(packet);
           renderWhatChanged(previousPacket, packet, changeSummary);
           const badge = applyVerificationProgress(packet);
+          await loadAnalysisView(currentCircuit, packet);
           setProgressPercent(64);
 
           await explainAndVariant(currentCircuit, packet, badge);
@@ -1300,9 +1594,21 @@
         return response.text();
       }
 
+      async function loadAnalysisView(circuitIr, packet) {
+        currentAnalysisView = await requestJson("/analysis_view", {
+          circuit_ir: circuitIr,
+          solution_packet: packet,
+        });
+        selectedProbeComponentId = null;
+        selectedNodeId = null;
+        clearProbeSelection();
+        renderAnalysisAvailability();
+      }
+
       async function renderDiagram(circuitIr) {
         const svg = await requestSvg("/schematic", { circuit_ir: circuitIr });
         diagramPanel.innerHTML = svg;
+        applyCurrentPulse();
       }
 
       async function loadExamples() {
@@ -1360,6 +1666,7 @@
 
           renderPacket(packet);
           const badge = applyVerificationProgress(packet);
+          await loadAnalysisView(parsed.circuit_ir, packet);
           setProgressPercent(64);
 
           await explainAndVariant(parsed.circuit_ir, packet, badge);
@@ -1400,6 +1707,30 @@
       valueVariantButton.addEventListener("click", () => generateVariant("value"));
       goalVariantButton.addEventListener("click", () => generateVariant("goal"));
       updateGoalsButton.addEventListener("click", updateGoalsAndResolve);
+      showPulseCheckbox.addEventListener("change", applyCurrentPulse);
+      showBranchLabelsCheckbox.addEventListener("change", applyCurrentPulse);
+      clearProbeButton.addEventListener("click", clearProbeSelection);
+      diagramPanel.addEventListener("click", (event) => {
+        if (!analysisIsAvailable()) {
+          componentProbePanel.textContent = "Probe mode is unavailable because the circuit did not pass verification.";
+          kclPanel.textContent = "Probe mode is unavailable because the circuit did not pass verification.";
+          return;
+        }
+
+        const componentEl = event.target.closest("[data-component-id]");
+        const nodeEl = event.target.closest("[data-node-id]");
+        if (componentEl) {
+          selectedProbeComponentId = componentEl.dataset.componentId;
+          selectedComponentId = selectedProbeComponentId;
+          renderCircuitEditor();
+          renderComponentProbe(selectedProbeComponentId);
+          return;
+        }
+        if (nodeEl) {
+          selectedNodeId = nodeEl.dataset.nodeId;
+          renderNodeKcl(selectedNodeId);
+        }
+      });
       resetProgress();
       loadExamples().catch((error) => {
         statusEl.textContent = `Could not load examples: ${error.message}`;
