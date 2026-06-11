@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.models.circuit_ir import CircuitProblem, Component
+from app.models.circuit_ir import CircuitProblem, Component, is_ideal_op_amp_type
 
 
 def _fmt(value: float) -> str:
@@ -21,11 +21,13 @@ def _line_for_component(component: Component) -> str:
         return f"{component.id} {node_a} {node_b} {_fmt(component.value)}"
     if component.type == "capacitor":
         return f"{component.id} {node_a} {node_b} {_fmt(component.value)}"
+    if component.type == "inductor":
+        return f"{component.id} {node_a} {node_b} {_fmt(component.value)}"
     if component.type == "voltage_source":
         return f"{component.id} {node_a} {node_b} DC {_fmt(component.value)}{ac_suffix}"
     if component.type == "current_source":
         return f"{component.id} {node_a} {node_b} DC {_fmt(component.value)}{ac_suffix}"
-    if component.type == "op_amp_ideal":
+    if is_ideal_op_amp_type(component.type):
         vp, vm, out, ref = component.nodes
         return "\n".join(
             [
@@ -39,7 +41,7 @@ def _line_for_component(component: Component) -> str:
 def generate_netlist(problem: CircuitProblem) -> str:
     lines = ["* VeriCircuit Tutor generated netlist"]
     lines.extend(_line_for_component(component) for component in problem.components)
-    if problem.analysis_type == "ac_single_frequency" and problem.frequency_hz is not None:
+    if problem.analysis_type in {"ac_steady_state", "ac_single_frequency"} and problem.frequency_hz is not None:
         lines.append(f".ac lin 1 {_fmt(problem.frequency_hz)} {_fmt(problem.frequency_hz)}")
     elif problem.analysis_type == "ac_sweep" and problem.sweep is not None:
         if problem.sweep.scale == "log":
@@ -52,6 +54,9 @@ def generate_netlist(problem: CircuitProblem) -> str:
                 f".ac lin {problem.sweep.points_per_decade} "
                 f"{_fmt(problem.sweep.start_hz)} {_fmt(problem.sweep.stop_hz)}"
             )
+    elif problem.analysis_type == "rc_transient":
+        initial = problem.transient.initial_voltage_v if problem.transient else 0.0
+        lines.append(f"* first-order RC transient template, initial capacitor voltage {_fmt(initial)} V")
     else:
         lines.append(".op")
     lines.append(".end")

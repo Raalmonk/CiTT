@@ -98,6 +98,28 @@ class ACFrequencyPoint(BaseModel):
     verification: VerificationReport = Field(default_factory=VerificationReport)
 
 
+class TransientPoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    time_s: float
+    voltage_v: float
+
+
+class RCTransientResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    capacitor_id: str
+    positive_node: str
+    negative_node: str
+    initial_voltage_v: float
+    final_voltage_v: float
+    resistance_ohm: float
+    capacitance_f: float
+    time_constant_s: float
+    formula: str
+    sample_points: list[TransientPoint] = Field(default_factory=list)
+
+
 class SolutionPacket(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -111,6 +133,7 @@ class SolutionPacket(BaseModel):
     ac_requested_answers: dict[str, ComplexQuantityValue] = Field(default_factory=dict)
     frequency_hz: float | None = None
     ac_sweep: list[ACFrequencyPoint] = Field(default_factory=list)
+    transient_response: RCTransientResponse | None = None
     verification: VerificationReport = Field(default_factory=VerificationReport)
     verification_badge: VerificationBadge = Field(default_factory=VerificationBadge)
     calculation_trace: CalculationTrace = Field(default_factory=CalculationTrace)

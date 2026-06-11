@@ -620,7 +620,7 @@
             </div>
             <div>
               <dt>UNSUPPORTED</dt>
-              <dd>Problem contains unsupported components or analysis types, such as transient analysis, inductors, diodes, transistors, nonlinear devices, or nonideal op-amp behavior. No numerical answer is shown.</dd>
+              <dd>Problem contains unsupported components or analysis types, such as general transient analysis, DC inductors, diodes, transistors, nonlinear devices, or nonideal op-amp behavior. No numerical answer is shown.</dd>
             </div>
             <div>
               <dt>FAIL</dt>
@@ -1308,6 +1308,10 @@
           renderSweepTable(packet.ac_sweep);
           return;
         }
+        if (packet.transient_response) {
+          renderTransientResponse(packet.transient_response);
+          return;
+        }
         const acEntries = Object.entries(packet.ac_requested_answers || {});
         const entries = acEntries.length ? acEntries : Object.entries(packet.requested_answers || {});
         if (!entries.length) {
@@ -1319,6 +1323,27 @@
             return `<div class="row"><strong>${id}</strong><span>${formatValue(answer)}</span></div>`;
           })
           .join("");
+      }
+
+      function renderTransientResponse(response) {
+        const sampleRows = (response.sample_points || [])
+          .map((point) => {
+            return `<tr><td>${Number(point.time_s).toPrecision(7)}</td><td>${Number(point.voltage_v).toPrecision(7)} V</td></tr>`;
+          })
+          .join("");
+        answersPanel.innerHTML = `
+          <div class="answers">
+            <div class="row"><strong>Formula</strong><span>${escapeHtml(response.formula)}</span></div>
+            <div class="row"><strong>V initial</strong><span>${Number(response.initial_voltage_v).toPrecision(7)} V</span></div>
+            <div class="row"><strong>V final</strong><span>${Number(response.final_voltage_v).toPrecision(7)} V</span></div>
+            <div class="row"><strong>R th</strong><span>${Number(response.resistance_ohm).toPrecision(7)} ohm</span></div>
+            <div class="row"><strong>Tau</strong><span>${Number(response.time_constant_s).toPrecision(7)} s</span></div>
+          </div>
+          <table class="sweep-table">
+            <thead><tr><th>Time (s)</th><th>Capacitor voltage</th></tr></thead>
+            <tbody>${sampleRows}</tbody>
+          </table>
+        `;
       }
 
       function badgeClass(label) {
@@ -1354,8 +1379,11 @@
       function renderProvenance(packet) {
         const trace = packet.calculation_trace || {};
         const isAc = (packet.ac_requested_answers && Object.keys(packet.ac_requested_answers).length) || (packet.ac_sweep && packet.ac_sweep.length);
+        const isTransient = Boolean(packet.transient_response);
         const powerBalance = isAc
           ? "not checked for AC MVP"
+          : isTransient
+          ? "not checked for RC transient template"
           : `${Number(packet.verification?.power_balance_error_w || 0).toExponential(3)} W`;
         provenancePanel.innerHTML = `
           <div class="answers">

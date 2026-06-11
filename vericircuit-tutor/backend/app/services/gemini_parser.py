@@ -27,12 +27,26 @@ class GeminiAPIACSweep(BaseModel):
     scale: Literal["log", "linear"] = "log"
 
 
+class GeminiAPIRCTransient(BaseModel):
+    capacitor_id: str | None = None
+    initial_voltage_v: float = 0.0
+    time_points_s: list[float] = Field(default_factory=list)
+
+
 class GeminiAPIComponent(BaseModel):
     id: str = Field(min_length=1)
-    type: Literal["resistor", "voltage_source", "current_source", "capacitor", "op_amp_ideal"]
+    type: Literal[
+        "resistor",
+        "voltage_source",
+        "current_source",
+        "capacitor",
+        "inductor",
+        "op_amp_ideal",
+        "ideal_op_amp",
+    ]
     nodes: list[str] = Field(min_length=2, max_length=4)
     value: float
-    unit: Literal["ohm", "V", "A", "F", "ideal"]
+    unit: Literal["ohm", "V", "A", "F", "H", "ideal"]
     label: str | None = None
     ac_magnitude: float | None = None
     ac_phase_deg: float | None = None
@@ -54,14 +68,22 @@ class GeminiAPIGoal(BaseModel):
 class GeminiAPICircuitProblem(BaseModel):
     id: str = Field(min_length=1)
     title: str = Field(min_length=1)
-    analysis_type: Literal["dc_operating_point", "ac_single_frequency", "ac_sweep"]
+    analysis_type: Literal[
+        "dc_operating_point",
+        "ac_steady_state",
+        "ac_single_frequency",
+        "ac_sweep",
+        "rc_transient",
+    ]
     frequency_hz: float | None = None
     sweep: GeminiAPIACSweep | None = None
+    transient: GeminiAPIRCTransient | None = None
     topology_id: Literal[
         "voltage_divider",
         "current_divider",
         "bridge_network",
         "rc_low_pass",
+        "rc_transient_charging",
         "op_amp_non_inverting",
     ] | None = None
     ground_node: str = "0"
@@ -82,14 +104,30 @@ class GeminiACSweep(BaseModel):
     scale: Literal["log", "linear"] = "log"
 
 
+class GeminiRCTransient(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    capacitor_id: str | None = None
+    initial_voltage_v: float = 0.0
+    time_points_s: list[float] = Field(default_factory=list)
+
+
 class GeminiComponent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(min_length=1)
-    type: Literal["resistor", "voltage_source", "current_source", "capacitor", "op_amp_ideal"]
+    type: Literal[
+        "resistor",
+        "voltage_source",
+        "current_source",
+        "capacitor",
+        "inductor",
+        "op_amp_ideal",
+        "ideal_op_amp",
+    ]
     nodes: list[str] = Field(min_length=2, max_length=4)
     value: float
-    unit: Literal["ohm", "V", "A", "F", "ideal"]
+    unit: Literal["ohm", "V", "A", "F", "H", "ideal"]
     label: str | None = None
     ac_magnitude: float | None = None
     ac_phase_deg: float | None = None
@@ -115,14 +153,22 @@ class GeminiCircuitProblem(BaseModel):
 
     id: str = Field(min_length=1)
     title: str = Field(min_length=1)
-    analysis_type: Literal["dc_operating_point", "ac_single_frequency", "ac_sweep"]
+    analysis_type: Literal[
+        "dc_operating_point",
+        "ac_steady_state",
+        "ac_single_frequency",
+        "ac_sweep",
+        "rc_transient",
+    ]
     frequency_hz: float | None = None
     sweep: GeminiACSweep | None = None
+    transient: GeminiRCTransient | None = None
     topology_id: Literal[
         "voltage_divider",
         "current_divider",
         "bridge_network",
         "rc_low_pass",
+        "rc_transient_charging",
         "op_amp_non_inverting",
     ] | None = None
     ground_node: str = "0"
@@ -143,17 +189,19 @@ Rules:
 - Do not solve the circuit.
 - Do not compute final voltages, currents, powers, requested answers, or explanations.
 - Normalize kOhm and kilohm values to ohms, mA values to A, microfarads to F, and all voltages to V.
-- Allowed component types are resistor, voltage_source, current_source, capacitor, and op_amp_ideal.
+- Allowed component types are resistor, voltage_source, current_source, capacitor, inductor, op_amp_ideal, and ideal_op_amp.
 - Use "0" as the ground node.
 - For voltage sources, nodes[0] is the positive terminal and nodes[1] is the negative terminal.
 - For current sources, positive current direction is from nodes[0] to nodes[1].
 - For ideal op-amps, nodes must be [non_inverting, inverting, output, reference] and unit must be "ideal".
 - Source ac_magnitude and ac_phase_deg define AC phasor amplitude and phase; leave them null for non-source components.
 - If the problem asks for capacitor DC steady state, use analysis_type "dc_operating_point" with a capacitor component.
-- If the problem asks for sinusoidal steady-state, phasor, or a single frequency, use "ac_single_frequency" and set frequency_hz.
+- If the problem asks for a first-order RC charging or discharging transient with one capacitor, use analysis_type "rc_transient", include one capacitor component, and set transient.initial_voltage_v. Use transient.time_points_s for requested evaluation times.
+- If the problem asks for sinusoidal steady-state, phasor, impedance, filters at one frequency, or a single AC frequency, use "ac_steady_state" and set frequency_hz.
 - If the problem asks for frequency response, Bode data, or an AC sweep, use "ac_sweep" and set sweep.
-- If the problem asks for transient/time-domain response, list "transient analysis" in unsupported_features.
-- If an op-amp is ideal and closed-loop assumptions are clear, use op_amp_ideal.
+- For AC steady-state, capacitors use impedance 1/(j omega C), inductors use impedance j omega L, and source ac_magnitude/ac_phase_deg define phasors.
+- If the problem asks for general transient/time-domain response beyond a first-order RC template, list "transient analysis" in unsupported_features.
+- If an op-amp is ideal and closed-loop assumptions are clear, use ideal_op_amp.
 - If op-amp rails, saturation, slew rate, bias current, finite bandwidth, or nonideal frequency response is requested, list it in unsupported_features.
 - If unsupported components appear, list them in unsupported_features and do not pretend to solve them.
 - If topology or connectivity is ambiguous, fill ambiguities instead of guessing.

@@ -40,7 +40,9 @@ The sign convention is consistent across the system: component voltage is `V(nod
 
 ## MVP Scope
 
-The MVP intentionally supports a narrow set of circuits: linear DC networks of resistors and independent sources. It does not include op-amps, capacitors, inductors, diodes, transistors, dependent sources, AC analysis, transient analysis, or schematic/image recognition.
+The MVP intentionally supports a narrow set of circuits: linear DC operating point, first-order RC transient templates, AC steady-state/sweep analysis for linear R/L/C circuits and independent sources, and ideal closed-loop op-amp DC. It does not include general transient analysis, DC inductor behavior, diodes, transistors, dependent sources, nonlinear solving, nonideal op-amp behavior, or schematic/image recognition.
+
+On top of that solver scope, the demo includes named BME templates for ECG/EMG front-ends, pressure and strain bridges, thermistor dividers, photodiode transimpedance amplifiers, instrumentation amplifiers, and anti-aliasing filters. These templates are ordinary Circuit IR examples that still pass through the same validation, solving, and verification pipeline.
 
 This narrow scope is a feature, not a defect. It makes the verification story clear and inspectable for a professor demo.
 
@@ -51,4 +53,3 @@ The initial benchmark should include 20 problems split across simple dividers, n
 ## Why This Is More Than Prompt Engineering
 
 Prompt engineering tries to elicit better answers from a language model. VeriCircuit Tutor changes the authority structure. The final numerical answer comes from a formal circuit representation, numerical solving, and circuit-law verification. Language generation is downstream of that verified packet. That separation is what makes the system interesting for trustworthy tutoring: the tutor can be conversational without being the source of numerical truth.
-

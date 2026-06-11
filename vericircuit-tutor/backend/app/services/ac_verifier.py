@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from app.models.circuit_ir import CircuitProblem
+from app.models.circuit_ir import CircuitProblem, is_ideal_op_amp_type
 from app.models.solution_packet import CheckResult, SolutionPacket, VerificationReport
 from app.services.ac_solver import quantity_to_complex
 from app.services.validator import NORMALIZED_UNITS, reachable_from_ground
@@ -93,7 +93,7 @@ def verify_ac_solution(
             missing_component_result = True
             continue
         current = quantity_to_complex(result.current)
-        if component.type == "op_amp_ideal":
+        if is_ideal_op_amp_type(component.type):
             node_a, node_b = component.nodes[2], component.nodes[3]
         else:
             node_a, node_b = component.nodes[0], component.nodes[1]

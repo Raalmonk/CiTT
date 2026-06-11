@@ -161,8 +161,18 @@ The deterministic parser recognizes:
 - Current source with parallel resistors: 3 mA into 2 kOhm and 1 kOhm to ground
 - Bridge-like resistor network: 5 resistors and one DC voltage source
 - Second bridge-like resistor network: different 5-resistor values and one DC voltage source
-- RC low-pass AC single-frequency example
+- RC low-pass AC steady-state example
+- First-order RC transient charging example
 - Ideal non-inverting op-amp DC example
+- BME templates:
+  - ECG front-end differential amplifier
+  - EMG RC band-pass chain
+  - Pressure sensor divider and bridge
+  - Strain gauge Wheatstone bridge
+  - Thermistor divider
+  - Photodiode transimpedance amplifier
+  - Instrumentation amplifier
+  - Anti-aliasing RC low-pass
 
 The same examples are stored as Circuit IR JSON under:
 

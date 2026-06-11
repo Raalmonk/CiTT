@@ -4,7 +4,7 @@ import math
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 
-from app.models.circuit_ir import CircuitProblem, Component
+from app.models.circuit_ir import IDEAL_OP_AMP_TYPES, CircuitProblem, Component, is_ideal_op_amp_type
 from app.models.solution_packet import CheckResult, ProblemStatus
 
 
@@ -23,21 +23,24 @@ SUPPORTED_COMPONENT_TYPES = {
     "voltage_source",
     "current_source",
     "capacitor",
-    "op_amp_ideal",
+    "inductor",
+    *IDEAL_OP_AMP_TYPES,
 }
 NORMALIZED_UNITS = {
     "resistor": "ohm",
     "voltage_source": "V",
     "current_source": "A",
     "capacitor": "F",
-    "op_amp_ideal": "ideal",
+    "inductor": "H",
+    **{component_type: "ideal" for component_type in IDEAL_OP_AMP_TYPES},
 }
 AC_SUPPORTED_COMPONENT_TYPES = {
     "resistor",
     "voltage_source",
     "current_source",
     "capacitor",
-    "op_amp_ideal",
+    "inductor",
+    *IDEAL_OP_AMP_TYPES,
 }
 NONIDEAL_OP_AMP_FEATURE_TERMS = {
     "rail",
@@ -123,19 +126,22 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
             checks=checks,
         )
 
-    if normalized.analysis_type == "ac_single_frequency":
+    if normalized.analysis_type in {"ac_steady_state", "ac_single_frequency"}:
         frequency_valid = normalized.frequency_hz is not None and normalized.frequency_hz > 0
+        analysis_label = (
+            "AC steady-state" if normalized.analysis_type == "ac_steady_state" else "AC single-frequency"
+        )
         _add_check(
             checks,
             "ac_frequency_present",
             frequency_valid,
-            "AC single-frequency analysis has a positive frequency."
+            f"{analysis_label} analysis has a positive frequency."
             if frequency_valid
-            else "AC single-frequency analysis requires frequency_hz > 0.",
+            else f"{analysis_label} analysis requires frequency_hz > 0.",
             value=normalized.frequency_hz,
         )
         if not frequency_valid:
-            errors.append("ac_single_frequency analysis requires frequency_hz > 0.")
+            errors.append(f"{normalized.analysis_type} analysis requires frequency_hz > 0.")
 
     if normalized.analysis_type == "ac_sweep":
         sweep_valid = normalized.sweep is not None
@@ -149,6 +155,28 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
         )
         if not sweep_valid:
             errors.append("ac_sweep analysis requires sweep config.")
+
+    if normalized.analysis_type == "rc_transient":
+        capacitors = [
+            component for component in normalized.components if component.type == "capacitor"
+        ]
+        transient_scope_valid = len(capacitors) == 1
+        if normalized.transient and normalized.transient.capacitor_id is not None:
+            transient_scope_valid = transient_scope_valid and any(
+                component.id == normalized.transient.capacitor_id for component in capacitors
+            )
+        _add_check(
+            checks,
+            "rc_transient_scope",
+            transient_scope_valid,
+            "RC transient template has exactly one target capacitor."
+            if transient_scope_valid
+            else "RC transient template requires exactly one capacitor and a valid target capacitor.",
+        )
+        if not transient_scope_valid:
+            errors.append(
+                "rc_transient analysis requires exactly one capacitor and a valid target capacitor."
+            )
 
     ground_exists = bool(normalized.ground_node) and normalized.ground_node in normalized.nodes
     _add_check(
@@ -180,20 +208,37 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
             errors.append(
                 f"Unsupported component type {component.type!r} on {component.id}. "
                 "Supported types are resistor, voltage_source, current_source, "
-                "capacitor, and op_amp_ideal."
+                "capacitor, inductor, op_amp_ideal, and ideal_op_amp."
             )
             component_types_supported = False
             component_nodes_valid = False
-        if normalized.analysis_type in {"ac_single_frequency", "ac_sweep"}:
+        if normalized.analysis_type in {"ac_steady_state", "ac_single_frequency", "ac_sweep"}:
             if component.type not in AC_SUPPORTED_COMPONENT_TYPES:
                 errors.append(
                     f"Unsupported component type {component.type!r} for AC analysis on {component.id}."
                 )
                 component_types_supported = False
-        if component.type == "op_amp_ideal":
+        elif component.type == "inductor":
+            errors.append(
+                f"Unsupported component type 'inductor' for {normalized.analysis_type} analysis on "
+                f"{component.id}. Inductors are only supported for AC steady-state or AC sweep analysis."
+            )
+            component_types_supported = False
+        if normalized.analysis_type == "rc_transient":
+            if component.type not in {
+                "resistor",
+                "voltage_source",
+                "current_source",
+                "capacitor",
+            }:
+                errors.append(
+                    f"Unsupported component type {component.type!r} for RC transient template on {component.id}."
+                )
+                component_types_supported = False
+        if is_ideal_op_amp_type(component.type):
             if len(component.nodes) != 4:
                 errors.append(
-                    f"{component.id} op_amp_ideal must have nodes "
+                    f"{component.id} ideal op-amp must have nodes "
                     "[non_inverting, inverting, output, reference]."
                 )
                 component_nodes_valid = False
@@ -227,6 +272,9 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
         if component.type == "capacitor" and component.value <= 0:
             values_valid = False
             errors.append(f"{component.id} is a capacitor and must have a positive value.")
+        if component.type == "inductor" and component.value <= 0:
+            values_valid = False
+            errors.append(f"{component.id} is an inductor and must have a positive value.")
         if component.type in {"voltage_source", "current_source"}:
             if component.ac_magnitude is not None and component.ac_magnitude < 0:
                 values_valid = False

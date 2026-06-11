@@ -13,6 +13,7 @@ from app.services.ac_solver import generate_sweep_frequencies, solve_ac
 from app.services.ac_verifier import verify_ac_solution
 from app.services.mna_solver import solve_mna
 from app.services.netlist_generator import generate_netlist
+from app.services.rc_transient_solver import solve_rc_transient
 from app.services.validator import validate_circuit
 from app.services.verifier import verify_solution
 
@@ -74,7 +75,7 @@ def solve_circuit(problem: CircuitProblem, parser_used: str | None = None) -> So
             calculation_trace=CalculationTrace(parser_used=parser_used),
         )
 
-    if circuit.analysis_type == "ac_single_frequency":
+    if circuit.analysis_type in {"ac_steady_state", "ac_single_frequency"}:
         solve_result = solve_ac(circuit)
         if not solve_result.success:
             return _failed_packet(
@@ -108,7 +109,7 @@ def solve_circuit(problem: CircuitProblem, parser_used: str | None = None) -> So
         packet.verification_badge = VerificationBadge(
             label="PASS" if packet.verification.passed else "FAIL",
             message=(
-                "AC solver output passed validation, complex KCL, finite-value, "
+                "AC phasor solver output passed validation, complex KCL, finite-value, "
                 "and requested-answer checks."
                 if packet.verification.passed
                 else "AC solver output was produced, but one or more verification checks failed."
@@ -217,6 +218,65 @@ def solve_circuit(problem: CircuitProblem, parser_used: str | None = None) -> So
             calculation_trace=trace,
             generated_netlist=generate_netlist(circuit),
             warnings=warnings,
+            assumptions_used=circuit.assumptions,
+        )
+        return packet
+
+    if circuit.analysis_type == "rc_transient":
+        solve_result = solve_rc_transient(circuit)
+        if not solve_result.success:
+            return _failed_packet(
+                circuit=circuit,
+                status="invalid",
+                message=solve_result.message or "RC transient template could not be solved.",
+                checks=validation.checks,
+                warnings=[
+                    *validation.warnings,
+                    solve_result.message or "RC transient template could not be solved.",
+                ],
+                calculation_trace=solve_result.calculation_trace.model_copy(
+                    update={"parser_used": parser_used}
+                ),
+            )
+
+        checks = [
+            *validation.checks,
+            CheckResult(
+                name="rc_transient_template",
+                passed=True,
+                message=(
+                    "First-order RC transient template was generated from initial condition, "
+                    "DC final value, and Thevenin resistance."
+                ),
+                value=solve_result.transient_response.time_constant_s
+                if solve_result.transient_response
+                else None,
+            ),
+        ]
+        verification = VerificationReport(
+            passed=all(check.passed for check in checks),
+            checks=checks,
+        )
+        packet = SolutionPacket(
+            circuit_id=circuit.id,
+            status="solved" if verification.passed else "invalid",
+            requested_answers=solve_result.requested_answers,
+            transient_response=solve_result.transient_response,
+            verification=verification,
+            verification_badge=VerificationBadge(
+                label="PASS" if verification.passed else "FAIL",
+                message=(
+                    "RC transient template passed validation and generated time constant, "
+                    "initial/final conditions, and voltage samples."
+                    if verification.passed
+                    else "RC transient template was produced, but one or more checks failed."
+                ),
+            ),
+            calculation_trace=solve_result.calculation_trace.model_copy(
+                update={"parser_used": parser_used}
+            ),
+            generated_netlist=generate_netlist(circuit),
+            warnings=validation.warnings,
             assumptions_used=circuit.assumptions,
         )
         return packet

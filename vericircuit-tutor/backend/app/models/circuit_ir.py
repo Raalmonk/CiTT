@@ -6,8 +6,15 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-AnalysisType = Literal["dc_operating_point", "ac_single_frequency", "ac_sweep"]
+AnalysisType = Literal[
+    "dc_operating_point",
+    "ac_steady_state",
+    "ac_single_frequency",
+    "ac_sweep",
+    "rc_transient",
+]
 ComponentType = str
+IDEAL_OP_AMP_TYPES = {"op_amp_ideal", "ideal_op_amp"}
 GoalQuantity = Literal[
     "node_voltage",
     "component_voltage",
@@ -15,6 +22,10 @@ GoalQuantity = Literal[
     "component_power",
     "source_power",
 ]
+
+
+def is_ideal_op_amp_type(component_type: str) -> bool:
+    return component_type in IDEAL_OP_AMP_TYPES
 
 
 class Component(BaseModel):
@@ -29,7 +40,9 @@ class Component(BaseModel):
                 "voltage_source",
                 "current_source",
                 "capacitor",
+                "inductor",
                 "op_amp_ideal",
+                "ideal_op_amp",
             ]
         },
     )
@@ -72,10 +85,10 @@ class Component(BaseModel):
 
     @model_validator(mode="after")
     def node_count_matches_component_type(self) -> "Component":
-        if self.type == "op_amp_ideal":
+        if is_ideal_op_amp_type(self.type):
             if len(self.nodes) != 4:
                 raise ValueError(
-                    "op_amp_ideal must use four nodes: [non_inverting, inverting, output, reference]"
+                    "ideal op-amp must use four nodes: [non_inverting, inverting, output, reference]"
                 )
         elif len(self.nodes) != 2:
             raise ValueError("two-terminal components must connect exactly two nodes")
@@ -103,6 +116,28 @@ class ACSweep(BaseModel):
         return self
 
 
+class RCTransient(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    capacitor_id: str | None = None
+    initial_voltage_v: float = 0.0
+    time_points_s: list[float] = Field(default_factory=list)
+
+    @field_validator("initial_voltage_v")
+    @classmethod
+    def initial_voltage_must_be_finite(cls, value: float) -> float:
+        if not math.isfinite(value):
+            raise ValueError("initial_voltage_v must be finite")
+        return value
+
+    @field_validator("time_points_s")
+    @classmethod
+    def time_points_must_be_finite_and_nonnegative(cls, values: list[float]) -> list[float]:
+        if any((not math.isfinite(value)) or value < 0 for value in values):
+            raise ValueError("time_points_s values must be finite and non-negative")
+        return values
+
+
 class Goal(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -120,6 +155,7 @@ class CircuitProblem(BaseModel):
     analysis_type: AnalysisType = "dc_operating_point"
     frequency_hz: float | None = None
     sweep: ACSweep | None = None
+    transient: RCTransient | None = None
     topology_id: str | None = None
     layout_hint: dict[str, Any] | None = None
     ground_node: str = "0"

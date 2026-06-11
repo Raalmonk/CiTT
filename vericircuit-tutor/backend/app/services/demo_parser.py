@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from app.models.circuit_ir import CircuitProblem, Component, Goal
+from app.models.circuit_ir import CircuitProblem, Component, Goal, RCTransient
+from app.services.bme_templates import get_bme_demo_examples, parse_bme_template
 
 
 VOLTAGE_DIVIDER_TEXT = (
@@ -32,6 +33,11 @@ BRIDGE_NETWORK_ALT_TEXT = (
 RC_LOW_PASS_TEXT = (
     "An RC low-pass filter has a 1 V AC source at 159.154943 Hz, R1 = 1 kOhm "
     "from input to output, and C1 = 1 uF from output to ground. Find Vout."
+)
+
+RC_TRANSIENT_TEXT = (
+    "A 5 V source charges an initially uncharged capacitor C1 = 1 uF through "
+    "R1 = 1 kOhm. Find the first-order RC transient voltage across the capacitor."
 )
 
 OP_AMP_NON_INVERTING_TEXT = (
@@ -284,8 +290,8 @@ def bridge_network_alt_problem() -> CircuitProblem:
 def rc_low_pass_problem() -> CircuitProblem:
     return CircuitProblem(
         id="rc_low_pass",
-        title="RC Low-Pass AC Single-Frequency",
-        analysis_type="ac_single_frequency",
+        title="RC Low-Pass AC Steady-State",
+        analysis_type="ac_steady_state",
         topology_id="rc_low_pass",
         ground_node="0",
         nodes=["0", "in", "out"],
@@ -312,6 +318,38 @@ def rc_low_pass_problem() -> CircuitProblem:
             )
         ],
         assumptions=["The AC source value is a phasor amplitude."],
+    )
+
+
+def rc_transient_charging_problem() -> CircuitProblem:
+    return CircuitProblem(
+        id="rc_transient_charging",
+        title="First-Order RC Charging",
+        analysis_type="rc_transient",
+        topology_id="rc_transient_charging",
+        ground_node="0",
+        nodes=["0", "vin", "vc"],
+        transient=RCTransient(
+            capacitor_id="C1",
+            initial_voltage_v=0.0,
+        ),
+        components=[
+            Component(id="V1", type="voltage_source", nodes=["vin", "0"], value=5.0, unit="V"),
+            Component(id="R1", type="resistor", nodes=["vin", "vc"], value=1000.0, unit="ohm"),
+            Component(id="C1", type="capacitor", nodes=["vc", "0"], value=1e-6, unit="F"),
+        ],
+        goals=[
+            Goal(
+                id="capacitor_voltage",
+                quantity="component_voltage",
+                target="C1",
+                reference={"positive_node": "vc", "negative_node": "0"},
+            )
+        ],
+        assumptions=[
+            "The capacitor is initially uncharged, so V_C(0+) = 0 V.",
+            "The circuit is modeled as a first-order RC transient.",
+        ],
     )
 
 
@@ -404,19 +442,41 @@ def get_demo_examples() -> list[dict[str, str]]:
             "problem_text": RC_LOW_PASS_TEXT,
         },
         {
+            "id": "rc_transient_charging",
+            "title": "First-Order RC Charging",
+            "problem_text": RC_TRANSIENT_TEXT,
+        },
+        {
             "id": "op_amp_non_inverting",
             "title": "Ideal Non-Inverting Op-Amp",
             "problem_text": OP_AMP_NON_INVERTING_TEXT,
         },
+        *get_bme_demo_examples(),
     ]
 
 
 def parse_demo_problem(problem_text: str) -> CircuitProblem:
     lowered = " ".join(problem_text.lower().split())
+    bme_template = parse_bme_template(problem_text)
+    if bme_template is not None:
+        return bme_template
+    if (
+        ("transient" in lowered or "time-domain" in lowered)
+        and "5 v" in lowered
+        and "1 kohm" in lowered
+        and "1 uf" in lowered
+        and ("uncharged" in lowered or "initially 0" in lowered)
+    ):
+        return rc_transient_charging_problem()
     if "transient" in lowered or "time-domain" in lowered:
         return unsupported_problem(problem_text, "transient analysis")
-    if any(term in lowered for term in ["inductor", "diode", "transistor"]):
+    if any(term in lowered for term in ["diode", "transistor"]):
         return unsupported_problem(problem_text, "Unsupported component outside the current MVP scope.")
+    if "inductor" in lowered:
+        return unsupported_problem(
+            problem_text,
+            "Inductors are supported only when parsed as AC steady-state or AC sweep circuits.",
+        )
     if "10 v voltage source" in lowered and "r1 = 2 kohm" in lowered and "r2 = 3 kohm" in lowered:
         return voltage_divider_problem()
     if "3 ma current source" in lowered and "parallel resistors" in lowered:

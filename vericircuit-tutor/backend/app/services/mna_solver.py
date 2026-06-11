@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from app.models.circuit_ir import CircuitProblem
+from app.models.circuit_ir import CircuitProblem, is_ideal_op_amp_type
 from app.models.solution_packet import CalculationTrace, ComponentResult, QuantityValue
 
 
@@ -120,7 +120,7 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
     voltage_sources = [
         component for component in problem.components if component.type == "voltage_source"
     ]
-    op_amps = [component for component in problem.components if component.type == "op_amp_ideal"]
+    op_amps = [component for component in problem.components if is_ideal_op_amp_type(component.type)]
     source_index = {
         component.id: len(non_ground_nodes) + idx
         for idx, component in enumerate(voltage_sources)
@@ -196,7 +196,7 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
                 matrix[idx_b, vs_idx] -= 1.0
                 matrix[vs_idx, idx_b] -= 1.0
             rhs[vs_idx] = component.value
-        elif component.type == "op_amp_ideal":
+        elif is_ideal_op_amp_type(component.type):
             if len(component.nodes) != 4:
                 return SolveResult(
                     success=False,
@@ -276,7 +276,7 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
     for component in problem.components:
         voltage = (
             _op_amp_output_voltage(component.nodes, node_voltages)
-            if component.type == "op_amp_ideal"
+            if is_ideal_op_amp_type(component.type)
             else _component_voltage(component.nodes, node_voltages)
         )
         if component.type == "resistor":
@@ -297,7 +297,7 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
         elif component.type == "voltage_source":
             current = voltage_source_currents[component.id]
             sign_convention = SOURCE_SIGN_CONVENTION
-        elif component.type == "op_amp_ideal":
+        elif is_ideal_op_amp_type(component.type):
             current = op_amp_output_currents[component.id]
             sign_convention = (
                 "Ideal op-amp sign convention: voltage is V(output) - V(reference), "
@@ -317,10 +317,10 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
                 "V",
                 reference={
                     "positive_node": component.nodes[2]
-                    if component.type == "op_amp_ideal"
+                    if is_ideal_op_amp_type(component.type)
                     else component.nodes[0],
                     "negative_node": component.nodes[3]
-                    if component.type == "op_amp_ideal"
+                    if is_ideal_op_amp_type(component.type)
                     else component.nodes[1],
                 },
             ),
@@ -329,10 +329,10 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
                 "A",
                 reference={
                     "from_node": component.nodes[2]
-                    if component.type == "op_amp_ideal"
+                    if is_ideal_op_amp_type(component.type)
                     else component.nodes[0],
                     "to_node": component.nodes[3]
-                    if component.type == "op_amp_ideal"
+                    if is_ideal_op_amp_type(component.type)
                     else component.nodes[1],
                 },
             ),

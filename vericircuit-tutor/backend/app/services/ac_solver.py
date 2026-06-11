@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from app.models.circuit_ir import CircuitProblem
+from app.models.circuit_ir import CircuitProblem, is_ideal_op_amp_type
 from app.models.solution_packet import (
     ACComponentResult,
     CalculationTrace,
@@ -110,7 +110,7 @@ def _build_requested_answers(
                 }
             else:
                 value = quantity_to_complex(result.voltage)
-                if component.type == "op_amp_ideal":
+                if is_ideal_op_amp_type(component.type):
                     reference = {
                         "positive_node": component.nodes[2],
                         "negative_node": component.nodes[3],
@@ -151,7 +151,7 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
     voltage_sources = [
         component for component in problem.components if component.type == "voltage_source"
     ]
-    op_amps = [component for component in problem.components if component.type == "op_amp_ideal"]
+    op_amps = [component for component in problem.components if is_ideal_op_amp_type(component.type)]
     source_index = {
         component.id: len(non_ground_nodes) + idx
         for idx, component in enumerate(voltage_sources)
@@ -166,7 +166,7 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
         *(f"I({component.id}_out)" for component in op_amps),
     ]
     trace = CalculationTrace(
-        solver_name="internal_ac_mna_v1",
+        solver_name="internal_ac_phasor_mna_v1",
         solver_method="Complex Modified Nodal Analysis",
         answer_source="ac_solver",
         verification_source="ac_verifier.py",
@@ -208,6 +208,15 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
             if idx_a is not None and idx_b is not None:
                 matrix[idx_a, idx_b] -= admittance
                 matrix[idx_b, idx_a] -= admittance
+        elif component.type == "inductor":
+            admittance = 1.0 / (1j * omega * component.value)
+            if idx_a is not None:
+                matrix[idx_a, idx_a] += admittance
+            if idx_b is not None:
+                matrix[idx_b, idx_b] += admittance
+            if idx_a is not None and idx_b is not None:
+                matrix[idx_a, idx_b] -= admittance
+                matrix[idx_b, idx_a] -= admittance
         elif component.type == "current_source":
             current = _phasor(component.ac_magnitude, component.ac_phase_deg)
             if idx_a is not None:
@@ -223,7 +232,7 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
                 matrix[idx_b, vs_idx] -= 1.0
                 matrix[vs_idx, idx_b] -= 1.0
             rhs[vs_idx] = _phasor(component.ac_magnitude, component.ac_phase_deg)
-        elif component.type == "op_amp_ideal":
+        elif is_ideal_op_amp_type(component.type):
             if len(component.nodes) != 4:
                 return ACSolveResult(
                     success=False,
@@ -290,17 +299,17 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
     for component in problem.components:
         voltage = (
             _op_amp_output_voltage(component.nodes, node_voltage_values)
-            if component.type == "op_amp_ideal"
+            if is_ideal_op_amp_type(component.type)
             else _component_voltage(component.nodes, node_voltage_values)
         )
         reference = (
             {"positive_node": component.nodes[2], "negative_node": component.nodes[3]}
-            if component.type == "op_amp_ideal"
+            if is_ideal_op_amp_type(component.type)
             else {"positive_node": component.nodes[0], "negative_node": component.nodes[1]}
         )
         current_reference = (
             {"from_node": component.nodes[2], "to_node": component.nodes[3]}
-            if component.type == "op_amp_ideal"
+            if is_ideal_op_amp_type(component.type)
             else {"from_node": component.nodes[0], "to_node": component.nodes[1]}
         )
 
@@ -308,11 +317,13 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
             current = voltage / component.value
         elif component.type == "capacitor":
             current = 1j * omega * component.value * voltage
+        elif component.type == "inductor":
+            current = voltage / (1j * omega * component.value)
         elif component.type == "current_source":
             current = _phasor(component.ac_magnitude, component.ac_phase_deg)
         elif component.type == "voltage_source":
             current = voltage_source_currents[component.id]
-        elif component.type == "op_amp_ideal":
+        elif is_ideal_op_amp_type(component.type):
             current = op_amp_output_currents[component.id]
         else:
             return ACSolveResult(

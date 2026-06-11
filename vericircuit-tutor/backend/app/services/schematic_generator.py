@@ -10,7 +10,7 @@ except ImportError:  # pragma: no cover - exercised only when dependencies are a
     schemdraw = None
     elm = None
 
-from app.models.circuit_ir import CircuitProblem, Component
+from app.models.circuit_ir import CircuitProblem, Component, is_ideal_op_amp_type
 
 
 VARIANT_SUFFIXES = ("_value_variant", "_goal_variant")
@@ -50,6 +50,8 @@ def _fmt(value: float, unit: str) -> str:
         return f"{value * 1000:g} mA"
     if unit == "F" and 0 < abs(value) < 1:
         return f"{value * 1_000_000:g} uF"
+    if unit == "H" and 0 < abs(value) < 1:
+        return f"{value * 1000:g} mH"
     if unit == "ideal":
         return "ideal"
     return f"{value:g} {unit}"
@@ -747,6 +749,44 @@ def _fallback_capacitor(component: Component, x1: float, y1: float, x2: float, y
     )
 
 
+def _fallback_inductor(component: Component, x1: float, y1: float, x2: float, y2: float) -> str:
+    dx = x2 - x1
+    dy = y2 - y1
+    length = max((dx * dx + dy * dy) ** 0.5, 1.0)
+    ux = dx / length
+    uy = dy / length
+    px = -uy
+    py = ux
+    symbol_length = min(length * 0.5, 88.0)
+    start_x = (x1 + x2) / 2 - ux * symbol_length / 2
+    start_y = (y1 + y2) / 2 - uy * symbol_length / 2
+    end_x = (x1 + x2) / 2 + ux * symbol_length / 2
+    end_y = (y1 + y2) / 2 + uy * symbol_length / 2
+    radius = min(14.0, symbol_length / 5)
+    coils = []
+    turns = 4
+    step = symbol_length / turns
+    for index in range(turns):
+        sx = start_x + ux * step * index
+        sy = start_y + uy * step * index
+        ex = start_x + ux * step * (index + 1)
+        ey = start_y + uy * step * (index + 1)
+        c1x = sx + ux * step * 0.25 + px * radius
+        c1y = sy + uy * step * 0.25 + py * radius
+        c2x = sx + ux * step * 0.75 + px * radius
+        c2y = sy + uy * step * 0.75 + py * radius
+        coils.append(f"C {c1x:g},{c1y:g} {c2x:g},{c2y:g} {ex:g},{ey:g}")
+    path = f"M {start_x:g},{start_y:g} " + " ".join(coils)
+    return "\n".join(
+        [
+            _wire(x1, y1, start_x, start_y),
+            _wire(end_x, end_y, x2, y2),
+            f'<path class="component inductor" d="{path}" />',
+            f'<text class="component-label" x="{(x1 + x2) / 2:g}" y="{(y1 + y2) / 2 - 32:g}">{escape(format_component_label(component))}</text>',
+        ]
+    )
+
+
 def _fallback_source(component: Component, x: float, y: float) -> str:
     symbol = "V" if component.type == "voltage_source" else "I"
     return (
@@ -791,6 +831,7 @@ def _svg(width: int, height: int, body: str, renderer: str) -> str:
     .component {{ stroke: #1768ac; stroke-width: 4; stroke-linecap: round; fill: none; }}
     .resistor {{ stroke-dasharray: 7 5; }}
     .capacitor {{ stroke: #1768ac; }}
+    .inductor {{ stroke: #1768ac; }}
     .opamp {{ fill: #ffffff; stroke: #1768ac; }}
     .source {{ stroke: #117a4b; stroke-width: 3; fill: #eef8f3; }}
     .node {{ fill: #111827; }}
@@ -819,7 +860,7 @@ def _render_fallback_graph(problem: CircuitProblem, renderer: str = "fallback_gr
 
     pieces = [f'<text class="title" x="24" y="28">{escape(problem.title)}</text>']
     for component in problem.components:
-        if component.type == "op_amp_ideal":
+        if is_ideal_op_amp_type(component.type):
             pieces.append(_fallback_op_amp(component, positions))
             continue
         x1, y1 = positions[component.nodes[0]]
@@ -828,6 +869,8 @@ def _render_fallback_graph(problem: CircuitProblem, renderer: str = "fallback_gr
             pieces.append(_fallback_resistor(component, x1, y1, x2, y2))
         elif component.type == "capacitor":
             pieces.append(_fallback_capacitor(component, x1, y1, x2, y2))
+        elif component.type == "inductor":
+            pieces.append(_fallback_inductor(component, x1, y1, x2, y2))
         elif component.type in {"voltage_source", "current_source"}:
             pieces.append(_wire(x1, y1, x2, y2))
             pieces.append(_fallback_source(component, (x1 + x2) / 2, (y1 + y2) / 2))
