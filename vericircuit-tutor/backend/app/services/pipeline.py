@@ -14,6 +14,7 @@ from app.models.solution_packet import (
 )
 from app.services.ac_solver import generate_sweep_frequencies, solve_ac
 from app.services.ac_verifier import verify_ac_solution
+from app.services.guided_steps import build_guided_steps
 from app.services.mna_solver import solve_mna
 from app.services.netlist_generator import generate_netlist
 from app.services.rc_transient_solver import solve_rc_transient
@@ -729,6 +730,7 @@ def _build_tutor_observations(circuit: CircuitProblem, packet: SolutionPacket) -
 def _attach_tutor_context(circuit: CircuitProblem, packet: SolutionPacket) -> SolutionPacket:
     packet.bme_metadata = circuit.bme_metadata
     packet.tutor_observations = _build_tutor_observations(circuit, packet)
+    packet.guided_steps = build_guided_steps(circuit, packet)
     return packet
 
 

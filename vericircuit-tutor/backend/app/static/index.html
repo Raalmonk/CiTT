@@ -422,6 +422,167 @@
         grid-column: 1 / -1;
       }
 
+      .student-mode-panel {
+        display: grid;
+        gap: 14px;
+      }
+
+      .student-mode-header,
+      .guided-footer {
+        align-items: start;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+      }
+
+      .guided-workspace {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: minmax(180px, 0.65fr) minmax(360px, 1.7fr) minmax(240px, 0.9fr);
+        min-height: 560px;
+      }
+
+      .guided-rail,
+      .guided-step-card,
+      .guided-diagram-wrap {
+        min-width: 0;
+      }
+
+      .guided-rail h3 {
+        color: var(--muted);
+        font-size: 13px;
+        letter-spacing: 0;
+        margin: 0 0 8px;
+      }
+
+      .guided-step-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .guided-step-button {
+        background: #fff;
+        border: 1px solid var(--line);
+        color: var(--ink);
+        display: grid;
+        gap: 3px;
+        justify-items: start;
+        min-height: 66px;
+        padding: 10px;
+        text-align: left;
+        width: 100%;
+      }
+
+      .guided-step-button.active {
+        background: #eef6fc;
+        border-color: var(--accent);
+        color: #123f61;
+      }
+
+      .guided-step-button .guided-step-index {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .guided-step-button .guided-step-title {
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.25;
+      }
+
+      .guided-step-card {
+        align-content: start;
+        border-left: 1px solid var(--line);
+        display: grid;
+        gap: 12px;
+        padding-left: 14px;
+      }
+
+      .guided-step-card h3 {
+        font-size: 18px;
+        letter-spacing: 0;
+        margin: 0;
+      }
+
+      .guided-body {
+        color: var(--ink);
+        line-height: 1.55;
+      }
+
+      .guided-focus-chips,
+      .guided-values {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .guided-chip,
+      .guided-value {
+        background: #f6f7f9;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--ink);
+        font-size: 12px;
+        padding: 6px 8px;
+      }
+
+      .guided-value strong {
+        display: block;
+        font-size: 12px;
+      }
+
+      .guided-value span {
+        color: var(--muted);
+      }
+
+      .guided-caution {
+        background: #fff4df;
+        border-left: 4px solid var(--warn);
+        border-radius: 6px;
+        color: #6f4300;
+        line-height: 1.45;
+        padding: 10px 12px;
+      }
+
+      .guided-next-action {
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .guided-footer {
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+      }
+
+      .guided-footer-title {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+      }
+
+      .advanced-panel {
+        padding: 0;
+      }
+
+      .advanced-panel > summary {
+        border-top: 0;
+        color: var(--accent-dark);
+        cursor: pointer;
+        font-weight: 800;
+        list-style-position: inside;
+        padding: 16px;
+      }
+
+      .advanced-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 0 16px 16px;
+      }
+
       h2 {
         margin: 0 0 10px;
         font-size: 15px;
@@ -641,14 +802,65 @@
         min-width: min(880px, 100%);
       }
 
+      .diagram svg .guided-dim {
+        opacity: 0.18;
+        transition: opacity 160ms ease;
+      }
+
+      .diagram svg .guided-focus {
+        opacity: 1;
+      }
+
+      .diagram svg .guided-focus .component,
+      .diagram svg .guided-focus.component,
+      .diagram svg .guided-focus .wire,
+      .diagram svg .guided-focus.wire,
+      .diagram svg .guided-focus .source,
+      .diagram svg .guided-focus.source,
+      .diagram svg .guided-focus .node,
+      .diagram svg .guided-focus.node,
+      .diagram svg .guided-focus.current-path {
+        stroke: #f59e0b;
+        stroke-width: 8;
+      }
+
+      .diagram svg .guided-focus .component-label,
+      .diagram svg .guided-focus.component-label,
+      .diagram svg .guided-focus .node-label,
+      .diagram svg .guided-focus.node-label {
+        fill: #b45309;
+      }
+
+      .diagram svg .guided-focus.current-path {
+        opacity: 0.95;
+        stroke-dasharray: 10 10;
+      }
+
       @media (max-width: 980px) {
         main,
-        .grid {
+        .grid,
+        .advanced-grid {
           grid-template-columns: 1fr;
         }
 
         .steps {
           grid-template-columns: 1fr;
+        }
+
+        .guided-workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .guided-step-card {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+          padding-left: 0;
+          padding-top: 14px;
+        }
+
+        .student-mode-header,
+        .guided-footer {
+          display: grid;
         }
 
         .editor-layout,
@@ -736,87 +948,117 @@
             Image/PDF OCR is not implemented in this MVP; current input is text only.
           </div>
         </div>
-        <div class="panel wide">
-          <h2>Circuit Editor</h2>
-          <div class="editor-layout">
+        <div class="panel wide student-mode-panel">
+          <div class="student-mode-header">
             <div>
-              <label>Components</label>
-              <div id="componentListPanel" class="component-list message">Run the pipeline to inspect components.</div>
+              <h2>Guided Explanation</h2>
+              <div class="message">Step-synchronized circuit explanation with diagram focus.</div>
             </div>
+            <button id="resetGuidedViewButton" class="secondary" disabled>Reset view</button>
+          </div>
+          <div class="guided-workspace">
+            <div class="guided-rail">
+              <h3>Lesson Steps</h3>
+              <div id="guidedStepList" class="guided-step-list message">Run the pipeline to start a guided lesson.</div>
+            </div>
+            <div class="guided-diagram-wrap">
+              <div id="diagramPanel" class="diagram message">No diagram yet.</div>
+            </div>
+            <div id="guidedStepCard" class="guided-step-card message">No guided step yet.</div>
+          </div>
+          <div class="guided-footer">
             <div>
-              <label>Selected Component</label>
-              <div id="componentEditorPanel" class="editor-form message">No component selected.</div>
+              <div class="guided-footer-title">Verified quantities</div>
+              <div id="guidedVerifiedPanel" class="guided-values message">No verified quantities yet.</div>
+            </div>
+            <div class="button-row">
+              <button id="prevGuidedStepButton" class="secondary" disabled>Previous</button>
+              <button id="nextGuidedStepButton" disabled>Next</button>
             </div>
           </div>
-        </div>
-        <div class="panel wide">
-          <h2>Requested Goals</h2>
-          <div id="goalsPanel" class="goal-list message">Run the pipeline to edit requested goals.</div>
-          <div class="button-row" style="margin-top: 10px">
-            <button id="updateGoalsButton" class="secondary" disabled>Update goals and re-solve</button>
-          </div>
-        </div>
-        <div class="panel wide">
-          <h2>What Changed</h2>
-          <div id="whatChangedPanel" class="message">No what-if edits yet.</div>
-        </div>
-        <div class="panel wide">
-          <h2>BME Template Context</h2>
-          <div id="bmeContextPanel" class="message">No BME template metadata yet.</div>
-        </div>
-        <div class="panel wide">
-          <h2>Current Pulse Controls</h2>
-          <div class="pulse-controls">
-            <label><input id="showPulseCheckbox" type="checkbox" disabled /> Show current pulse</label>
-            <label><input id="showBranchLabelsCheckbox" type="checkbox" disabled /> Show branch current labels</label>
-            <button id="clearProbeButton" class="secondary" disabled>Clear selection</button>
-          </div>
-          <div id="probeStatusPanel" class="message" style="margin-top: 8px">Probe mode is available after a verified PASS solution.</div>
-        </div>
-        <div class="panel wide">
-          <h2>Probe Panel</h2>
-          <div id="componentProbePanel" class="message">Click a component in a verified diagram.</div>
-        </div>
-        <div class="panel wide">
-          <h2>KCL Panel</h2>
-          <div id="kclPanel" class="message">Click a node in a verified diagram.</div>
-        </div>
-        <div class="panel">
-          <h2>Parsed Circuit IR</h2>
-          <pre id="irPanel">{}</pre>
-        </div>
-        <div class="panel wide">
-          <h2>Circuit Diagram</h2>
-          <div id="diagramPanel" class="diagram message">No diagram yet.</div>
-        </div>
-        <div class="panel">
-          <h2>Generated Netlist</h2>
-          <pre id="netlistPanel"></pre>
         </div>
         <div class="panel">
           <h2>Verification Badge</h2>
           <div id="badgePanel" class="message">No badge yet.</div>
         </div>
         <div class="panel">
-          <h2>Requested Answers</h2>
+          <h2>Key Answer</h2>
           <div id="answersPanel" class="answers message">No solution yet.</div>
         </div>
-        <div class="panel wide">
-          <h2>Answer Provenance</h2>
-          <div id="provenancePanel" class="message">No provenance yet.</div>
-        </div>
-        <div class="panel">
-          <h2>Verification</h2>
-          <div id="verificationPanel" class="checks message">No checks yet.</div>
-        </div>
-        <div class="panel wide">
-          <h2>Tutor Explanation</h2>
-          <div id="explanationPanel" class="explanation message"></div>
-        </div>
-        <div class="panel wide">
-          <h2>Variants</h2>
-          <div id="variantsPanel" class="variants message">No variants yet.</div>
-        </div>
+        <details class="panel wide advanced-panel">
+          <summary>Advanced Dashboard</summary>
+          <div class="advanced-grid">
+            <div class="panel wide">
+              <h2>Circuit Editor</h2>
+              <div class="editor-layout">
+                <div>
+                  <label>Components</label>
+                  <div id="componentListPanel" class="component-list message">Run the pipeline to inspect components.</div>
+                </div>
+                <div>
+                  <label>Selected Component</label>
+                  <div id="componentEditorPanel" class="editor-form message">No component selected.</div>
+                </div>
+              </div>
+            </div>
+            <div class="panel wide">
+              <h2>Requested Goals</h2>
+              <div id="goalsPanel" class="goal-list message">Run the pipeline to edit requested goals.</div>
+              <div class="button-row" style="margin-top: 10px">
+                <button id="updateGoalsButton" class="secondary" disabled>Update goals and re-solve</button>
+              </div>
+            </div>
+            <div class="panel wide">
+              <h2>What Changed</h2>
+              <div id="whatChangedPanel" class="message">No what-if edits yet.</div>
+            </div>
+            <div class="panel wide">
+              <h2>BME Template Context</h2>
+              <div id="bmeContextPanel" class="message">No BME template metadata yet.</div>
+            </div>
+            <div class="panel wide">
+              <h2>Current Pulse Controls</h2>
+              <div class="pulse-controls">
+                <label><input id="showPulseCheckbox" type="checkbox" disabled /> Show current pulse</label>
+                <label><input id="showBranchLabelsCheckbox" type="checkbox" disabled /> Show branch current labels</label>
+                <button id="clearProbeButton" class="secondary" disabled>Clear selection</button>
+              </div>
+              <div id="probeStatusPanel" class="message" style="margin-top: 8px">Probe mode is available after a verified PASS solution.</div>
+            </div>
+            <div class="panel wide">
+              <h2>Probe Panel</h2>
+              <div id="componentProbePanel" class="message">Click a component in a verified diagram.</div>
+            </div>
+            <div class="panel wide">
+              <h2>KCL Panel</h2>
+              <div id="kclPanel" class="message">Click a node in a verified diagram.</div>
+            </div>
+            <div class="panel">
+              <h2>Parsed Circuit IR</h2>
+              <pre id="irPanel">{}</pre>
+            </div>
+            <div class="panel">
+              <h2>Generated Netlist</h2>
+              <pre id="netlistPanel"></pre>
+            </div>
+            <div class="panel wide">
+              <h2>Answer Provenance</h2>
+              <div id="provenancePanel" class="message">No provenance yet.</div>
+            </div>
+            <div class="panel">
+              <h2>Verification</h2>
+              <div id="verificationPanel" class="checks message">No checks yet.</div>
+            </div>
+            <div class="panel wide">
+              <h2>Tutor Explanation</h2>
+              <div id="explanationPanel" class="explanation message"></div>
+            </div>
+            <div class="panel wide">
+              <h2>Variants</h2>
+              <div id="variantsPanel" class="variants message">No variants yet.</div>
+            </div>
+          </div>
+        </details>
       </section>
     </main>
 
@@ -851,6 +1093,12 @@
       const probeStatusPanel = document.getElementById("probeStatusPanel");
       const componentProbePanel = document.getElementById("componentProbePanel");
       const kclPanel = document.getElementById("kclPanel");
+      const guidedStepList = document.getElementById("guidedStepList");
+      const guidedStepCard = document.getElementById("guidedStepCard");
+      const guidedVerifiedPanel = document.getElementById("guidedVerifiedPanel");
+      const prevGuidedStepButton = document.getElementById("prevGuidedStepButton");
+      const nextGuidedStepButton = document.getElementById("nextGuidedStepButton");
+      const resetGuidedViewButton = document.getElementById("resetGuidedViewButton");
 
       let currentCircuit = null;
       let currentParserUsed = null;
@@ -862,6 +1110,9 @@
       let selectedNodeId = null;
       let currentStepId = null;
       let currentPhasorItems = [];
+      let guidedSteps = [];
+      let selectedGuidedStepIndex = 0;
+      let originalDiagramViewBox = null;
 
       const pipelineSteps = [
         { id: "input", label: "Input received" },
@@ -941,8 +1192,12 @@
         selectedComponentId = null;
         selectedProbeComponentId = null;
         selectedNodeId = null;
+        guidedSteps = [];
+        selectedGuidedStepIndex = 0;
+        originalDiagramViewBox = null;
         irPanel.textContent = "{}";
         diagramPanel.textContent = "No diagram yet.";
+        renderGuidedSteps(null);
         netlistPanel.textContent = "";
         badgePanel.textContent = "No badge yet.";
         answersPanel.textContent = "No solution yet.";
@@ -1256,6 +1511,217 @@
 
       function attrSelectorValue(value) {
         return String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+      }
+
+      function formatGuidedObservation(observation) {
+        if (!observation) return "";
+        if (observation.value !== null && observation.value !== undefined && observation.unit) {
+          return formatEngineering(observation.value, observation.unit);
+        }
+        if (observation.value !== null && observation.value !== undefined) {
+          return Number(observation.value).toPrecision(7);
+        }
+        return observation.note || "available";
+      }
+
+      function renderGuidedValue(observation) {
+        const value = formatGuidedObservation(observation);
+        const note = observation.note ? ` title="${escapeHtml(observation.note)}"` : "";
+        return `
+          <div class="guided-value"${note}>
+            <strong>${escapeHtml(observation.label || observation.id)}</strong>
+            <span>${escapeHtml(value)}</span>
+          </div>
+        `;
+      }
+
+      function guidedFocusChips(step) {
+        const focus = step?.focus || {};
+        const chips = [
+          ...(focus.components || []).map((id) => `component: ${id}`),
+          ...(focus.nodes || []).map((id) => `node: ${id}`),
+          ...(focus.current_paths || []).map((id) => `current: ${id}`),
+          ...(focus.goals || []).map((id) => `goal: ${id}`),
+        ];
+        if (!chips.length) return `<div class="message">No diagram focus for this step.</div>`;
+        return chips.map((chip) => `<span class="guided-chip">${escapeHtml(chip)}</span>`).join("");
+      }
+
+      function diagramSvg() {
+        return diagramPanel.querySelector("svg");
+      }
+
+      function rememberDiagramViewBox() {
+        const svg = diagramSvg();
+        originalDiagramViewBox = svg ? svg.getAttribute("viewBox") : null;
+        resetGuidedViewButton.disabled = !svg;
+      }
+
+      function resetDiagramView() {
+        const svg = diagramSvg();
+        if (!svg || !originalDiagramViewBox) return;
+        svg.setAttribute("viewBox", originalDiagramViewBox);
+      }
+
+      function clearGuidedFocus() {
+        const svg = diagramSvg();
+        if (!svg) return;
+        svg.querySelectorAll(".guided-dim, .guided-focus").forEach((el) => {
+          el.classList.remove("guided-dim", "guided-focus");
+        });
+      }
+
+      function zoomToFocusedElements(svg, elements) {
+        if (!elements.length) {
+          resetDiagramView();
+          return;
+        }
+        const boxes = elements
+          .map((el) => {
+            try {
+              return el.getBBox();
+            } catch {
+              return null;
+            }
+          })
+          .filter((box) => box && Number.isFinite(box.x) && Number.isFinite(box.y));
+        if (!boxes.length) return;
+        const minX = Math.min(...boxes.map((box) => box.x));
+        const minY = Math.min(...boxes.map((box) => box.y));
+        const maxX = Math.max(...boxes.map((box) => box.x + box.width));
+        const maxY = Math.max(...boxes.map((box) => box.y + box.height));
+        const width = maxX - minX;
+        const height = maxY - minY;
+        if (width <= 0 || height <= 0) return;
+        const pad = Math.max(60, Math.min(140, Math.max(width, height) * 0.25));
+        svg.setAttribute(
+          "viewBox",
+          `${minX - pad} ${minY - pad} ${width + 2 * pad} ${height + 2 * pad}`
+        );
+      }
+
+      function applyGuidedFocus(step) {
+        const svg = diagramSvg();
+        if (!svg) return;
+        clearGuidedFocus();
+        if (!step) {
+          resetDiagramView();
+          return;
+        }
+
+        const allTargets = [...svg.querySelectorAll("[data-component-id], [data-node-id]")];
+        const focus = step.focus || {};
+        const selectors = [
+          ...(focus.components || []).map((id) => `[data-component-id="${attrSelectorValue(id)}"]`),
+          ...(focus.nodes || []).map((id) => `[data-node-id="${attrSelectorValue(id)}"]`),
+          ...(focus.current_paths || []).map((id) => `.current-path[data-component-id="${attrSelectorValue(id)}"]`),
+        ];
+        if (!selectors.length) {
+          resetDiagramView();
+          return;
+        }
+
+        allTargets.forEach((el) => el.classList.add("guided-dim"));
+        const focused = [];
+        const seen = new Set();
+        selectors.forEach((selector) => {
+          svg.querySelectorAll(selector).forEach((el) => {
+            el.classList.remove("guided-dim");
+            el.classList.add("guided-focus");
+            if (!seen.has(el)) {
+              seen.add(el);
+              focused.push(el);
+            }
+          });
+        });
+        if (!focused.length) {
+          allTargets.forEach((el) => el.classList.remove("guided-dim"));
+          resetDiagramView();
+          return;
+        }
+        zoomToFocusedElements(svg, focused);
+      }
+
+      function selectedGuidedStep() {
+        return guidedSteps[selectedGuidedStepIndex] || null;
+      }
+
+      function renderGuidedStepList() {
+        if (!guidedSteps.length) {
+          guidedStepList.textContent = "No guided lesson steps were returned for this packet.";
+          return;
+        }
+        guidedStepList.innerHTML = guidedSteps
+          .map((step, index) => {
+            const active = index === selectedGuidedStepIndex ? " active" : "";
+            return `
+              <button class="guided-step-button${active}" data-guided-step-index="${index}">
+                <span class="guided-step-index">Step ${index + 1}</span>
+                <span class="guided-step-title">${escapeHtml(step.title)}</span>
+              </button>
+            `;
+          })
+          .join("");
+        [...guidedStepList.querySelectorAll("button[data-guided-step-index]")].forEach((button) => {
+          button.addEventListener("click", () => selectGuidedStep(Number(button.dataset.guidedStepIndex)));
+        });
+      }
+
+      function renderGuidedStepCard() {
+        const step = selectedGuidedStep();
+        if (!step) {
+          guidedStepCard.textContent = "No guided step yet.";
+          guidedVerifiedPanel.textContent = "No verified quantities yet.";
+          prevGuidedStepButton.disabled = true;
+          nextGuidedStepButton.disabled = true;
+          resetGuidedViewButton.disabled = !diagramSvg();
+          return;
+        }
+
+        const values = step.verified_values || [];
+        guidedStepCard.innerHTML = `
+          <div class="message">Step ${selectedGuidedStepIndex + 1} of ${guidedSteps.length}</div>
+          <h3>${escapeHtml(step.title)}</h3>
+          <div class="guided-body">${escapeHtml(step.body)}</div>
+          <div>
+            <div class="guided-footer-title">Diagram focus</div>
+            <div class="guided-focus-chips">${guidedFocusChips(step)}</div>
+          </div>
+          ${
+            step.caution
+              ? `<div class="guided-caution">${escapeHtml(step.caution)}</div>`
+              : ""
+          }
+          ${
+            step.next_action
+              ? `<div class="guided-next-action"><strong>Next:</strong> ${escapeHtml(step.next_action)}</div>`
+              : ""
+          }
+        `;
+        guidedVerifiedPanel.innerHTML = values.length
+          ? values.map(renderGuidedValue).join("")
+          : `<div class="message">This step uses topology focus without adding a new numeric value.</div>`;
+        prevGuidedStepButton.disabled = selectedGuidedStepIndex <= 0;
+        nextGuidedStepButton.disabled = selectedGuidedStepIndex >= guidedSteps.length - 1;
+        resetGuidedViewButton.disabled = !diagramSvg();
+      }
+
+      function renderGuidedLesson() {
+        renderGuidedStepList();
+        renderGuidedStepCard();
+        applyGuidedFocus(selectedGuidedStep());
+      }
+
+      function renderGuidedSteps(packet) {
+        guidedSteps = packet?.guided_steps || [];
+        selectedGuidedStepIndex = 0;
+        renderGuidedLesson();
+      }
+
+      function selectGuidedStep(index) {
+        if (!guidedSteps.length) return;
+        selectedGuidedStepIndex = clamp(0, guidedSteps.length - 1, index);
+        renderGuidedLesson();
       }
 
       function analysisIsAvailable() {
@@ -1915,7 +2381,16 @@
           label: "FAIL",
           message: "No verification badge was returned.",
         };
-        badgePanel.innerHTML = `<div class="stack"><span class="badge-large ${badgeClass(badge.label)}">${badge.label}</span><div class="message">${badge.message}</div><div class="message"><strong>Answer authority:</strong> numerical values are from the MNA solver and verification engine, not direct LLM generation.</div></div>`;
+        const internalStatus = badge.label === "PASS" ? "PASS" : badge.label;
+        badgePanel.innerHTML = `
+          <div class="stack">
+            <span class="badge-large ${badgeClass(badge.label)}">${badge.label}</span>
+            <div class="message">${badge.message}</div>
+            <div class="message"><strong>Internal verification:</strong> ${escapeHtml(internalStatus)}</div>
+            <div class="message"><strong>Reference cross-check:</strong> not available</div>
+            <div class="message"><strong>Answer authority:</strong> verified and inspectable packet values from the solver and verification engine, not direct LLM generation.</div>
+          </div>
+        `;
       }
 
       function renderVerification(report) {
@@ -1990,6 +2465,7 @@
               selectedComponentId = null;
               selectedProbeComponentId = null;
               selectedNodeId = null;
+              renderGuidedSteps(null);
               irPanel.textContent = pretty(currentCircuit);
               renderCircuitEditor();
               renderGoalEditor();
@@ -2032,6 +2508,7 @@
       function renderPacket(packet) {
         currentPacket = packet;
         netlistPanel.textContent = packet.generated_netlist || "";
+        renderGuidedSteps(packet);
         renderBmeContext(packet.bme_metadata);
         renderBadge(packet);
         renderAnswers(packet);
@@ -2117,6 +2594,7 @@
         runButton.disabled = true;
         updateGoalsButton.disabled = true;
         previousPacket = currentPacket;
+        renderGuidedSteps(null);
         currentStepId = "edit";
 
         try {
@@ -2251,7 +2729,9 @@
       async function renderDiagram(circuitIr) {
         const svg = await requestSvg("/schematic", { circuit_ir: circuitIr });
         diagramPanel.innerHTML = svg;
+        rememberDiagramViewBox();
         applyCurrentPulse();
+        applyGuidedFocus(selectedGuidedStep());
       }
 
       async function loadExamples() {
@@ -2350,6 +2830,9 @@
       valueVariantButton.addEventListener("click", () => generateVariant("value"));
       goalVariantButton.addEventListener("click", () => generateVariant("goal"));
       updateGoalsButton.addEventListener("click", updateGoalsAndResolve);
+      prevGuidedStepButton.addEventListener("click", () => selectGuidedStep(selectedGuidedStepIndex - 1));
+      nextGuidedStepButton.addEventListener("click", () => selectGuidedStep(selectedGuidedStepIndex + 1));
+      resetGuidedViewButton.addEventListener("click", resetDiagramView);
       showPulseCheckbox.addEventListener("change", applyCurrentPulse);
       showBranchLabelsCheckbox.addEventListener("change", applyCurrentPulse);
       clearProbeButton.addEventListener("click", clearProbeSelection);

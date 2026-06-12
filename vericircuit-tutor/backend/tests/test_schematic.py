@@ -8,6 +8,7 @@ from app.services.demo_parser import (
     current_divider_problem,
     voltage_divider_problem,
 )
+from app.services.bme_templates import BME_TEMPLATE_FACTORIES
 from app.services import schematic_generator
 from app.services.variant_generator import generate_goal_variant, generate_value_variant
 
@@ -154,6 +155,20 @@ def test_schematic_fallback_still_works_for_unknown_topology():
     assert "fallback_graph" in response.text
     assert "R1" in response.text
     assert "1 kΩ" in response.text
+
+
+def test_fallback_schematic_includes_probe_metadata_and_current_paths():
+    circuit = BME_TEMPLATE_FACTORIES["bme_ecg_front_end"]().circuit_problem
+    response = _schematic(circuit)
+
+    assert response.status_code == 200
+    assert "fallback_graph" in response.text
+    for component in circuit.components:
+        assert f'data-component-id="{component.id}"' in response.text
+        if len(component.nodes) == 2:
+            assert f'class="current-path" data-component-id="{component.id}"' in response.text
+    for node in circuit.nodes:
+        assert f'data-node-id="{node}"' in response.text
 
 
 def test_schematic_template_error_returns_fallback_svg(monkeypatch):

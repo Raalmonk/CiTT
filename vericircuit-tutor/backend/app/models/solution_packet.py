@@ -132,6 +132,27 @@ class TutorObservation(BaseModel):
     note: str = ""
 
 
+class TutorFocus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    components: list[str] = Field(default_factory=list)
+    nodes: list[str] = Field(default_factory=list)
+    current_paths: list[str] = Field(default_factory=list)
+    goals: list[str] = Field(default_factory=list)
+
+
+class TutorStep(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    title: str
+    body: str
+    focus: TutorFocus = Field(default_factory=TutorFocus)
+    verified_values: list[TutorObservation] = Field(default_factory=list)
+    caution: str | None = None
+    next_action: str | None = None
+
+
 class SolutionPacket(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -154,3 +175,4 @@ class SolutionPacket(BaseModel):
     assumptions_used: list[str] = Field(default_factory=list)
     bme_metadata: BMETemplateMetadata | None = None
     tutor_observations: list[TutorObservation] = Field(default_factory=list)
+    guided_steps: list[TutorStep] = Field(default_factory=list)

@@ -835,6 +835,16 @@ def _svg(width: int, height: int, body: str, renderer: str) -> str:
     .opamp {{ fill: #ffffff; stroke: #1768ac; }}
     .source {{ stroke: #117a4b; stroke-width: 3; fill: #eef8f3; }}
     .node {{ fill: #111827; }}
+    .circuit-component {{ cursor: pointer; }}
+    .circuit-node {{ cursor: pointer; }}
+    .current-path {{
+      stroke: transparent;
+      stroke-width: 8;
+      fill: none;
+      pointer-events: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }}
     .node-label {{ fill: #4b5563; font: 12px sans-serif; }}
     .component-label {{ fill: #111827; font: 13px sans-serif; text-anchor: middle; }}
     .source-symbol {{ fill: #117a4b; font: 700 18px sans-serif; text-anchor: middle; }}
@@ -860,24 +870,31 @@ def _render_fallback_graph(problem: CircuitProblem, renderer: str = "fallback_gr
 
     pieces = [f'<text class="title" x="24" y="28">{escape(problem.title)}</text>']
     for component in problem.components:
+        node_points = [positions[node] for node in component.nodes]
         if is_ideal_op_amp_type(component.type):
-            pieces.append(_fallback_op_amp(component, positions))
+            pieces.append(_svg_component_group(component.id, _fallback_op_amp(component, positions)))
             continue
         x1, y1 = positions[component.nodes[0]]
         x2, y2 = positions[component.nodes[1]]
         if component.type == "resistor":
-            pieces.append(_fallback_resistor(component, x1, y1, x2, y2))
+            component_body = _fallback_resistor(component, x1, y1, x2, y2)
         elif component.type == "capacitor":
-            pieces.append(_fallback_capacitor(component, x1, y1, x2, y2))
+            component_body = _fallback_capacitor(component, x1, y1, x2, y2)
         elif component.type == "inductor":
-            pieces.append(_fallback_inductor(component, x1, y1, x2, y2))
+            component_body = _fallback_inductor(component, x1, y1, x2, y2)
         elif component.type in {"voltage_source", "current_source"}:
-            pieces.append(_wire(x1, y1, x2, y2))
-            pieces.append(_fallback_source(component, (x1 + x2) / 2, (y1 + y2) / 2))
+            component_body = "\n".join(
+                [
+                    _wire(x1, y1, x2, y2),
+                    _fallback_source(component, (x1 + x2) / 2, (y1 + y2) / 2),
+                ]
+            )
         else:
-            pieces.append(_wire(x1, y1, x2, y2))
+            component_body = _wire(x1, y1, x2, y2)
+        current_path = _svg_current_path(component.id, [(x, y) for x, y in node_points[:2]])
+        pieces.append(_svg_component_group(component.id, "\n".join([component_body, current_path])))
     for node, (x, y) in positions.items():
-        pieces.append(_node(node, x, y))
+        pieces.append(_svg_node_group(node, _node(node, x, y)))
     return _svg(width, height, "\n  ".join(pieces), renderer)
 
 
