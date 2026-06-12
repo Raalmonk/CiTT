@@ -1792,11 +1792,35 @@
           if (!items || !items.length) return "<div class=\"message\">None listed.</div>";
           return `<ul class="bme-list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
         };
-        const rails = metadata.nominal_supply_rails_v
-          ? Object.entries(metadata.nominal_supply_rails_v)
-              .map(([name, value]) => `${name}: ${Number(value).toPrecision(4)} V`)
-              .join(", ")
-          : "Not specified.";
+        const hasExplicitRails =
+          metadata.supply_positive_v !== undefined &&
+          metadata.supply_positive_v !== null &&
+          metadata.supply_negative_v !== undefined &&
+          metadata.supply_negative_v !== null;
+        const rails = hasExplicitRails
+          ? [
+              `negative: ${Number(metadata.supply_negative_v).toPrecision(4)} V`,
+              `positive: ${Number(metadata.supply_positive_v).toPrecision(4)} V`,
+              `output margin: ${Number(metadata.output_swing_margin_v || 0).toPrecision(3)} V`,
+            ].join(", ")
+          : metadata.nominal_supply_rails_v
+            ? Object.entries(metadata.nominal_supply_rails_v)
+                .map(([name, value]) => `${name}: ${Number(value).toPrecision(4)} V`)
+                .join(", ")
+            : "Not specified.";
+        const adcContext =
+          metadata.adc_sampling_frequency_hz !== undefined &&
+          metadata.adc_sampling_frequency_hz !== null
+            ? [
+                `fs: ${Number(metadata.adc_sampling_frequency_hz).toPrecision(4)} Hz`,
+                `Nyquist: ${Number(metadata.adc_sampling_frequency_hz / 2).toPrecision(4)} Hz`,
+                metadata.adc_target_cutoff_hz
+                  ? `target cutoff: ${Number(metadata.adc_target_cutoff_hz).toPrecision(4)} Hz`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(", ")
+            : "Not specified.";
         bmeContextPanel.innerHTML = `
           <div class="bme-meta-grid">
             <div class="bme-meta-block">
@@ -1818,6 +1842,10 @@
             <div class="bme-meta-block">
               <div class="plot-title">Nominal supply rails</div>
               <div>${escapeHtml(rails)}</div>
+            </div>
+            <div class="bme-meta-block">
+              <div class="plot-title">ADC sampling context</div>
+              <div>${escapeHtml(adcContext)}</div>
             </div>
             <div class="bme-meta-block">
               <div class="plot-title">What students should learn</div>

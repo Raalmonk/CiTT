@@ -63,6 +63,100 @@ def _add_cutoff_observation(
     )
 
 
+def _supply_window(
+    circuit: CircuitProblem,
+) -> tuple[float, float, float, float, float] | None:
+    metadata = circuit.bme_metadata
+    if metadata is None:
+        return None
+
+    if metadata.supply_positive_v is not None and metadata.supply_negative_v is not None:
+        rail_lower = min(metadata.supply_negative_v, metadata.supply_positive_v)
+        rail_upper = max(metadata.supply_negative_v, metadata.supply_positive_v)
+    elif metadata.nominal_supply_rails_v:
+        rail_lower = min(metadata.nominal_supply_rails_v.values())
+        rail_upper = max(metadata.nominal_supply_rails_v.values())
+    else:
+        return None
+
+    margin = max(float(metadata.output_swing_margin_v or 0.0), 0.0)
+    usable_lower = rail_lower + margin
+    usable_upper = rail_upper - margin
+    if usable_lower > usable_upper:
+        usable_lower = rail_lower
+        usable_upper = rail_upper
+        margin = 0.0
+    return usable_lower, usable_upper, rail_lower, rail_upper, margin
+
+
+def _add_adc_sampling_observations(
+    observations: list[TutorObservation],
+    circuit: CircuitProblem,
+    cutoff_hz: float | None,
+) -> None:
+    metadata = circuit.bme_metadata
+    if metadata is None or metadata.adc_sampling_frequency_hz is None:
+        return
+
+    sampling_hz = float(metadata.adc_sampling_frequency_hz)
+    nyquist_hz = sampling_hz / 2.0
+    observations.extend(
+        [
+            TutorObservation(
+                id="adc_sampling_frequency",
+                label="ADC sampling frequency",
+                value=sampling_hz,
+                unit="Hz",
+                note="Template sampling-rate context for anti-aliasing discussion.",
+            ),
+            TutorObservation(
+                id="adc_nyquist_frequency",
+                label="ADC Nyquist frequency",
+                value=nyquist_hz,
+                unit="Hz",
+                note="Half the template sampling frequency.",
+            ),
+        ]
+    )
+
+    if metadata.adc_target_cutoff_hz is not None:
+        observations.append(
+            TutorObservation(
+                id="adc_target_cutoff_frequency",
+                label="ADC target cutoff frequency",
+                value=float(metadata.adc_target_cutoff_hz),
+                unit="Hz",
+                note="Template design target for the anti-aliasing pole.",
+            )
+        )
+
+    effective_cutoff_hz = cutoff_hz or metadata.adc_target_cutoff_hz
+    if effective_cutoff_hz is None or effective_cutoff_hz <= 0:
+        return
+
+    magnitude_ratio = 1.0 / math.sqrt(1.0 + (nyquist_hz / effective_cutoff_hz) ** 2)
+    attenuation_db = 20.0 * math.log10(magnitude_ratio)
+    observations.append(
+        TutorObservation(
+            id="adc_attenuation_at_nyquist",
+            label="Attenuation at Nyquist",
+            value=float(attenuation_db),
+            unit="dB",
+            note=f"First-order RC estimate at Nyquist; magnitude ratio is {magnitude_ratio:.6g} V/V.",
+        )
+    )
+    observations.append(
+        TutorObservation(
+            id="aliasing_warning",
+            label="Aliasing warning",
+            note=(
+                "A single-pole RC anti-aliasing stage reduces high-frequency content before the ADC, "
+                "but it does not prove alias-free sampling; choose cutoff, filter order, and sampling rate together."
+            ),
+        )
+    )
+
+
 def _build_ac_filter_observations(
     circuit: CircuitProblem,
     packet: SolutionPacket,
@@ -142,11 +236,12 @@ def _build_ac_filter_observations(
         )
         resistor = next((component for component in circuit.components if component.type == "resistor"), None)
         capacitor = next((component for component in circuit.components if component.type == "capacitor"), None)
+        low_pass_cutoff_hz = _cutoff_frequency_hz(resistor, capacitor)
         _add_cutoff_observation(
             observations,
             "low_pass_cutoff_frequency",
             "Low-pass corner frequency",
-            _cutoff_frequency_hz(resistor, capacitor),
+            low_pass_cutoff_hz,
         )
         observations.append(
             TutorObservation(
@@ -157,6 +252,7 @@ def _build_ac_filter_observations(
                 note="Canonical first-order RC marker included in the packet for tutor explanation.",
             )
         )
+        _add_adc_sampling_observations(observations, circuit, low_pass_cutoff_hz)
 
     return observations
 
@@ -208,6 +304,31 @@ def _input_source_pair(
     return positive, negative
 
 
+CMRR_MISMATCH_SCENARIOS = {
+    "bme_ecg_front_end": {
+        "positive_source_id": "VECGP",
+        "negative_source_id": "VECGN",
+        "default_mismatch_component_id": "RF",
+        "output_node": "ecg_out",
+        "reference_node": "0",
+    },
+    "bme_instrumentation_amplifier": {
+        "positive_source_id": "VSENP",
+        "negative_source_id": "VSENN",
+        "default_mismatch_component_id": "R4",
+        "output_node": "inst_out",
+        "reference_node": "0",
+    },
+}
+
+
+def _first_requested_voltage_answer(packet: SolutionPacket):
+    return next(
+        (answer for answer in packet.requested_answers.values() if answer.unit == "V"),
+        None,
+    )
+
+
 def _add_differential_common_mode_observations(
     observations: list[TutorObservation],
     circuit: CircuitProblem,
@@ -254,6 +375,125 @@ def _add_differential_common_mode_observations(
         )
 
 
+def _add_cmrr_mismatch_observations(
+    observations: list[TutorObservation],
+    circuit: CircuitProblem,
+    packet: SolutionPacket,
+) -> None:
+    topology = circuit.topology_id or circuit.id
+    scenario = CMRR_MISMATCH_SCENARIOS.get(topology)
+    if scenario is None:
+        return
+
+    pair = _input_source_pair(
+        circuit,
+        str(scenario["positive_source_id"]),
+        str(scenario["negative_source_id"]),
+    )
+    if pair is None:
+        return
+
+    positive, negative = pair
+    differential_v = positive.value - negative.value
+    common_mode_v = 0.5 * (positive.value + negative.value)
+    if abs(common_mode_v) <= 1e-15:
+        return
+
+    metadata = circuit.bme_metadata
+    mismatch_percent = (
+        float(metadata.cmrr_mismatch_percent)
+        if metadata and metadata.cmrr_mismatch_percent is not None
+        else 1.0
+    )
+    mismatch_component_id = (
+        metadata.cmrr_mismatch_component_id
+        if metadata and metadata.cmrr_mismatch_component_id
+        else str(scenario["default_mismatch_component_id"])
+    )
+    mismatch_fraction = mismatch_percent / 100.0
+
+    mismatch_problem = circuit.model_copy(deep=True)
+    mismatch_pair = _input_source_pair(
+        mismatch_problem,
+        str(scenario["positive_source_id"]),
+        str(scenario["negative_source_id"]),
+    )
+    mismatch_component = _component_by_id(mismatch_problem, mismatch_component_id)
+    if mismatch_pair is None or mismatch_component is None or mismatch_component.type != "resistor":
+        return
+    if mismatch_component.value <= 0:
+        return
+
+    mismatch_pair[0].value = common_mode_v
+    mismatch_pair[1].value = common_mode_v
+    mismatch_component.value *= 1.0 + mismatch_fraction
+
+    mismatch_result = solve_mna(mismatch_problem)
+    if not mismatch_result.success:
+        return
+
+    output_node = str(scenario["output_node"])
+    reference_node = str(scenario["reference_node"])
+    if output_node not in mismatch_result.node_voltages or reference_node not in mismatch_result.node_voltages:
+        return
+
+    output_error_v = (
+        mismatch_result.node_voltages[output_node]
+        - mismatch_result.node_voltages[reference_node]
+    )
+    observations.extend(
+        [
+            TutorObservation(
+                id="cmrr_mismatch_percent",
+                label="CMRR resistor-ratio mismatch what-if",
+                value=mismatch_percent,
+                unit="%",
+                note=f"{mismatch_component_id} is increased by this percentage in a common-mode-only what-if solve.",
+            ),
+            TutorObservation(
+                id="cmrr_common_mode_leakage_output",
+                label="Common-mode leakage output",
+                value=float(output_error_v),
+                unit="V",
+                note=(
+                    "Solved by setting both inputs to their common-mode value, forcing differential input to 0 V, "
+                    f"and increasing {mismatch_component_id} by {mismatch_percent:.6g}%."
+                ),
+            ),
+        ]
+    )
+
+    common_mode_gain = output_error_v / common_mode_v
+    observations.append(
+        TutorObservation(
+            id="cmrr_common_mode_leakage_gain",
+            label="Common-mode leakage gain",
+            value=float(abs(common_mode_gain)),
+            unit="V/V",
+            note="Magnitude of common-mode-only output error divided by the common-mode input level.",
+        )
+    )
+
+    requested_voltage = _first_requested_voltage_answer(packet)
+    if requested_voltage is None or abs(differential_v) <= 1e-15 or abs(common_mode_gain) <= 1e-15:
+        return
+
+    ideal_differential_gain = abs(requested_voltage.value / differential_v)
+    cmrr_estimate_db = 20.0 * math.log10(ideal_differential_gain / abs(common_mode_gain))
+    observations.append(
+        TutorObservation(
+            id="cmrr_mismatch_estimate_db",
+            label="CMRR mismatch estimate",
+            value=float(cmrr_estimate_db),
+            unit="dB",
+            note=(
+                "Teaching estimate from packet differential gain divided by the 1% mismatch common-mode gain; "
+                "not a full finite-CMRR or frequency-dependent solver."
+            ),
+        )
+    )
+
+
 def _add_output_swing_observations(
     observations: list[TutorObservation],
     circuit: CircuitProblem,
@@ -264,16 +504,21 @@ def _add_output_swing_observations(
         for component in circuit.components
     ):
         return
-    rails = circuit.bme_metadata.nominal_supply_rails_v if circuit.bme_metadata else None
-    if not rails:
+    supply_window = _supply_window(circuit)
+    if supply_window is None:
         return
-    lower = min(rails.values())
-    upper = max(rails.values())
+    usable_lower, usable_upper, rail_lower, rail_upper, margin = supply_window
     for goal_id, answer in packet.requested_answers.items():
         if answer.unit != "V":
             continue
-        if lower <= answer.value <= upper:
+        if usable_lower <= answer.value <= usable_upper:
             continue
+        margin_text = (
+            f" with a {margin:.6g} V output-swing margin, so the usable output window is "
+            f"{usable_lower:.6g} V to {usable_upper:.6g} V"
+            if margin > 0
+            else ""
+        )
         observations.append(
             TutorObservation(
                 id="real_op_amp_saturation_warning",
@@ -282,7 +527,8 @@ def _add_output_swing_observations(
                 unit="V",
                 note=(
                     f"The ideal result for {goal_id} is {answer.value:.6g} V; "
-                    f"the template's nominal {lower:.6g} V to {upper:.6g} V op-amp rails "
+                    f"the template's nominal {rail_lower:.6g} V to {rail_upper:.6g} V op-amp rails"
+                    f"{margin_text} "
                     "would saturate before reaching this output."
                 ),
             )
@@ -298,6 +544,7 @@ def _build_bme_dc_observations(
         return []
     observations: list[TutorObservation] = []
     _add_differential_common_mode_observations(observations, circuit)
+    _add_cmrr_mismatch_observations(observations, circuit, packet)
     _add_output_swing_observations(observations, circuit, packet)
     return observations
 

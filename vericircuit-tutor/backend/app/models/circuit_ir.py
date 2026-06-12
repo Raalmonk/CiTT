@@ -161,6 +161,13 @@ class BMETemplateMetadata(BaseModel):
     real_world_nonidealities: list[str] = Field(default_factory=list)
     recommended_next_block: str | None = None
     nominal_supply_rails_v: dict[str, float] | None = None
+    supply_positive_v: float | None = None
+    supply_negative_v: float | None = None
+    output_swing_margin_v: float = Field(default=0.0, ge=0.0)
+    adc_sampling_frequency_hz: float | None = Field(default=None, gt=0.0)
+    adc_target_cutoff_hz: float | None = Field(default=None, gt=0.0)
+    cmrr_mismatch_percent: float | None = Field(default=None, gt=0.0)
+    cmrr_mismatch_component_id: str | None = None
 
 
 class CircuitProblem(BaseModel):

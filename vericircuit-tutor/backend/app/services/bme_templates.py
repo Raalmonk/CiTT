@@ -22,6 +22,13 @@ class BMETemplate(BaseModel):
     real_world_nonidealities: list[str] = Field(default_factory=list)
     recommended_next_block: str | None = None
     nominal_supply_rails_v: dict[str, float] | None = None
+    supply_positive_v: float | None = None
+    supply_negative_v: float | None = None
+    output_swing_margin_v: float = 0.0
+    adc_sampling_frequency_hz: float | None = None
+    adc_target_cutoff_hz: float | None = None
+    cmrr_mismatch_percent: float | None = None
+    cmrr_mismatch_component_id: str | None = None
 
     @property
     def metadata(self) -> BMETemplateMetadata:
@@ -37,6 +44,13 @@ class BMETemplate(BaseModel):
             real_world_nonidealities=self.real_world_nonidealities,
             recommended_next_block=self.recommended_next_block,
             nominal_supply_rails_v=self.nominal_supply_rails_v,
+            supply_positive_v=self.supply_positive_v,
+            supply_negative_v=self.supply_negative_v,
+            output_swing_margin_v=self.output_swing_margin_v,
+            adc_sampling_frequency_hz=self.adc_sampling_frequency_hz,
+            adc_target_cutoff_hz=self.adc_target_cutoff_hz,
+            cmrr_mismatch_percent=self.cmrr_mismatch_percent,
+            cmrr_mismatch_component_id=self.cmrr_mismatch_component_id,
         )
 
 
@@ -120,6 +134,11 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         ],
         recommended_next_block="High-pass baseline-wander removal followed by instrumentation gain and driven-reference/common-mode control.",
         nominal_supply_rails_v={"negative": 0.0, "positive": 3.3},
+        supply_negative_v=0.0,
+        supply_positive_v=3.3,
+        output_swing_margin_v=0.1,
+        cmrr_mismatch_percent=1.0,
+        cmrr_mismatch_component_id="RF",
     ),
     "bme_emg_band_pass_chain": BMETemplateMetadata(
         biomedical_context=(
@@ -306,6 +325,9 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         ],
         recommended_next_block="Feedback-capacitor stability check, ambient-light rejection, and low-pass filtering before ADC.",
         nominal_supply_rails_v={"negative": 0.0, "positive": 3.3},
+        supply_negative_v=0.0,
+        supply_positive_v=3.3,
+        output_swing_margin_v=0.1,
     ),
     "bme_instrumentation_amplifier": BMETemplateMetadata(
         biomedical_context="Many biomedical sensors produce millivolt differential signals on top of a common-mode voltage.",
@@ -338,6 +360,11 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         ],
         recommended_next_block="Band-limiting, level shifting, anti-aliasing, and ADC driver stage.",
         nominal_supply_rails_v={"negative": 0.0, "positive": 3.3},
+        supply_negative_v=0.0,
+        supply_positive_v=3.3,
+        output_swing_margin_v=0.1,
+        cmrr_mismatch_percent=1.0,
+        cmrr_mismatch_component_id="R4",
     ),
     "bme_anti_aliasing_low_pass": BMETemplateMetadata(
         biomedical_context="Before ADC sampling, biomedical signals need high-frequency content attenuated to reduce aliasing.",
@@ -368,6 +395,8 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "A single RC pole may not provide enough stop-band attenuation near Nyquist.",
         ],
         recommended_next_block="ADC driver or higher-order active anti-aliasing filter matched to the sampling rate.",
+        adc_sampling_frequency_hz=4000.0,
+        adc_target_cutoff_hz=500.0,
     ),
 }
 
@@ -709,6 +738,13 @@ def build_bme_template(template_id: str) -> BMETemplate:
         nominal_supply_rails_v=dict(metadata.nominal_supply_rails_v)
         if metadata.nominal_supply_rails_v is not None
         else None,
+        supply_positive_v=metadata.supply_positive_v,
+        supply_negative_v=metadata.supply_negative_v,
+        output_swing_margin_v=metadata.output_swing_margin_v,
+        adc_sampling_frequency_hz=metadata.adc_sampling_frequency_hz,
+        adc_target_cutoff_hz=metadata.adc_target_cutoff_hz,
+        cmrr_mismatch_percent=metadata.cmrr_mismatch_percent,
+        cmrr_mismatch_component_id=metadata.cmrr_mismatch_component_id,
     )
 
 

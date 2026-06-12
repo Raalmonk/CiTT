@@ -5,6 +5,8 @@ from app.models.solution_packet import SolutionPacket, TutorObservation
 
 def _format_value(value: float, unit: str) -> str:
     abs_value = abs(value)
+    if unit == "%":
+        return f"{value:.6g}%"
     if unit == "V" and 0 < abs_value < 1:
         return f"{value * 1000:.6g} mV"
     if unit == "A" and 0 < abs_value < 1:
@@ -53,6 +55,26 @@ def _verification_sentence(packet: SolutionPacket) -> str:
     )
 
 
+def _metadata_supply_window(metadata) -> tuple[float, float, float, float, float] | None:
+    if metadata.supply_positive_v is not None and metadata.supply_negative_v is not None:
+        rail_lower = min(metadata.supply_negative_v, metadata.supply_positive_v)
+        rail_upper = max(metadata.supply_negative_v, metadata.supply_positive_v)
+    elif metadata.nominal_supply_rails_v:
+        rail_lower = min(metadata.nominal_supply_rails_v.values())
+        rail_upper = max(metadata.nominal_supply_rails_v.values())
+    else:
+        return None
+
+    margin = max(float(metadata.output_swing_margin_v or 0.0), 0.0)
+    usable_lower = rail_lower + margin
+    usable_upper = rail_upper - margin
+    if usable_lower > usable_upper:
+        usable_lower = rail_lower
+        usable_upper = rail_upper
+        margin = 0.0
+    return usable_lower, usable_upper, rail_lower, rail_upper, margin
+
+
 def _join_sentence_list(items: list[str]) -> str:
     return "; ".join(item.rstrip(".") for item in items) + "."
 
@@ -69,10 +91,17 @@ def _bme_intro(packet: SolutionPacket) -> list[str]:
         lines.append(f"Typical signal range: {metadata.typical_signal_range}")
     if metadata.safety_note:
         lines.append(f"Safety note, not safety analysis: {metadata.safety_note}")
-    if metadata.nominal_supply_rails_v:
-        lower = min(metadata.nominal_supply_rails_v.values())
-        upper = max(metadata.nominal_supply_rails_v.values())
-        lines.append(f"Template nominal op-amp rails: {lower:.6g} V to {upper:.6g} V.")
+    supply_window = _metadata_supply_window(metadata)
+    if supply_window is not None:
+        usable_lower, usable_upper, rail_lower, rail_upper, margin = supply_window
+        if margin > 0:
+            lines.append(
+                "Template nominal op-amp rails: "
+                f"{rail_lower:.6g} V to {rail_upper:.6g} V, "
+                f"with usable output window {usable_lower:.6g} V to {usable_upper:.6g} V after margin."
+            )
+        else:
+            lines.append(f"Template nominal op-amp rails: {rail_lower:.6g} V to {rail_upper:.6g} V.")
     if metadata.recommended_next_block:
         lines.append(f"Recommended next block: {metadata.recommended_next_block}")
     if metadata.what_students_should_learn:
@@ -100,6 +129,27 @@ def _explain_ac(packet: SolutionPacket) -> str:
                 f"The packet's RC corner frequency is {_format_frequency(cutoff.value)}. "
                 f"At that first-order corner marker, the output magnitude ratio is about {corner_ratio}."
             )
+        sampling = _observation(packet, "adc_sampling_frequency")
+        nyquist = _observation(packet, "adc_nyquist_frequency")
+        target_cutoff = _observation(packet, "adc_target_cutoff_frequency")
+        attenuation = _observation(packet, "adc_attenuation_at_nyquist")
+        aliasing_warning = _observation(packet, "aliasing_warning")
+        if sampling and sampling.value is not None and nyquist and nyquist.value is not None:
+            sampling_line = (
+                f"ADC sampling context: fs = {_format_frequency(sampling.value)}, "
+                f"so Nyquist is {_format_frequency(nyquist.value)}."
+            )
+            if target_cutoff and target_cutoff.value is not None:
+                sampling_line += f" The target cutoff is {_format_frequency(target_cutoff.value)}."
+            if attenuation and attenuation.value is not None:
+                sampling_line += (
+                    f" The estimated attenuation at Nyquist is {_format_observation(attenuation)}."
+                )
+                if attenuation.note:
+                    sampling_line += f" {attenuation.note}"
+            lines.append(sampling_line)
+            if aliasing_warning and aliasing_warning.note:
+                lines.append(aliasing_warning.note)
     elif behavior and behavior.note == "band-pass":
         lines.append(
             "This is a band-pass chain: the high-pass section suppresses slow drift, and the low-pass section rolls off faster noise."
@@ -187,6 +237,24 @@ def _explain_dc(packet: SolutionPacket) -> str:
             " The ideal circuit responds to the differential signal; real CMRR depends on resistor matching, input stage design, and frequency."
         )
         lines.append(cmrr_line)
+
+    mismatch = _format_observation(_observation(packet, "cmrr_mismatch_percent")) or "1 %"
+    leakage = _format_observation(_observation(packet, "cmrr_common_mode_leakage_output"))
+    leakage_gain = _format_observation(_observation(packet, "cmrr_common_mode_leakage_gain"))
+    mismatch_cmrr = _format_observation(_observation(packet, "cmrr_mismatch_estimate_db"))
+    if leakage:
+        mismatch_line = (
+            f"CMRR mismatch what-if: with a {mismatch} resistor-ratio mismatch and common-mode-only input, "
+            f"the solved output error is {leakage}."
+        )
+        if leakage_gain:
+            mismatch_line += f" The common-mode leakage gain is {leakage_gain}."
+        if mismatch_cmrr:
+            mismatch_line += f" The packet's differential-gain marker gives an estimated CMRR of {mismatch_cmrr}."
+        mismatch_line += (
+            " This is a teaching estimate, not a full resistor-tolerance, finite-op-amp, or frequency-dependent CMRR solver."
+        )
+        lines.append(mismatch_line)
 
     if packet.node_voltages:
         formatted_nodes = [

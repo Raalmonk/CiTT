@@ -23,6 +23,8 @@ def test_examples_endpoint_returns_bme_metadata():
     assert anti_aliasing["noise_sources"]
     assert anti_aliasing["real_world_nonidealities"]
     assert anti_aliasing["recommended_next_block"]
+    assert anti_aliasing["adc_sampling_frequency_hz"] == 4000.0
+    assert anti_aliasing["adc_target_cutoff_hz"] == 500.0
 
 
 def test_bme_demo_templates_parse_and_solve():
@@ -72,6 +74,9 @@ def test_bme_templates_are_supported_circuit_ir():
                 "negative": 0.0,
                 "positive": 3.3,
             }
+            assert packet.bme_metadata.supply_negative_v == 0.0
+            assert packet.bme_metadata.supply_positive_v == 3.3
+            assert packet.bme_metadata.output_swing_margin_v == 0.1
 
 
 def test_bme_ecg_front_end_gain_is_stable():
@@ -93,6 +98,26 @@ def test_bme_instrumentation_amplifier_gain_is_stable():
     assert packet.requested_answers["instrumentation_amp_output"].value == pytest.approx(0.011)
 
 
+def test_bme_ecg_front_end_reports_cmrr_mismatch_what_if():
+    packet = solve_circuit(BME_TEMPLATE_FACTORIES["bme_ecg_front_end"]().circuit_problem)
+    observations = {observation.id: observation for observation in packet.tutor_observations}
+
+    assert observations["cmrr_mismatch_percent"].value == pytest.approx(1.0)
+    assert observations["cmrr_common_mode_leakage_output"].value == pytest.approx(-0.009095454545455775)
+    assert observations["cmrr_common_mode_leakage_gain"].value == pytest.approx(0.00909090909091032)
+    assert observations["cmrr_mismatch_estimate_db"].value == pytest.approx(60.82785370316429)
+
+
+def test_bme_instrumentation_amplifier_reports_cmrr_mismatch_what_if():
+    packet = solve_circuit(BME_TEMPLATE_FACTORIES["bme_instrumentation_amplifier"]().circuit_problem)
+    observations = {observation.id: observation for observation in packet.tutor_observations}
+
+    assert observations["cmrr_mismatch_percent"].value == pytest.approx(1.0)
+    assert observations["cmrr_common_mode_leakage_output"].unit == "V"
+    assert abs(observations["cmrr_common_mode_leakage_output"].value) > 0
+    assert observations["cmrr_mismatch_estimate_db"].unit == "dB"
+
+
 def test_bme_emg_and_anti_aliasing_templates_return_phasors():
     emg_packet = solve_circuit(BME_TEMPLATE_FACTORIES["bme_emg_band_pass_chain"]().circuit_problem)
     anti_alias_packet = solve_circuit(BME_TEMPLATE_FACTORIES["bme_anti_aliasing_low_pass"]().circuit_problem)
@@ -105,3 +130,13 @@ def test_bme_emg_and_anti_aliasing_templates_return_phasors():
     )
     assert emg_packet.tutor_observations
     assert anti_alias_packet.tutor_observations
+    anti_alias_observations = {
+        observation.id: observation
+        for observation in anti_alias_packet.tutor_observations
+    }
+    assert anti_alias_observations["adc_sampling_frequency"].value == pytest.approx(4000.0)
+    assert anti_alias_observations["adc_nyquist_frequency"].value == pytest.approx(2000.0)
+    assert anti_alias_observations["adc_attenuation_at_nyquist"].value == pytest.approx(
+        -12.296527179496552
+    )
+    assert "single-pole RC anti-aliasing" in anti_alias_observations["aliasing_warning"].note
