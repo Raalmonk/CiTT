@@ -252,6 +252,18 @@
         padding-top: 10px;
       }
 
+      .sidebar-advanced {
+        border-top: 1px solid var(--line);
+        margin-top: 4px;
+        padding-top: 10px;
+      }
+
+      .sidebar-advanced > summary {
+        color: var(--accent-dark);
+        cursor: pointer;
+        font-weight: 800;
+      }
+
       .status-meaning dl {
         display: grid;
         gap: 8px;
@@ -508,6 +520,28 @@
       .guided-body {
         color: var(--ink);
         line-height: 1.55;
+      }
+
+      .guided-teaching-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .guided-teaching-block {
+        border-left: 3px solid #c6d8e8;
+        padding-left: 10px;
+      }
+
+      .guided-teaching-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        margin-bottom: 2px;
+        text-transform: uppercase;
+      }
+
+      .guided-teaching-text {
+        line-height: 1.5;
       }
 
       .guided-focus-chips,
@@ -811,6 +845,16 @@
         opacity: 1;
       }
 
+      @keyframes guidedPulse {
+        0%,
+        100% {
+          filter: drop-shadow(0 0 0 rgba(245, 158, 11, 0));
+        }
+        50% {
+          filter: drop-shadow(0 0 7px rgba(245, 158, 11, 0.72));
+        }
+      }
+
       .diagram svg .guided-focus .component,
       .diagram svg .guided-focus.component,
       .diagram svg .guided-focus .wire,
@@ -822,6 +866,7 @@
       .diagram svg .guided-focus.current-path {
         stroke: #f59e0b;
         stroke-width: 8;
+        animation: guidedPulse 1.8s ease-in-out infinite;
       }
 
       .diagram svg .guided-focus .component-label,
@@ -834,6 +879,23 @@
       .diagram svg .guided-focus.current-path {
         opacity: 0.95;
         stroke-dasharray: 10 10;
+      }
+
+      .diagram svg .guided-reference-marker {
+        pointer-events: none;
+      }
+
+      .diagram svg .guided-reference-marker circle {
+        fill: #fff7ed;
+        stroke: #f59e0b;
+        stroke-width: 4;
+      }
+
+      .diagram svg .guided-reference-marker text {
+        fill: #92400e;
+        font: 800 22px system-ui, sans-serif;
+        dominant-baseline: central;
+        text-anchor: middle;
       }
 
       @media (max-width: 980px) {
@@ -878,76 +940,80 @@
     <header>
       <h1>VeriCircuit Tutor</h1>
       <div class="subtitle">
-        Professor-facing MVP: natural language is parsed into Circuit IR, solved
-        with MNA, verified with circuit-law checks, then explained from the
-        verified Solution Packet. The parser may use an LLM; the final numbers
-        do not come directly from an LLM.
+        Guided circuit lessons that pair verified values with the part of the
+        schematic students should be looking at right now.
       </div>
     </header>
 
     <main>
       <aside class="panel stack">
         <div>
-          <label for="exampleSelect">Example</label>
+          <label for="exampleSelect">Choose lesson</label>
           <select id="exampleSelect"></select>
         </div>
         <div>
-          <label for="problemText">Problem</label>
+          <label for="problemText">Lesson prompt</label>
           <textarea id="problemText"></textarea>
         </div>
-        <div>
-          <label for="modeSelect">Parser mode</label>
-          <select id="modeSelect">
-            <option value="demo">Demo parser</option>
-            <option value="gemini">Gemini with demo fallback</option>
-            <option value="gemini_strict">Gemini strict</option>
-          </select>
-        </div>
         <div class="button-row">
-          <button id="runButton">Run pipeline</button>
-          <button class="secondary" id="valueVariantButton">Value variant</button>
-          <button class="secondary" id="goalVariantButton">Goal variant</button>
-        </div>
-        <div class="authority">
-          <strong>Source of truth:</strong> Circuit IR validation, MNA solving,
-          and deterministic verification. Tutor text is generated only after
-          verified values exist.
-        </div>
-        <div class="status-meaning">
-          <h2>Status Meaning</h2>
-          <dl>
-            <div>
-              <dt>PASS</dt>
-              <dd>Circuit IR validated, MNA solver ran, deterministic verification passed.</dd>
-            </div>
-            <div>
-              <dt>AMBIGUOUS</dt>
-              <dd>Parser or validator found unresolved ambiguity. No numerical answer is shown; clarify topology, component directions, or missing ground/reference.</dd>
-            </div>
-            <div>
-              <dt>UNSUPPORTED</dt>
-              <dd>Problem contains unsupported components or analysis types, such as general transient analysis, DC inductors, diodes, transistors, nonlinear devices, or nonideal op-amp behavior. No numerical answer is shown.</dd>
-            </div>
-            <div>
-              <dt>FAIL</dt>
-              <dd>The circuit was parsed, but validation, solving, or verification failed.</dd>
-            </div>
-          </dl>
+          <button id="runButton">Start guided lesson</button>
         </div>
         <div id="status" class="message">Ready.</div>
+        <details class="sidebar-advanced">
+          <summary>Advanced controls</summary>
+          <div class="stack">
+            <div>
+              <label for="modeSelect">Parser mode</label>
+              <select id="modeSelect">
+                <option value="demo">Demo parser</option>
+                <option value="gemini">Gemini with demo fallback</option>
+                <option value="gemini_strict">Gemini strict</option>
+              </select>
+            </div>
+            <div class="button-row">
+              <button class="secondary" id="valueVariantButton">Try value what-if</button>
+              <button class="secondary" id="goalVariantButton">Try goal what-if</button>
+            </div>
+            <div class="authority">
+              <strong>Source of truth:</strong> Circuit IR validation, MNA solving,
+              and deterministic verification. Tutor text is generated only after
+              verified values exist.
+            </div>
+            <div class="status-meaning">
+              <h2>Status Meaning</h2>
+              <dl>
+                <div>
+                  <dt>PASS</dt>
+                  <dd>Circuit IR validated, solver ran, deterministic internal verification passed.</dd>
+                </div>
+                <div>
+                  <dt>AMBIGUOUS</dt>
+                  <dd>Parser or validator found unresolved ambiguity. Clarify topology, directions, or reference nodes.</dd>
+                </div>
+                <div>
+                  <dt>UNSUPPORTED</dt>
+                  <dd>The request contains unsupported devices or analysis types for this MVP.</dd>
+                </div>
+                <div>
+                  <dt>FAIL</dt>
+                  <dd>Validation, solving, or internal verification failed.</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </details>
       </aside>
 
       <section class="grid">
-        <div class="panel wide progress-panel">
-          <h2>Progress</h2>
-          <div class="progress-bar" aria-label="Pipeline progress">
-            <div id="progressFill" class="progress-fill"></div>
+        <details class="panel wide advanced-panel progress-disclosure">
+          <summary>Lesson preparation</summary>
+          <div class="progress-panel">
+            <div class="progress-bar" aria-label="Lesson preparation progress">
+              <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <div id="stepsPanel" class="steps"></div>
           </div>
-          <div id="stepsPanel" class="steps"></div>
-          <div class="message">
-            Image/PDF OCR is not implemented in this MVP; current input is text only.
-          </div>
-        </div>
+        </details>
         <div class="panel wide student-mode-panel">
           <div class="student-mode-header">
             <div>
@@ -1113,18 +1179,24 @@
       let guidedSteps = [];
       let selectedGuidedStepIndex = 0;
       let originalDiagramViewBox = null;
+      let guidedZoomAnimation = null;
+
+      const GUIDED_FOCUS_PADDING = 90;
+      const GUIDED_MAX_ZOOM = 2.8;
+      const GUIDED_MIN_VIEWBOX_SIZE = 170;
+      const GUIDED_ZOOM_DURATION_MS = 260;
 
       const pipelineSteps = [
-        { id: "input", label: "Input received" },
-        { id: "edit", label: "Updating Circuit IR" },
-        { id: "parse", label: "Parsing problem" },
-        { id: "validate", label: "Validating Circuit IR" },
-        { id: "diagram", label: "Rendering circuit diagram" },
-        { id: "solve", label: "DC / AC solve" },
-        { id: "verify", label: "Verifying circuit laws" },
-        { id: "explain", label: "Generating tutor explanation" },
-        { id: "variants", label: "Generating variants" },
-        { id: "done", label: "Done" },
+        { id: "input", label: "Prompt ready" },
+        { id: "edit", label: "Lesson updated" },
+        { id: "parse", label: "Circuit understood" },
+        { id: "validate", label: "Circuit checked" },
+        { id: "diagram", label: "Diagram prepared" },
+        { id: "solve", label: "Values solved" },
+        { id: "verify", label: "Values verified" },
+        { id: "explain", label: "Lesson built" },
+        { id: "variants", label: "Practice ready" },
+        { id: "done", label: "Ready" },
       ];
 
       const stepState = {};
@@ -1547,8 +1619,83 @@
         return chips.map((chip) => `<span class="guided-chip">${escapeHtml(chip)}</span>`).join("");
       }
 
+      function guidedTeachingBlock(label, text) {
+        if (!text) return "";
+        return `
+          <div class="guided-teaching-block">
+            <div class="guided-teaching-label">${escapeHtml(label)}</div>
+            <div class="guided-teaching-text">${escapeHtml(text)}</div>
+          </div>
+        `;
+      }
+
       function diagramSvg() {
         return diagramPanel.querySelector("svg");
+      }
+
+      function parseViewBox(value) {
+        if (!value) return null;
+        const parts = String(value).trim().split(/\s+/).map(Number);
+        if (parts.length !== 4 || parts.some((part) => !Number.isFinite(part))) return null;
+        return { x: parts[0], y: parts[1], width: parts[2], height: parts[3] };
+      }
+
+      function formatViewBox(box) {
+        return `${box.x} ${box.y} ${box.width} ${box.height}`;
+      }
+
+      function currentViewBox(svg) {
+        return parseViewBox(svg.getAttribute("viewBox"));
+      }
+
+      function stopGuidedZoomAnimation() {
+        if (guidedZoomAnimation !== null) {
+          cancelAnimationFrame(guidedZoomAnimation);
+          guidedZoomAnimation = null;
+        }
+      }
+
+      function setSvgViewBox(svg, targetBox, animate = true) {
+        if (!svg || !targetBox) return;
+        stopGuidedZoomAnimation();
+        const startBox = currentViewBox(svg);
+        if (!animate || !startBox) {
+          svg.setAttribute("viewBox", formatViewBox(targetBox));
+          return;
+        }
+        const startTime = Date.now();
+        const ease = (t) => 1 - Math.pow(1 - t, 3);
+        const tick = () => {
+          const progress = clamp(0, 1, (Date.now() - startTime) / GUIDED_ZOOM_DURATION_MS);
+          const eased = ease(progress);
+          const nextBox = {
+            x: startBox.x + (targetBox.x - startBox.x) * eased,
+            y: startBox.y + (targetBox.y - startBox.y) * eased,
+            width: startBox.width + (targetBox.width - startBox.width) * eased,
+            height: startBox.height + (targetBox.height - startBox.height) * eased,
+          };
+          svg.setAttribute("viewBox", formatViewBox(nextBox));
+          if (progress < 1) {
+            guidedZoomAnimation = requestAnimationFrame(tick);
+          } else {
+            guidedZoomAnimation = null;
+          }
+        };
+        guidedZoomAnimation = requestAnimationFrame(tick);
+      }
+
+      function clampedFocusViewBox(rawBox) {
+        const original = parseViewBox(originalDiagramViewBox);
+        if (!original) return rawBox;
+        const minWidth = Math.max(GUIDED_MIN_VIEWBOX_SIZE, original.width / GUIDED_MAX_ZOOM);
+        const minHeight = Math.max(GUIDED_MIN_VIEWBOX_SIZE, original.height / GUIDED_MAX_ZOOM);
+        const width = Math.min(original.width, Math.max(rawBox.width, minWidth));
+        const height = Math.min(original.height, Math.max(rawBox.height, minHeight));
+        let x = rawBox.x + rawBox.width / 2 - width / 2;
+        let y = rawBox.y + rawBox.height / 2 - height / 2;
+        x = clamp(original.x, original.x + original.width - width, x);
+        y = clamp(original.y, original.y + original.height - height, y);
+        return { x, y, width, height };
       }
 
       function rememberDiagramViewBox() {
@@ -1560,7 +1707,7 @@
       function resetDiagramView() {
         const svg = diagramSvg();
         if (!svg || !originalDiagramViewBox) return;
-        svg.setAttribute("viewBox", originalDiagramViewBox);
+        setSvgViewBox(svg, parseViewBox(originalDiagramViewBox));
       }
 
       function clearGuidedFocus() {
@@ -1569,6 +1716,7 @@
         svg.querySelectorAll(".guided-dim, .guided-focus").forEach((el) => {
           el.classList.remove("guided-dim", "guided-focus");
         });
+        svg.querySelectorAll(".guided-reference-marker").forEach((el) => el.remove());
       }
 
       function zoomToFocusedElements(svg, elements) {
@@ -1593,11 +1741,74 @@
         const width = maxX - minX;
         const height = maxY - minY;
         if (width <= 0 || height <= 0) return;
-        const pad = Math.max(60, Math.min(140, Math.max(width, height) * 0.25));
-        svg.setAttribute(
-          "viewBox",
-          `${minX - pad} ${minY - pad} ${width + 2 * pad} ${height + 2 * pad}`
+        const pad = Math.max(GUIDED_FOCUS_PADDING, Math.min(160, Math.max(width, height) * 0.28));
+        setSvgViewBox(
+          svg,
+          clampedFocusViewBox({
+            x: minX - pad,
+            y: minY - pad,
+            width: width + 2 * pad,
+            height: height + 2 * pad,
+          })
         );
+      }
+
+      function nodeCenter(svg, nodeId) {
+        const node = svg.querySelector(`[data-node-id="${attrSelectorValue(nodeId)}"]`);
+        if (!node) return null;
+        try {
+          const box = node.getBBox();
+          return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+        } catch {
+          return null;
+        }
+      }
+
+      function addReferenceMarker(svg, nodeId, label, offsetY) {
+        const center = nodeCenter(svg, nodeId);
+        if (!center) return;
+        const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        group.setAttribute("class", "guided-reference-marker");
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", center.x);
+        circle.setAttribute("cy", center.y + offsetY);
+        circle.setAttribute("r", "18");
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", center.x);
+        text.setAttribute("y", center.y + offsetY + 1);
+        text.textContent = label;
+        group.appendChild(circle);
+        group.appendChild(text);
+        svg.appendChild(group);
+      }
+
+      function referenceForGoal(goal) {
+        if (!goal) return null;
+        const reference = goal.reference || {};
+        if (reference.positive_node && reference.negative_node) {
+          return {
+            positiveNode: reference.positive_node,
+            negativeNode: reference.negative_node,
+          };
+        }
+        if (goal.quantity === "node_voltage") {
+          return {
+            positiveNode: goal.target,
+            negativeNode: currentCircuit?.ground_node || "0",
+          };
+        }
+        return null;
+      }
+
+      function renderGuidedReferenceMarkers(svg, step) {
+        const goalIds = step?.focus?.goals || [];
+        const goals = currentCircuit?.goals || [];
+        goalIds.forEach((goalId) => {
+          const reference = referenceForGoal(goals.find((goal) => goal.id === goalId));
+          if (!reference) return;
+          addReferenceMarker(svg, reference.positiveNode, "+", -30);
+          addReferenceMarker(svg, reference.negativeNode, "-", 30);
+        });
       }
 
       function applyGuidedFocus(step) {
@@ -1639,6 +1850,7 @@
           resetDiagramView();
           return;
         }
+        renderGuidedReferenceMarkers(svg, step);
         zoomToFocusedElements(svg, focused);
       }
 
@@ -1679,10 +1891,19 @@
         }
 
         const values = step.verified_values || [];
+        const teachingBlocks = [
+          guidedTeachingBlock("What to look at", step.look_at),
+          guidedTeachingBlock("Why it matters", step.why_it_matters),
+          guidedTeachingBlock("Common mistake", step.common_mistake),
+        ].join("");
         guidedStepCard.innerHTML = `
           <div class="message">Step ${selectedGuidedStepIndex + 1} of ${guidedSteps.length}</div>
           <h3>${escapeHtml(step.title)}</h3>
-          <div class="guided-body">${escapeHtml(step.body)}</div>
+          ${
+            teachingBlocks
+              ? `<div class="guided-teaching-grid">${teachingBlocks}</div>`
+              : `<div class="guided-body">${escapeHtml(step.body)}</div>`
+          }
           <div>
             <div class="guided-footer-title">Diagram focus</div>
             <div class="guided-focus-chips">${guidedFocusChips(step)}</div>

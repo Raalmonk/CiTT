@@ -147,6 +147,9 @@ class TutorStep(BaseModel):
     id: str
     title: str
     body: str
+    look_at: str | None = None
+    why_it_matters: str | None = None
+    common_mistake: str | None = None
     focus: TutorFocus = Field(default_factory=TutorFocus)
     verified_values: list[TutorObservation] = Field(default_factory=list)
     caution: str | None = None

@@ -155,6 +155,9 @@ def _voltage_divider_steps(circuit: CircuitProblem, packet: SolutionPacket) -> l
                 "The source fixes the top node relative to ground. That gives the divider a clear voltage "
                 "reference before any resistor math starts."
             ),
+            look_at="Look at V1, node n1, and ground. V1 is not just decoration; it defines the top node voltage.",
+            why_it_matters="A divider only makes sense after the voltage reference is clear. Here n1 is measured relative to node 0.",
+            common_mistake="Starting with R1 and R2 before checking which node the source actually fixes.",
             focus=_focus(circuit, components=["V1"], nodes=["n1", "0"], current_paths=["V1"]),
             verified_values=_only_present([_node_voltage(packet, "n1", "Top node voltage")]),
             next_action="Follow the same series current through R1 and R2.",
@@ -166,6 +169,9 @@ def _voltage_divider_steps(circuit: CircuitProblem, packet: SolutionPacket) -> l
                 "R1 and R2 are in one path, so the solved current through R1 is the same divider current "
                 "that continues through R2."
             ),
+            look_at="Look at the single path through R1 and R2. There is no branch at n2 in this circuit.",
+            why_it_matters="Because the resistors are in series, one current explains both voltage drops.",
+            common_mistake="Treating R1 and R2 like independent branches and inventing two different currents.",
             focus=_focus(circuit, components=["R1", "R2"], nodes=["n1", "n2", "0"], current_paths=["R1", "R2"]),
             verified_values=_only_present(
                 [_requested_answer(packet, "circuit_current", "Circuit current")]
@@ -179,6 +185,9 @@ def _voltage_divider_steps(circuit: CircuitProblem, packet: SolutionPacket) -> l
                 "The requested voltage across R2 is measured from node n2 to ground. The highlighted node is "
                 "the output of this divider."
             ),
+            look_at="Look at R2 and its two terminals: n2 is the positive side of the requested voltage, ground is the negative side.",
+            why_it_matters="The answer is V(n2) - V(0), not the drop across the whole chain.",
+            common_mistake="Reporting the source voltage or reversing the polarity of V(R2).",
             focus=_focus(circuit, components=["R2"], nodes=["n2", "0"], current_paths=["R2"], goals=["voltage_across_R2"]),
             verified_values=_only_present(
                 [
@@ -195,6 +204,9 @@ def _voltage_divider_steps(circuit: CircuitProblem, packet: SolutionPacket) -> l
                 "This result is internally verified and inspectable: the solver, KCL residual, power balance, "
                 "and requested answers agree. It is not claiming an independent external oracle yet."
             ),
+            look_at="Look at the answer and verification status together.",
+            why_it_matters="A PASS means the internal model is self-consistent and inspectable. It is stronger than an LLM guess.",
+            common_mistake="Reading PASS as absolute truth instead of internal verification without an independent oracle.",
             focus=_focus(circuit, components=["R1", "R2"], nodes=["n2"], goals=["voltage_across_R2", "circuit_current"]),
             verified_values=_verification_observations(packet),
             caution="Reference cross-check is reported separately from internal verification.",
@@ -211,6 +223,9 @@ def _ecg_front_end_steps(circuit: CircuitProblem, packet: SolutionPacket) -> lis
                 "The ECG information is not either electrode voltage by itself. It is the difference between "
                 "the two electrode source potentials."
             ),
+            look_at="Look at VECGP and VECGN. These are not two separate answers.",
+            why_it_matters="Their difference is the ECG signal; their average is common-mode voltage.",
+            common_mistake="Measuring each electrode to ground and forgetting the differential signal.",
             focus=_focus(circuit, components=["VECGP", "VECGN"], nodes=["ecg_p", "ecg_n"]),
             verified_values=_only_present(
                 [
@@ -227,6 +242,9 @@ def _ecg_front_end_steps(circuit: CircuitProblem, packet: SolutionPacket) -> lis
                 "The desired ECG signal is the input difference, while the common-mode level is the average "
                 "of the two electrode sources."
             ),
+            look_at="Compare ecg_p and ecg_n as a pair, not as isolated nodes.",
+            why_it_matters="Biomedical front ends care about high differential gain while rejecting common-mode voltage.",
+            common_mistake="Seeing a 1 V electrode level and missing that the useful ECG signal is only 1 mV.",
             focus=_focus(circuit, components=["VECGP", "VECGN"], nodes=["ecg_p", "ecg_n"]),
             verified_values=_only_present(
                 [
@@ -244,6 +262,9 @@ def _ecg_front_end_steps(circuit: CircuitProblem, packet: SolutionPacket) -> lis
                 "The matched input and feedback resistors set the ideal differential gain. The op-amp model "
                 "is ideal, so the lesson is about the topology and verified packet values."
             ),
+            look_at="Look at RINP/RREF on the plus side and RINN/RF on the feedback side of U1.",
+            why_it_matters="Matched resistor ratios make the circuit amplify the difference instead of the common-mode level.",
+            common_mistake="Calling this an ECG front end while ignoring resistor matching and CMRR.",
             focus=_focus(
                 circuit,
                 components=["RINP", "RINN", "RF", "RREF", "U1"],
@@ -260,6 +281,9 @@ def _ecg_front_end_steps(circuit: CircuitProblem, packet: SolutionPacket) -> lis
                 "The output node is the solver-backed answer for this ideal front-end. This is the number to "
                 "connect back to the ECG gain story."
             ),
+            look_at="Look at ecg_out. This is where the small differential input appears after ideal gain.",
+            why_it_matters="The output connects the 1 mV input difference to a visible signal-chain voltage.",
+            common_mistake="Forgetting that sign and reference node matter when interpreting the output.",
             focus=_focus(circuit, components=["U1", "RF"], nodes=["ecg_out"], current_paths=["RF"], goals=["ecg_front_end_output"]),
             verified_values=_only_present(
                 [_requested_answer(packet, "ecg_front_end_output", "ECG front-end output")]
@@ -273,6 +297,9 @@ def _ecg_front_end_steps(circuit: CircuitProblem, packet: SolutionPacket) -> lis
                 "The ideal circuit demonstrates differential gain. Real ECG front ends also need isolation, "
                 "input protection, finite-CMRR analysis, and resistor-ratio tolerance checks."
             ),
+            look_at="Keep U1 highlighted, but switch your mental model from ideal op-amp to real patient-connected hardware.",
+            why_it_matters="CMRR and safety constraints decide whether the ideal lesson survives in hardware.",
+            common_mistake="Treating an ideal ECG solve as a patient-safe medical circuit.",
             focus=_focus(circuit, components=["U1", "RF"], nodes=["ecg_out"]),
             verified_values=_only_present(
                 [
@@ -314,6 +341,9 @@ def _low_pass_steps(circuit: CircuitProblem, packet: SolutionPacket) -> list[Tut
             body=(
                 "The source drives R1, and the output is read at the node shared by R1 and C1."
             ),
+            look_at="Look from the source through R1 to the output node.",
+            why_it_matters="The output is taken after R1, so the capacitor can pull high-frequency signal away from that node.",
+            common_mistake="Looking only at the capacitor and forgetting where Vout is measured.",
             focus=_focus(circuit, components=[source_id, "R1"], nodes=["in", "out"], current_paths=[source_id, "R1"]),
             verified_values=_only_present([_observation(packet, "analysis_frequency")]),
             next_action="Look at how the capacitor creates the low-pass behavior.",
@@ -325,6 +355,9 @@ def _low_pass_steps(circuit: CircuitProblem, packet: SolutionPacket) -> list[Tut
                 "R1 and C1 set the first-order corner. Above the corner, more signal is shunted through the "
                 "capacitor instead of appearing at the output node."
             ),
+            look_at="Look at R1 and C1 together. They are the pole, not two unrelated parts.",
+            why_it_matters="The corner frequency tells you where the output begins to roll off.",
+            common_mistake="Using 1/(RC) as Hz instead of 1/(2*pi*RC).",
             focus=_focus(circuit, components=["R1", "C1"], nodes=["out", "0"], current_paths=["R1", "C1"]),
             verified_values=_only_present(
                 [
@@ -340,6 +373,9 @@ def _low_pass_steps(circuit: CircuitProblem, packet: SolutionPacket) -> list[Tut
             body=(
                 "The output is a magnitude and phase at the analysis frequency, not a DC voltage."
             ),
+            look_at="Look at out relative to ground and read the phasor result.",
+            why_it_matters="For AC filters, magnitude and phase together describe what the stage does to the signal.",
+            common_mistake="Reporting only magnitude and forgetting phase near the cutoff region.",
             focus=_focus(circuit, components=["R1", "C1"], nodes=["out", "0"], current_paths=["C1"], goals=[output_answer]),
             verified_values=values_for_output,
             next_action="Connect the filter result to the surrounding measurement system.",
@@ -354,6 +390,9 @@ def _low_pass_steps(circuit: CircuitProblem, packet: SolutionPacket) -> list[Tut
                     "The RC pole helps reduce high-frequency content before sampling, but a single pole does "
                     "not prove alias-free measurement."
                 ),
+                look_at="Look at the output node as the signal that would feed an ADC.",
+                why_it_matters="Anti-aliasing is about the filter and the sampling rate together.",
+                common_mistake="Choosing a cutoff without checking Nyquist, ADC loading, or required stop-band attenuation.",
                 focus=_focus(circuit, components=["R1", "C1"], nodes=["out", "0"]),
                 verified_values=adc_values,
                 caution="ADC input impedance, sampling capacitance, and required stop-band attenuation still need hardware checks.",
@@ -371,6 +410,9 @@ def _photodiode_tia_steps(circuit: CircuitProblem, packet: SolutionPacket) -> li
                 "The photodiode is modeled as a current source. That current is the signal before the circuit "
                 "turns it into a voltage."
             ),
+            look_at="Look at IPD first. In a TIA, the input signal is current, not voltage.",
+            why_it_matters="The rest of the circuit exists to convert that current into a readable voltage.",
+            common_mistake="Trying to assign a sensor voltage before following the photocurrent path.",
             focus=_focus(circuit, components=["IPD"], nodes=["sum", "0"], current_paths=["IPD"], goals=["photodiode_current"]),
             verified_values=_only_present(
                 [_requested_answer(packet, "photodiode_current", "Photodiode current")]
@@ -384,6 +426,9 @@ def _photodiode_tia_steps(circuit: CircuitProblem, packet: SolutionPacket) -> li
                 "In the ideal op-amp model, feedback holds the inverting input near the reference input. "
                 "This makes the summing node the place where current balance matters."
             ),
+            look_at="Look at the sum node where IPD, RF, and the op-amp input meet.",
+            why_it_matters="The ideal op-amp keeps this node near the reference input, so current must leave through feedback.",
+            common_mistake="Calling the summing node ground without checking the model and feedback condition.",
             focus=_focus(circuit, components=["U1", "IPD", "RF"], nodes=["sum", "0"], current_paths=["IPD", "RF"]),
             verified_values=_only_present([_node_voltage(packet, "sum", "Summing-node voltage")]),
             next_action="Follow that current through the feedback resistor.",
@@ -395,6 +440,9 @@ def _photodiode_tia_steps(circuit: CircuitProblem, packet: SolutionPacket) -> li
                 "RF turns input current into output voltage. The larger RF is, the larger the ideal "
                 "transimpedance gain and the more important offsets and noise become."
             ),
+            look_at="Look at RF between the summing node and output.",
+            why_it_matters="This is the transimpedance element: current in, voltage out.",
+            common_mistake="Remembering the gain magnitude but losing the polarity set by current direction.",
             focus=_focus(circuit, components=["RF", "U1"], nodes=["sum", "out"], current_paths=["RF"]),
             verified_values=_only_present([_requested_answer(packet, "tia_output", "TIA output")]),
             next_action="Check whether the ideal output fits real rails.",
@@ -406,6 +454,9 @@ def _photodiode_tia_steps(circuit: CircuitProblem, packet: SolutionPacket) -> li
                 "The ideal solver can report a large output. A real single-supply op-amp may saturate before "
                 "reaching that value."
             ),
+            look_at="Look at U1 and the output node, then compare the ideal value with the supply rails.",
+            why_it_matters="A TIA that solves ideally can still fail as hardware if the output cannot swing that far.",
+            common_mistake="Trusting the ideal 10 V result on a 3.3 V supply.",
             focus=_focus(circuit, components=["U1", "RF"], nodes=["out"]),
             verified_values=_only_present(
                 [
@@ -460,6 +511,9 @@ def _generic_steps(circuit: CircuitProblem, packet: SolutionPacket) -> list[Tuto
                 "This circuit does not have a specialized lesson template yet, so the guided view starts with "
                 "the requested target and the verified answer."
             ),
+            look_at="Look at the requested target highlighted in the diagram.",
+            why_it_matters="The guided UI needs a topology-specific template for richer teaching.",
+            common_mistake="Treating a generic packet as a complete lesson.",
             focus=_focus(circuit, components=component_focus, nodes=node_focus, current_paths=component_focus, goals=goal_ids),
             verified_values=requested_values,
             next_action="Use the advanced panels if you need full solver trace details.",
@@ -471,6 +525,9 @@ def _generic_steps(circuit: CircuitProblem, packet: SolutionPacket) -> list[Tuto
                 "The packet is internally verified and inspectable. Independent reference cross-checking is "
                 "reported separately when available."
             ),
+            look_at="Look at the verification boundary before trusting the result too broadly.",
+            why_it_matters="Internal checks catch many failures, but independent oracle checks are a separate confidence layer.",
+            common_mistake="Equating internal verification with absolute correctness.",
             focus=_focus(circuit, components=component_focus, nodes=node_focus, goals=goal_ids),
             verified_values=_verification_observations(packet),
         ),
