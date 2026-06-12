@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from app.models.circuit_ir import CircuitProblem
+import math
+
+from app.models.circuit_ir import CircuitProblem, Component
 from app.models.solution_packet import (
     ACFrequencyPoint,
     CalculationTrace,
     CheckResult,
     SolutionPacket,
+    TutorObservation,
     VerificationBadge,
     VerificationReport,
 )
@@ -16,6 +19,195 @@ from app.services.netlist_generator import generate_netlist
 from app.services.rc_transient_solver import solve_rc_transient
 from app.services.validator import validate_circuit
 from app.services.verifier import verify_solution
+
+
+def _component_by_id(circuit: CircuitProblem, component_id: str) -> Component | None:
+    return next((component for component in circuit.components if component.id == component_id), None)
+
+
+def _cutoff_frequency_hz(resistor: Component | None, capacitor: Component | None) -> float | None:
+    if resistor is None or capacitor is None:
+        return None
+    if resistor.value <= 0 or capacitor.value <= 0:
+        return None
+    return 1.0 / (2.0 * math.pi * resistor.value * capacitor.value)
+
+
+def _first_ac_source_magnitude(circuit: CircuitProblem) -> float | None:
+    for component in circuit.components:
+        if component.type in {"voltage_source", "current_source"} and component.ac_magnitude:
+            return float(component.ac_magnitude)
+    return None
+
+
+def _first_ac_answer(packet: SolutionPacket):
+    return next(iter(packet.ac_requested_answers.values()), None)
+
+
+def _add_cutoff_observation(
+    observations: list[TutorObservation],
+    observation_id: str,
+    label: str,
+    cutoff_hz: float | None,
+) -> None:
+    if cutoff_hz is None:
+        return
+    observations.append(
+        TutorObservation(
+            id=observation_id,
+            label=label,
+            value=float(cutoff_hz),
+            unit="Hz",
+            note="Computed from the template R and C values before being written to the Solution Packet.",
+        )
+    )
+
+
+def _build_ac_filter_observations(
+    circuit: CircuitProblem,
+    packet: SolutionPacket,
+) -> list[TutorObservation]:
+    observations: list[TutorObservation] = []
+    topology = circuit.topology_id or circuit.id
+    title = circuit.title.lower()
+    source_magnitude = _first_ac_source_magnitude(circuit)
+    first_answer = _first_ac_answer(packet)
+
+    if packet.frequency_hz is not None:
+        observations.append(
+            TutorObservation(
+                id="analysis_frequency",
+                label="Analysis frequency",
+                value=float(packet.frequency_hz),
+                unit="Hz",
+            )
+        )
+
+    if first_answer is not None:
+        observations.append(
+            TutorObservation(
+                id="requested_magnitude",
+                label="Requested phasor magnitude",
+                value=float(first_answer.magnitude),
+                unit=first_answer.unit,
+            )
+        )
+        observations.append(
+            TutorObservation(
+                id="requested_phase",
+                label="Requested phasor phase",
+                value=float(first_answer.phase_deg),
+                unit="deg",
+            )
+        )
+
+    if first_answer is not None and source_magnitude and source_magnitude > 0:
+        observations.append(
+            TutorObservation(
+                id="transfer_magnitude_ratio",
+                label="Output magnitude divided by source magnitude",
+                value=float(first_answer.magnitude / source_magnitude),
+                unit="V/V",
+                note="For these voltage-source templates, the ratio is normalized to the source AC magnitude.",
+            )
+        )
+
+    if "band_pass" in topology or "band-pass" in title or "band pass" in title:
+        observations.append(
+            TutorObservation(
+                id="filter_behavior",
+                label="Filter behavior",
+                note="band-pass",
+            )
+        )
+        _add_cutoff_observation(
+            observations,
+            "high_pass_cutoff_frequency",
+            "High-pass corner frequency",
+            _cutoff_frequency_hz(_component_by_id(circuit, "RHP"), _component_by_id(circuit, "CHP")),
+        )
+        _add_cutoff_observation(
+            observations,
+            "low_pass_cutoff_frequency",
+            "Low-pass corner frequency",
+            _cutoff_frequency_hz(_component_by_id(circuit, "RLP"), _component_by_id(circuit, "CLP")),
+        )
+    elif "low_pass" in topology or "low-pass" in title or "low pass" in title:
+        observations.append(
+            TutorObservation(
+                id="filter_behavior",
+                label="Filter behavior",
+                note="low-pass",
+            )
+        )
+        resistor = next((component for component in circuit.components if component.type == "resistor"), None)
+        capacitor = next((component for component in circuit.components if component.type == "capacitor"), None)
+        _add_cutoff_observation(
+            observations,
+            "low_pass_cutoff_frequency",
+            "Low-pass corner frequency",
+            _cutoff_frequency_hz(resistor, capacitor),
+        )
+        observations.append(
+            TutorObservation(
+                id="first_order_corner_ratio",
+                label="First-order corner magnitude ratio",
+                value=float(1.0 / math.sqrt(2.0)),
+                unit="V/V",
+                note="Canonical first-order RC marker included in the packet for tutor explanation.",
+            )
+        )
+
+    return observations
+
+
+def _build_rc_transient_observations(packet: SolutionPacket) -> list[TutorObservation]:
+    response = packet.transient_response
+    if response is None:
+        return []
+
+    observations = [
+        TutorObservation(
+            id="time_constant",
+            label="Time constant",
+            value=float(response.time_constant_s),
+            unit="s",
+        )
+    ]
+    tau_sample = next(
+        (
+            point
+            for point in response.sample_points
+            if abs(point.time_s - response.time_constant_s) <= max(1e-15, response.time_constant_s * 1e-9)
+        ),
+        None,
+    )
+    if tau_sample is not None:
+        observations.append(
+            TutorObservation(
+                id="tau_marker_voltage",
+                label="Capacitor voltage at one tau",
+                value=float(tau_sample.voltage_v),
+                unit="V",
+            )
+        )
+    return observations
+
+
+def _build_tutor_observations(circuit: CircuitProblem, packet: SolutionPacket) -> list[TutorObservation]:
+    if packet.status != "solved" or packet.verification_badge.label != "PASS":
+        return []
+    if packet.ac_requested_answers:
+        return _build_ac_filter_observations(circuit, packet)
+    if packet.transient_response:
+        return _build_rc_transient_observations(packet)
+    return []
+
+
+def _attach_tutor_context(circuit: CircuitProblem, packet: SolutionPacket) -> SolutionPacket:
+    packet.bme_metadata = circuit.bme_metadata
+    packet.tutor_observations = _build_tutor_observations(circuit, packet)
+    return packet
 
 
 def _failed_packet(
@@ -55,6 +247,7 @@ def _failed_packet(
         generated_netlist=netlist,
         warnings=warnings or [message],
         assumptions_used=circuit.assumptions,
+        bme_metadata=circuit.bme_metadata,
     )
 
 
@@ -115,7 +308,7 @@ def solve_circuit(problem: CircuitProblem, parser_used: str | None = None) -> So
                 else "AC solver output was produced, but one or more verification checks failed."
             ),
         )
-        return packet
+        return _attach_tutor_context(circuit, packet)
 
     if circuit.analysis_type == "ac_sweep":
         points: list[ACFrequencyPoint] = []
@@ -220,7 +413,7 @@ def solve_circuit(problem: CircuitProblem, parser_used: str | None = None) -> So
             warnings=warnings,
             assumptions_used=circuit.assumptions,
         )
-        return packet
+        return _attach_tutor_context(circuit, packet)
 
     if circuit.analysis_type == "rc_transient":
         solve_result = solve_rc_transient(circuit)
@@ -279,7 +472,7 @@ def solve_circuit(problem: CircuitProblem, parser_used: str | None = None) -> So
             warnings=validation.warnings,
             assumptions_used=circuit.assumptions,
         )
-        return packet
+        return _attach_tutor_context(circuit, packet)
 
     if circuit.analysis_type != "dc_operating_point":
         return _failed_packet(
@@ -325,4 +518,4 @@ def solve_circuit(problem: CircuitProblem, parser_used: str | None = None) -> So
             else "Solver output was produced, but one or more verification checks failed."
         ),
     )
-    return packet
+    return _attach_tutor_context(circuit, packet)

@@ -26,8 +26,10 @@ The MVP supports:
 - Independent voltage sources
 - Independent current sources
 - Capacitors in DC operating point, treated as open circuits
-- Single-frequency AC phasor analysis for linear R/C/source circuits
-- AC sweep data for linear R/C/source circuits
+- First-order RC transient template
+- Single-frequency AC phasor analysis for linear R/L/C/source circuits
+- AC sweep data for linear R/L/C/source circuits
+- AC inductors in phasor/sweep mode
 - Ideal op-amp closed-loop DC analysis
 - Ground node
 - Node voltages
@@ -40,15 +42,11 @@ The MVP supports:
 
 Unsupported in this first version:
 
-- Inductors
-- Diodes
-- Transistors
-- Dependent sources
-- Transient analysis
-- Nonlinear solving
-- Nonideal op-amp behavior, including rails, saturation, slew rate, input bias current, finite bandwidth, and op-amp frequency response
-- Handwritten image recognition
-- Arbitrary schematic recognition
+- General transient simulation
+- RLC transient
+- nonlinear transient
+- nonideal op amp behavior
+- arbitrary schematic/image recognition
 
 Unsupported or ambiguous requests are reported honestly rather than forced through the solver.
 
@@ -205,8 +203,8 @@ and returns Circuit IR, Solution Packet, explanation, variants, parser used, and
 
 - ngspice integration for cross-checking
 - Schematic rendering
-- Image/PDF circuit parsing
+- Arbitrary schematic/image recognition
 - Dependent sources
-- Inductors and transient analysis
+- General, RLC, and nonlinear transient simulation
 - Student-solution diagnosis
 - Benchmarking against general LLM answers

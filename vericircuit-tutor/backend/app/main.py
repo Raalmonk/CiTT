@@ -89,7 +89,7 @@ def health() -> dict[str, str]:
 
 
 @app.get("/examples")
-def examples() -> list[dict[str, str]]:
+def examples() -> list[dict[str, object]]:
     return get_demo_examples()
 
 

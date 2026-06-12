@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.models.circuit_ir import CircuitProblem, Component, Goal, RCTransient
+from app.models.circuit_ir import ACSweep, CircuitProblem, Component, Goal, RCTransient
 from app.services.bme_templates import get_bme_demo_examples, parse_bme_template
 
 
@@ -33,6 +33,11 @@ BRIDGE_NETWORK_ALT_TEXT = (
 RC_LOW_PASS_TEXT = (
     "An RC low-pass filter has a 1 V AC source at 159.154943 Hz, R1 = 1 kOhm "
     "from input to output, and C1 = 1 uF from output to ground. Find Vout."
+)
+
+RC_LOW_PASS_SWEEP_TEXT = (
+    "Sweep an RC low-pass filter with a 1 V AC source, R1 = 1 kOhm, and C1 = 1 uF "
+    "from 10 Hz to 100 kHz. Find Vout."
 )
 
 RC_TRANSIENT_TEXT = (
@@ -321,6 +326,40 @@ def rc_low_pass_problem() -> CircuitProblem:
     )
 
 
+def rc_low_pass_sweep_problem() -> CircuitProblem:
+    return CircuitProblem(
+        id="rc_low_pass_sweep",
+        title="RC Low-Pass AC Sweep",
+        analysis_type="ac_sweep",
+        topology_id="rc_low_pass",
+        sweep=ACSweep(start_hz=10.0, stop_hz=100_000.0, points_per_decade=10),
+        ground_node="0",
+        nodes=["0", "in", "out"],
+        components=[
+            Component(
+                id="V1",
+                type="voltage_source",
+                nodes=["in", "0"],
+                value=0.0,
+                unit="V",
+                ac_magnitude=1.0,
+                ac_phase_deg=0.0,
+            ),
+            Component(id="R1", type="resistor", nodes=["in", "out"], value=1000.0, unit="ohm"),
+            Component(id="C1", type="capacitor", nodes=["out", "0"], value=1e-6, unit="F"),
+        ],
+        goals=[
+            Goal(
+                id="vout",
+                quantity="node_voltage",
+                target="out",
+                reference={"positive_node": "out", "negative_node": "0"},
+            )
+        ],
+        assumptions=["The AC source value is a phasor amplitude."],
+    )
+
+
 def rc_transient_charging_problem() -> CircuitProblem:
     return CircuitProblem(
         id="rc_transient_charging",
@@ -414,7 +453,7 @@ def ambiguous_problem(problem_text: str) -> CircuitProblem:
     )
 
 
-def get_demo_examples() -> list[dict[str, str]]:
+def get_demo_examples() -> list[dict[str, object]]:
     return [
         {
             "id": "voltage_divider",
@@ -440,6 +479,11 @@ def get_demo_examples() -> list[dict[str, str]]:
             "id": "rc_low_pass",
             "title": "RC Low-Pass AC",
             "problem_text": RC_LOW_PASS_TEXT,
+        },
+        {
+            "id": "rc_low_pass_sweep",
+            "title": "RC Low-Pass AC Sweep",
+            "problem_text": RC_LOW_PASS_SWEEP_TEXT,
         },
         {
             "id": "rc_transient_charging",
@@ -485,6 +529,8 @@ def parse_demo_problem(problem_text: str) -> CircuitProblem:
         return bridge_network_alt_problem()
     if "bridge" in lowered and "r5" in lowered:
         return bridge_network_problem()
+    if "sweep" in lowered and "low-pass" in lowered and "1 uf" in lowered:
+        return rc_low_pass_sweep_problem()
     if "low-pass" in lowered and "1 uf" in lowered and "159.154943" in lowered:
         return rc_low_pass_problem()
     if "non-inverting" in lowered and ("op-amp" in lowered or "op amp" in lowered):

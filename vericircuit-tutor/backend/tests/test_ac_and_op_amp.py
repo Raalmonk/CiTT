@@ -3,7 +3,7 @@ import math
 import pytest
 
 from app.models.circuit_ir import ACSweep, CircuitProblem, Component, Goal, RCTransient
-from app.services.demo_parser import RC_TRANSIENT_TEXT, parse_demo_problem
+from app.services.demo_parser import RC_LOW_PASS_SWEEP_TEXT, RC_TRANSIENT_TEXT, parse_demo_problem
 from app.services.pipeline import solve_circuit
 
 
@@ -240,6 +240,16 @@ def test_ac_sweep_low_pass_magnitude_decreases():
     first_mag = packet.ac_sweep[0].requested_answers["vout"].magnitude
     last_mag = packet.ac_sweep[-1].requested_answers["vout"].magnitude
     assert first_mag > last_mag
+
+
+def test_demo_parser_recognizes_rc_low_pass_sweep_template():
+    circuit = parse_demo_problem(RC_LOW_PASS_SWEEP_TEXT)
+    packet = solve_circuit(circuit)
+
+    assert circuit.analysis_type == "ac_sweep"
+    assert packet.status == "solved"
+    assert packet.verification_badge.label == "PASS"
+    assert packet.ac_sweep
 
 
 def test_first_order_rc_transient_template_charging():

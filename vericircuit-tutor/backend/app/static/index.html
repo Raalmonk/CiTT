@@ -462,6 +462,97 @@
         text-align: left;
       }
 
+      .visualization-stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      .plot-grid,
+      .phasor-layout,
+      .bme-meta-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .plot-block,
+      .phasor-panel,
+      .bme-meta-block {
+        min-width: 0;
+      }
+
+      .plot-title {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 800;
+        margin-bottom: 6px;
+      }
+
+      .plot-svg {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        display: block;
+        height: auto;
+        width: 100%;
+      }
+
+      .plot-axis {
+        stroke: #718096;
+        stroke-width: 1;
+      }
+
+      .plot-gridline {
+        stroke: #e5e9f0;
+        stroke-width: 1;
+      }
+
+      .plot-line {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 3;
+      }
+
+      .plot-marker {
+        fill: #fff;
+        stroke: var(--accent);
+        stroke-width: 2;
+      }
+
+      .plot-marker-line {
+        stroke: #9a5b00;
+        stroke-dasharray: 5 5;
+        stroke-width: 1.5;
+      }
+
+      .plot-label {
+        fill: var(--muted);
+        font: 12px system-ui, sans-serif;
+      }
+
+      .plot-label.strong {
+        fill: var(--ink);
+        font-weight: 800;
+      }
+
+      .phasor-svg {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        display: block;
+        width: 100%;
+      }
+
+      .bme-list {
+        margin: 4px 0 0;
+        padding-left: 18px;
+      }
+
+      .bme-list li {
+        margin: 4px 0;
+      }
+
       .row {
         display: flex;
         align-items: center;
@@ -562,7 +653,10 @@
 
         .editor-layout,
         .field-grid,
-        .probe-grid {
+        .probe-grid,
+        .plot-grid,
+        .phasor-layout,
+        .bme-meta-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -667,6 +761,10 @@
           <div id="whatChangedPanel" class="message">No what-if edits yet.</div>
         </div>
         <div class="panel wide">
+          <h2>BME Template Context</h2>
+          <div id="bmeContextPanel" class="message">No BME template metadata yet.</div>
+        </div>
+        <div class="panel wide">
           <h2>Current Pulse Controls</h2>
           <div class="pulse-controls">
             <label><input id="showPulseCheckbox" type="checkbox" disabled /> Show current pulse</label>
@@ -746,6 +844,7 @@
       const goalsPanel = document.getElementById("goalsPanel");
       const updateGoalsButton = document.getElementById("updateGoalsButton");
       const whatChangedPanel = document.getElementById("whatChangedPanel");
+      const bmeContextPanel = document.getElementById("bmeContextPanel");
       const showPulseCheckbox = document.getElementById("showPulseCheckbox");
       const showBranchLabelsCheckbox = document.getElementById("showBranchLabelsCheckbox");
       const clearProbeButton = document.getElementById("clearProbeButton");
@@ -762,6 +861,7 @@
       let selectedProbeComponentId = null;
       let selectedNodeId = null;
       let currentStepId = null;
+      let currentPhasorItems = [];
 
       const pipelineSteps = [
         { id: "input", label: "Input received" },
@@ -855,6 +955,7 @@
         goalsPanel.textContent = "Run the pipeline to edit requested goals.";
         updateGoalsButton.disabled = true;
         whatChangedPanel.textContent = "No what-if edits yet.";
+        bmeContextPanel.textContent = "No BME template metadata yet.";
         showPulseCheckbox.checked = false;
         showPulseCheckbox.disabled = true;
         showBranchLabelsCheckbox.checked = false;
@@ -873,6 +974,224 @@
           return `${mag.toPrecision(7)} ${answer.unit} \u2220 ${phase.toFixed(3)}\u00b0`;
         }
         return `${Number(answer.value).toPrecision(7)} ${answer.unit}`;
+      }
+
+      function formatPlotNumber(value, unit = "") {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return "";
+        const suffix = unit ? ` ${unit}` : "";
+        if (numeric === 0) return `0${suffix}`;
+        const absValue = Math.abs(numeric);
+        if (absValue >= 1000 || absValue < 0.01) {
+          return `${numeric.toExponential(2)}${suffix}`;
+        }
+        return `${numeric.toPrecision(3)}${suffix}`;
+      }
+
+      function formatHz(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return "";
+        if (numeric >= 1000) return `${formatPlotNumber(numeric / 1000)} kHz`;
+        return `${formatPlotNumber(numeric)} Hz`;
+      }
+
+      function firstSweepAnswer(point) {
+        const requestedEntries = Object.entries(point.requested_answers || {});
+        if (requestedEntries.length) return requestedEntries[0];
+        return Object.entries(point.node_voltages || {}).find(([node]) => node !== "0") || [];
+      }
+
+      function buildSweepSeries(points) {
+        return (points || [])
+          .map((point) => {
+            const [id, answer] = firstSweepAnswer(point);
+            const frequency = Number(point.frequency_hz);
+            const magnitude = Number(answer?.magnitude);
+            const phase = Number(answer?.phase_deg);
+            if (!id || !Number.isFinite(frequency) || frequency <= 0 || !Number.isFinite(magnitude) || !Number.isFinite(phase)) {
+              return null;
+            }
+            return {
+              id,
+              frequency,
+              magnitude,
+              magnitudeDb: 20 * Math.log10(Math.max(magnitude, 1e-30)),
+              phase,
+              unit: answer.unit || "",
+            };
+          })
+          .filter(Boolean);
+      }
+
+      function renderLinePlot({ title, points, yKey, yUnit, yLabel, color = "#1768ac", logX = false, markers = [] }) {
+        if (!points.length) return "";
+        const width = 640;
+        const height = 260;
+        const pad = { left: 58, right: 18, top: 26, bottom: 44 };
+        const plotWidth = width - pad.left - pad.right;
+        const plotHeight = height - pad.top - pad.bottom;
+        const xValues = points.map((point) => Number(point.frequency ?? point.time));
+        const yValues = points.map((point) => Number(point[yKey]));
+        const finiteX = xValues.filter((value) => Number.isFinite(value) && (!logX || value > 0));
+        const finiteY = yValues.filter((value) => Number.isFinite(value));
+        if (!finiteX.length || !finiteY.length) return "";
+
+        let xMin = Math.min(...finiteX);
+        let xMax = Math.max(...finiteX);
+        const rawYMin = Math.min(...finiteY);
+        const rawYMax = Math.max(...finiteY);
+        let yMin = Math.min(rawYMin, 0);
+        let yMax = Math.max(rawYMax, 0);
+        if (xMin === xMax) {
+          xMin *= 0.8;
+          xMax *= 1.2;
+        }
+        if (yMin === yMax) {
+          yMin -= 1;
+          yMax += 1;
+        }
+        const yPadding = (yMax - yMin) * 0.08;
+        if (rawYMax <= 0 && yMax === 0) {
+          yMin -= yPadding;
+        } else if (rawYMin >= 0 && yMin === 0) {
+          yMax += yPadding;
+        } else {
+          yMin -= yPadding;
+          yMax += yPadding;
+        }
+
+        const logMin = logX ? Math.log10(xMin) : xMin;
+        const logMax = logX ? Math.log10(xMax) : xMax;
+        const xScale = (value) => {
+          const scaled = logX ? Math.log10(Math.max(value, 1e-30)) : value;
+          return pad.left + ((scaled - logMin) / (logMax - logMin || 1)) * plotWidth;
+        };
+        const yScale = (value) => pad.top + (1 - (value - yMin) / (yMax - yMin || 1)) * plotHeight;
+        const polyline = points
+          .map((point) => {
+            const xValue = Number(point.frequency ?? point.time);
+            const yValue = Number(point[yKey]);
+            return `${xScale(xValue).toFixed(2)},${yScale(yValue).toFixed(2)}`;
+          })
+          .join(" ");
+        const xTicks = [xMin, Math.sqrt(xMin * xMax), xMax].filter((value, index, arr) => {
+          return Number.isFinite(value) && arr.findIndex((item) => Math.abs(item - value) <= Math.max(1e-12, Math.abs(value) * 1e-9)) === index;
+        });
+        const yTicks = [yMin, (yMin + yMax) / 2, yMax];
+        const markerSvg = markers
+          .map((marker) => {
+            const x = xScale(marker.x);
+            if (!Number.isFinite(x) || x < pad.left || x > width - pad.right) return "";
+            return `
+              <line class="plot-marker-line" x1="${x.toFixed(2)}" y1="${pad.top}" x2="${x.toFixed(2)}" y2="${height - pad.bottom}" />
+              <text class="plot-label strong" x="${Math.min(width - pad.right - 42, x + 6).toFixed(2)}" y="${pad.top + 14}">${escapeHtml(marker.label)}</text>
+            `;
+          })
+          .join("");
+
+        return `
+          <div class="plot-block">
+            <div class="plot-title">${escapeHtml(title)}</div>
+            <svg class="plot-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(title)}">
+              <line class="plot-axis" x1="${pad.left}" y1="${height - pad.bottom}" x2="${width - pad.right}" y2="${height - pad.bottom}" />
+              <line class="plot-axis" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height - pad.bottom}" />
+              ${yTicks
+                .map((tick) => {
+                  const y = yScale(tick);
+                  return `
+                    <line class="plot-gridline" x1="${pad.left}" y1="${y.toFixed(2)}" x2="${width - pad.right}" y2="${y.toFixed(2)}" />
+                    <text class="plot-label" x="${pad.left - 8}" y="${(y + 4).toFixed(2)}" text-anchor="end">${formatPlotNumber(tick, yUnit)}</text>
+                  `;
+                })
+                .join("")}
+              ${xTicks
+                .map((tick) => {
+                  const x = xScale(tick);
+                  return `
+                    <line class="plot-gridline" x1="${x.toFixed(2)}" y1="${pad.top}" x2="${x.toFixed(2)}" y2="${height - pad.bottom}" />
+                    <text class="plot-label" x="${x.toFixed(2)}" y="${height - 18}" text-anchor="middle">${pointLabelForX(tick, points)}</text>
+                  `;
+                })
+                .join("")}
+              ${markerSvg}
+              <polyline class="plot-line" stroke="${color}" points="${polyline}" />
+              ${points
+                .filter((_, index) => index === 0 || index === points.length - 1)
+                .map((point) => {
+                  const xValue = Number(point.frequency ?? point.time);
+                  const yValue = Number(point[yKey]);
+                  return `<circle class="plot-marker" cx="${xScale(xValue).toFixed(2)}" cy="${yScale(yValue).toFixed(2)}" r="4" />`;
+                })
+                .join("")}
+              <text class="plot-label strong" x="${width / 2}" y="${height - 4}" text-anchor="middle">${escapeHtml(points[0].frequency !== undefined ? "frequency" : "time")}</text>
+              <text class="plot-label strong" transform="translate(14 ${height / 2}) rotate(-90)" text-anchor="middle">${escapeHtml(yLabel)}</text>
+            </svg>
+          </div>
+        `;
+      }
+
+      function pointLabelForX(value, points) {
+        return points[0]?.frequency !== undefined ? formatHz(value) : `${formatPlotNumber(value)} s`;
+      }
+
+      function renderBodePlots(points) {
+        const series = buildSweepSeries(points);
+        if (!series.length) return "";
+        return `
+          <div class="plot-grid">
+            ${renderLinePlot({
+              title: "Bode magnitude",
+              points: series,
+              yKey: "magnitudeDb",
+              yUnit: "dB",
+              yLabel: "magnitude",
+              color: "#1768ac",
+              logX: true,
+            })}
+            ${renderLinePlot({
+              title: "Bode phase",
+              points: series,
+              yKey: "phase",
+              yUnit: "deg",
+              yLabel: "phase",
+              color: "#9a5b00",
+              logX: true,
+            })}
+          </div>
+        `;
+      }
+
+      function renderRcCurve(response) {
+        const tau = Number(response.time_constant_s);
+        if (!Number.isFinite(tau) || tau <= 0) return "";
+        const samples = response.sample_points || [];
+        const sampleMax = Math.max(...samples.map((point) => Number(point.time_s)).filter(Number.isFinite), 5 * tau);
+        const maxTime = Math.max(sampleMax, 5 * tau);
+        const initial = Number(response.initial_voltage_v);
+        const final = Number(response.final_voltage_v);
+        const curve = Array.from({ length: 90 }, (_, index) => {
+          const time = (maxTime * index) / 89;
+          return {
+            time,
+            voltage: final + (initial - final) * Math.exp(-time / tau),
+          };
+        });
+        const points = [
+          ...curve,
+          ...samples.map((point) => ({ time: Number(point.time_s), voltage: Number(point.voltage_v) })),
+        ].filter((point) => Number.isFinite(point.time) && Number.isFinite(point.voltage));
+        return renderLinePlot({
+          title: "RC charging curve",
+          points,
+          yKey: "voltage",
+          yUnit: "V",
+          yLabel: "capacitor voltage",
+          color: "#117a4b",
+          markers: [
+            { x: tau, label: "tau" },
+            { x: 5 * tau, label: "5 tau" },
+          ],
+        });
       }
 
       function renderSweepTable(points) {
@@ -896,10 +1215,13 @@
           `;
         });
         answersPanel.innerHTML = `
-          <table class="sweep-table">
-            <thead><tr><th>Frequency (Hz)</th><th>Answer</th><th>Magnitude</th><th>Phase</th></tr></thead>
-            <tbody>${rows.join("")}</tbody>
-          </table>
+          <div class="visualization-stack">
+            ${renderBodePlots(points)}
+            <table class="sweep-table">
+              <thead><tr><th>Frequency (Hz)</th><th>Answer</th><th>Magnitude</th><th>Phase</th></tr></thead>
+              <tbody>${rows.join("")}</tbody>
+            </table>
+          </div>
         `;
       }
 
@@ -1313,6 +1635,10 @@
           return;
         }
         const acEntries = Object.entries(packet.ac_requested_answers || {});
+        if (acEntries.length) {
+          renderAcAnswerPanel(packet);
+          return;
+        }
         const entries = acEntries.length ? acEntries : Object.entries(packet.requested_answers || {});
         if (!entries.length) {
           answersPanel.textContent = "No requested answers were produced.";
@@ -1332,17 +1658,159 @@
           })
           .join("");
         answersPanel.innerHTML = `
-          <div class="answers">
-            <div class="row"><strong>Formula</strong><span>${escapeHtml(response.formula)}</span></div>
-            <div class="row"><strong>V initial</strong><span>${Number(response.initial_voltage_v).toPrecision(7)} V</span></div>
-            <div class="row"><strong>V final</strong><span>${Number(response.final_voltage_v).toPrecision(7)} V</span></div>
-            <div class="row"><strong>R th</strong><span>${Number(response.resistance_ohm).toPrecision(7)} ohm</span></div>
-            <div class="row"><strong>Tau</strong><span>${Number(response.time_constant_s).toPrecision(7)} s</span></div>
+          <div class="visualization-stack">
+            ${renderRcCurve(response)}
+            <div class="answers">
+              <div class="row"><strong>Formula</strong><span>${escapeHtml(response.formula)}</span></div>
+              <div class="row"><strong>V initial</strong><span>${Number(response.initial_voltage_v).toPrecision(7)} V</span></div>
+              <div class="row"><strong>V final</strong><span>${Number(response.final_voltage_v).toPrecision(7)} V</span></div>
+              <div class="row"><strong>R th</strong><span>${Number(response.resistance_ohm).toPrecision(7)} ohm</span></div>
+              <div class="row"><strong>Tau</strong><span>${Number(response.time_constant_s).toPrecision(7)} s</span></div>
+            </div>
+            <table class="sweep-table">
+              <thead><tr><th>Time (s)</th><th>Capacitor voltage</th></tr></thead>
+              <tbody>${sampleRows}</tbody>
+            </table>
           </div>
-          <table class="sweep-table">
-            <thead><tr><th>Time (s)</th><th>Capacitor voltage</th></tr></thead>
-            <tbody>${sampleRows}</tbody>
-          </table>
+        `;
+      }
+
+      function collectPhasorItems(packet) {
+        const items = [];
+        for (const [id, answer] of Object.entries(packet.ac_requested_answers || {})) {
+          items.push({ id: `answer:${id}`, label: `Answer ${id}`, value: answer });
+        }
+        for (const [node, value] of Object.entries(packet.ac_node_voltages || {})) {
+          if (node === "0") continue;
+          items.push({ id: `node:${node}`, label: `Node V(${node})`, value });
+        }
+        for (const [componentId, result] of Object.entries(packet.ac_component_results || {})) {
+          if (result.voltage) {
+            items.push({ id: `component:${componentId}:voltage`, label: `${componentId} voltage`, value: result.voltage });
+          }
+          if (result.current) {
+            items.push({ id: `component:${componentId}:current`, label: `${componentId} current`, value: result.current });
+          }
+        }
+        return items;
+      }
+
+      function phasorSvg(item) {
+        if (!item) return "";
+        const magnitude = Number(item.value.magnitude);
+        const phaseDeg = Number(item.value.phase_deg);
+        if (!Number.isFinite(magnitude) || !Number.isFinite(phaseDeg)) return "";
+        const width = 360;
+        const height = 250;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 88;
+        const angle = (phaseDeg * Math.PI) / 180;
+        const length = magnitude > 0 ? radius : 0;
+        const endX = centerX + length * Math.cos(angle);
+        const endY = centerY - length * Math.sin(angle);
+        const label = `${magnitude.toPrecision(6)} ${item.value.unit} ∠ ${phaseDeg.toFixed(2)}°`;
+        return `
+          <svg class="phasor-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="phasor probe">
+            <defs>
+              <marker id="phasorArrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L10,4 L0,8 Z" fill="#1768ac"></path>
+              </marker>
+            </defs>
+            <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="none" stroke="#d9dee7" />
+            <line x1="${centerX - radius - 18}" y1="${centerY}" x2="${centerX + radius + 18}" y2="${centerY}" class="plot-axis" />
+            <line x1="${centerX}" y1="${centerY + radius + 18}" x2="${centerX}" y2="${centerY - radius - 18}" class="plot-axis" />
+            <line x1="${centerX}" y1="${centerY}" x2="${endX.toFixed(2)}" y2="${endY.toFixed(2)}" stroke="#1768ac" stroke-width="4" marker-end="url(#phasorArrow)" />
+            <circle cx="${centerX}" cy="${centerY}" r="4" fill="#17202a" />
+            <text class="plot-label strong" x="${centerX}" y="22" text-anchor="middle">${escapeHtml(item.label)}</text>
+            <text class="plot-label" x="${centerX}" y="${height - 18}" text-anchor="middle">${escapeHtml(label)}</text>
+          </svg>
+        `;
+      }
+
+      function updatePhasorProbeDisplay() {
+        const display = document.getElementById("phasorProbeDisplay");
+        const select = document.getElementById("phasorProbeSelect");
+        if (!display || !select) return;
+        const item = currentPhasorItems.find((candidate) => candidate.id === select.value) || currentPhasorItems[0];
+        if (!item) {
+          display.textContent = "No phasors available.";
+          return;
+        }
+        display.innerHTML = `
+          ${phasorSvg(item)}
+          <div class="answers" style="margin-top: 8px">
+            <div class="row"><strong>Magnitude</strong><span>${Number(item.value.magnitude).toPrecision(7)} ${escapeHtml(item.value.unit)}</span></div>
+            <div class="row"><strong>Phase</strong><span>${Number(item.value.phase_deg).toFixed(3)}°</span></div>
+            <div class="row"><strong>Real</strong><span>${Number(item.value.real).toPrecision(7)} ${escapeHtml(item.value.unit)}</span></div>
+            <div class="row"><strong>Imag</strong><span>${Number(item.value.imag).toPrecision(7)} ${escapeHtml(item.value.unit)}</span></div>
+          </div>
+        `;
+      }
+
+      function renderAcAnswerPanel(packet) {
+        const entries = Object.entries(packet.ac_requested_answers || {});
+        currentPhasorItems = collectPhasorItems(packet);
+        const answerRows = entries.length
+          ? entries
+              .map(([id, answer]) => {
+                return `<div class="row"><strong>${escapeHtml(id)}</strong><span>${formatValue(answer)}</span></div>`;
+              })
+              .join("")
+          : `<div class="message">No requested AC answers were produced.</div>`;
+        const options = currentPhasorItems
+          .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`)
+          .join("");
+        answersPanel.innerHTML = `
+          <div class="visualization-stack">
+            <div class="answers">${answerRows}</div>
+            <div class="phasor-panel">
+              <div class="plot-title">Phasor probe</div>
+              <div class="phasor-layout">
+                <div>
+                  <label for="phasorProbeSelect">Probe</label>
+                  <select id="phasorProbeSelect">${options}</select>
+                </div>
+                <div id="phasorProbeDisplay"></div>
+              </div>
+            </div>
+          </div>
+        `;
+        const select = document.getElementById("phasorProbeSelect");
+        if (select) {
+          select.addEventListener("change", updatePhasorProbeDisplay);
+          updatePhasorProbeDisplay();
+        }
+      }
+
+      function renderBmeContext(metadata) {
+        if (!metadata) {
+          bmeContextPanel.textContent = "No BME template metadata for this circuit.";
+          return;
+        }
+        const list = (items) => {
+          if (!items || !items.length) return "<div class=\"message\">None listed.</div>";
+          return `<ul class="bme-list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+        };
+        bmeContextPanel.innerHTML = `
+          <div class="bme-meta-grid">
+            <div class="bme-meta-block">
+              <div class="plot-title">Biomedical context</div>
+              <div>${escapeHtml(metadata.biomedical_context)}</div>
+            </div>
+            <div class="bme-meta-block">
+              <div class="plot-title">Signal-chain role</div>
+              <div>${escapeHtml(metadata.signal_chain_role)}</div>
+            </div>
+            <div class="bme-meta-block">
+              <div class="plot-title">What students should learn</div>
+              ${list(metadata.what_students_should_learn)}
+            </div>
+            <div class="bme-meta-block">
+              <div class="plot-title">Common lab mistakes</div>
+              ${list(metadata.common_lab_mistakes)}
+            </div>
+          </div>
         `;
       }
 
@@ -1473,6 +1941,7 @@
       function renderPacket(packet) {
         currentPacket = packet;
         netlistPanel.textContent = packet.generated_netlist || "";
+        renderBmeContext(packet.bme_metadata);
         renderBadge(packet);
         renderAnswers(packet);
         renderProvenance(packet);

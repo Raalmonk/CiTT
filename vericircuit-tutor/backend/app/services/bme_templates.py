@@ -2,7 +2,30 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from app.models.circuit_ir import CircuitProblem, Component, Goal
+from pydantic import BaseModel, ConfigDict
+
+from app.models.circuit_ir import BMETemplateMetadata, CircuitProblem, Component, Goal
+
+
+class BMETemplate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    circuit_problem: CircuitProblem
+    biomedical_context: str
+    signal_chain_role: str
+    assumptions: list[str]
+    what_students_should_learn: list[str]
+    common_lab_mistakes: list[str]
+
+    @property
+    def metadata(self) -> BMETemplateMetadata:
+        return BMETemplateMetadata(
+            biomedical_context=self.biomedical_context,
+            signal_chain_role=self.signal_chain_role,
+            assumptions=self.assumptions,
+            what_students_should_learn=self.what_students_should_learn,
+            common_lab_mistakes=self.common_lab_mistakes,
+        )
 
 
 ECG_FRONT_END_TEXT = (
@@ -49,6 +72,171 @@ ANTI_ALIASING_LOW_PASS_TEXT = (
     "BME template: anti-aliasing RC low-pass filter at 1 kHz with R = 3.18 kOhm "
     "and C = 100 nF. Find Vout."
 )
+
+
+BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
+    "bme_ecg_front_end": BMETemplateMetadata(
+        biomedical_context=(
+            "ECG electrodes produce a small differential cardiac signal riding on a much larger common-mode body potential."
+        ),
+        signal_chain_role="Front-end differential amplifier that rejects common-mode voltage and scales the ECG lead signal.",
+        assumptions=[
+            "The electrode model is simplified to two ideal DC sources with a 1 mV differential signal.",
+            "The op-amp is ideal and the matched resistor ratios set a gain of 10.",
+        ],
+        what_students_should_learn=[
+            "Separate differential signal from common-mode voltage.",
+            "Relate resistor ratio matching to differential gain.",
+            "Read a verified output as a sensor-front-end quantity, not just a node voltage.",
+        ],
+        common_lab_mistakes=[
+            "Measuring each electrode to ground and forgetting the differential input.",
+            "Swapping the amplifier inputs and interpreting the sign incorrectly.",
+            "Assuming ideal common-mode rejection when resistor ratios are mismatched.",
+        ],
+    ),
+    "bme_emg_band_pass_chain": BMETemplateMetadata(
+        biomedical_context=(
+            "Surface EMG measurements need low-frequency motion artifacts and high-frequency noise reduced before feature extraction."
+        ),
+        signal_chain_role="Passive band-pass conditioning stage between the EMG electrode model and downstream gain or ADC stages.",
+        assumptions=[
+            "The EMG chain is a passive first-order high-pass followed by a first-order low-pass.",
+            "The source AC magnitude is 1 V so Vout is also the transfer magnitude at 100 Hz.",
+        ],
+        what_students_should_learn=[
+            "Connect high-pass and low-pass sections to a practical EMG signal band.",
+            "Use phasor magnitude and phase to reason about filter behavior.",
+            "Recognize that passive cascaded filters load each other.",
+        ],
+        common_lab_mistakes=[
+            "Treating the two RC stages as independent even though the second stage loads the first.",
+            "Using Hz where angular frequency rad/s belongs.",
+            "Checking only gain magnitude and ignoring phase shift near the passband edges.",
+        ],
+    ),
+    "bme_pressure_sensor_divider": BMETemplateMetadata(
+        biomedical_context="A resistive pressure sensor converts pressure at one operating point into a resistance.",
+        signal_chain_role="Excitation and readout divider that turns sensor resistance into a voltage for measurement.",
+        assumptions=[
+            "The pressure sensor is represented by a resistance of 12 kOhm at this operating point.",
+        ],
+        what_students_should_learn=[
+            "Map a sensor resistance change into a voltage-divider output.",
+            "Recognize the tradeoff between bias resistance and output sensitivity.",
+            "Keep excitation voltage and measured output reference clear.",
+        ],
+        common_lab_mistakes=[
+            "Putting the sensor in the wrong divider leg and reversing the expected trend.",
+            "Loading the divider with the measurement instrument.",
+            "Confusing sensor resistance with the output voltage.",
+        ],
+    ),
+    "bme_pressure_sensor_bridge": BMETemplateMetadata(
+        biomedical_context="A pressure bridge turns a small pressure-driven resistance change into a differential bridge voltage.",
+        signal_chain_role="Wheatstone bridge sensor interface before instrumentation amplification.",
+        assumptions=[
+            "The active pressure-sensor arm is modeled as 3.6 kOhm while the other arms are 3.5 kOhm.",
+        ],
+        what_students_should_learn=[
+            "Compare bridge midpoint voltages rather than either midpoint alone.",
+            "Track the sign of a differential bridge output.",
+            "Relate balance and imbalance to sensor resistance changes.",
+        ],
+        common_lab_mistakes=[
+            "Measuring only one midpoint to ground and missing the differential output.",
+            "Reversing sense_p and sense_n in the reported bridge voltage.",
+            "Assuming a bridge output is zero after one arm changes.",
+        ],
+    ),
+    "bme_strain_gauge_wheatstone": BMETemplateMetadata(
+        biomedical_context="A strain gauge changes resistance slightly when a tissue, beam, or load-cell element deforms.",
+        signal_chain_role="Quarter-bridge strain readout that converts a tiny resistance shift into a differential voltage.",
+        assumptions=[
+            "Only one bridge arm changes with strain; lead resistance and excitation noise are ignored.",
+        ],
+        what_students_should_learn=[
+            "See why bridge circuits are useful for very small resistance changes.",
+            "Use differential voltage polarity to infer which arm changed.",
+            "Connect resistance mismatch to output sensitivity.",
+        ],
+        common_lab_mistakes=[
+            "Expecting a large output from a tiny gauge resistance change.",
+            "Forgetting that lead resistance can matter in real strain-gauge labs.",
+            "Reporting the magnitude without the sign of the bridge output.",
+        ],
+    ),
+    "bme_thermistor_divider": BMETemplateMetadata(
+        biomedical_context="A thermistor maps temperature to resistance for body-temperature or device-temperature sensing.",
+        signal_chain_role="Temperature-sense divider that converts thermistor resistance into an ADC-readable voltage.",
+        assumptions=[
+            "The thermistor is represented by its resistance at one temperature point.",
+        ],
+        what_students_should_learn=[
+            "Translate a thermistor resistance into a measured divider voltage.",
+            "Identify how the fixed resistor sets sensitivity near an operating point.",
+            "Separate the electrical readout from the thermistor temperature curve.",
+        ],
+        common_lab_mistakes=[
+            "Assuming voltage is linear with temperature over a wide range.",
+            "Using the wrong divider orientation for an NTC thermistor trend.",
+            "Ignoring ADC input loading or self-heating in a real lab setup.",
+        ],
+    ),
+    "bme_photodiode_tia": BMETemplateMetadata(
+        biomedical_context="Optical biosensing often begins with a photodiode current proportional to light intensity.",
+        signal_chain_role="Transimpedance amplifier that converts photodiode current into voltage.",
+        assumptions=[
+            "The photodiode is modeled as an ideal 10 uA current source.",
+            "The op-amp is ideal and unsaturated.",
+        ],
+        what_students_should_learn=[
+            "Relate photocurrent direction and feedback resistance to output polarity.",
+            "Understand current-to-voltage conversion as transimpedance gain.",
+            "Check whether an ideal output would saturate a real amplifier.",
+        ],
+        common_lab_mistakes=[
+            "Reversing current source polarity and getting the output sign wrong.",
+            "Forgetting that large feedback resistance magnifies offset and bias-current effects.",
+            "Treating the summing node as exactly ground in nonideal hardware without checking limits.",
+        ],
+    ),
+    "bme_instrumentation_amplifier": BMETemplateMetadata(
+        biomedical_context="Many biomedical sensors produce millivolt differential signals on top of a common-mode voltage.",
+        signal_chain_role="Instrumentation amplifier stage that boosts the differential sensor signal before digitization.",
+        assumptions=[
+            "The three-op-amp instrumentation amplifier is ideal.",
+            "The first-stage gain is 1 + 2R/RG with R = 10 kOhm and RG = 2 kOhm.",
+        ],
+        what_students_should_learn=[
+            "Trace a small differential input through an instrumentation amplifier.",
+            "Connect RG to differential gain.",
+            "Distinguish common-mode level from differential output.",
+        ],
+        common_lab_mistakes=[
+            "Using single-ended gain formulas for a differential amplifier.",
+            "Forgetting the gain contribution of the first stage.",
+            "Ignoring output swing limits in a real op-amp implementation.",
+        ],
+    ),
+    "bme_anti_aliasing_low_pass": BMETemplateMetadata(
+        biomedical_context="Before ADC sampling, biomedical signals need high-frequency content attenuated to reduce aliasing.",
+        signal_chain_role="RC anti-aliasing low-pass stage placed before the ADC input.",
+        assumptions=[
+            "The 1 V AC source makes Vout equal to the low-pass transfer value at 1 kHz.",
+        ],
+        what_students_should_learn=[
+            "Connect an RC corner frequency to ADC anti-aliasing behavior.",
+            "Use magnitude and phase to describe low-pass filtering.",
+            "Explain why the capacitor diverts high-frequency current away from the output node.",
+        ],
+        common_lab_mistakes=[
+            "Choosing a cutoff without considering sampling frequency.",
+            "Forgetting that ADC input impedance and sampling capacitance can load the RC node.",
+            "Using 1/(RC) instead of 1/(2*pi*RC) for the cutoff frequency in Hz.",
+        ],
+    ),
+}
 
 
 def ecg_front_end_problem() -> CircuitProblem:
@@ -346,7 +534,7 @@ def anti_aliasing_rc_low_pass_problem() -> CircuitProblem:
     )
 
 
-BME_TEMPLATE_FACTORIES: dict[str, Callable[[], CircuitProblem]] = {
+BME_PROBLEM_FACTORIES: dict[str, Callable[[], CircuitProblem]] = {
     "bme_ecg_front_end": ecg_front_end_problem,
     "bme_emg_band_pass_chain": emg_band_pass_chain_problem,
     "bme_pressure_sensor_divider": pressure_sensor_divider_problem,
@@ -356,6 +544,40 @@ BME_TEMPLATE_FACTORIES: dict[str, Callable[[], CircuitProblem]] = {
     "bme_photodiode_tia": photodiode_transimpedance_amplifier_problem,
     "bme_instrumentation_amplifier": instrumentation_amplifier_problem,
     "bme_anti_aliasing_low_pass": anti_aliasing_rc_low_pass_problem,
+}
+
+
+def _with_bme_metadata(circuit: CircuitProblem) -> CircuitProblem:
+    metadata = BME_TEMPLATE_METADATA[circuit.id]
+    return circuit.model_copy(
+        deep=True,
+        update={
+            "assumptions": list(metadata.assumptions),
+            "bme_metadata": metadata,
+        },
+    )
+
+
+def build_bme_template(template_id: str) -> BMETemplate:
+    metadata = BME_TEMPLATE_METADATA[template_id]
+    circuit = _with_bme_metadata(BME_PROBLEM_FACTORIES[template_id]())
+    return BMETemplate(
+        circuit_problem=circuit,
+        biomedical_context=metadata.biomedical_context,
+        signal_chain_role=metadata.signal_chain_role,
+        assumptions=list(metadata.assumptions),
+        what_students_should_learn=list(metadata.what_students_should_learn),
+        common_lab_mistakes=list(metadata.common_lab_mistakes),
+    )
+
+
+def _bme_template_factory(template_id: str) -> Callable[[], BMETemplate]:
+    return lambda: build_bme_template(template_id)
+
+
+BME_TEMPLATE_FACTORIES: dict[str, Callable[[], BMETemplate]] = {
+    template_id: _bme_template_factory(template_id)
+    for template_id in BME_PROBLEM_FACTORIES
 }
 
 
@@ -372,35 +594,37 @@ BME_TEMPLATE_TEXTS: dict[str, str] = {
 }
 
 
-def get_bme_demo_examples() -> list[dict[str, str]]:
+def get_bme_demo_examples() -> list[dict[str, object]]:
     return [
-        {
+        template.model_dump(exclude={"circuit_problem"})
+        | {
             "id": template_id,
-            "title": BME_TEMPLATE_FACTORIES[template_id]().title,
+            "title": template.circuit_problem.title,
             "problem_text": BME_TEMPLATE_TEXTS[template_id],
         }
         for template_id in BME_TEMPLATE_FACTORIES
+        for template in [BME_TEMPLATE_FACTORIES[template_id]()]
     ]
 
 
 def parse_bme_template(problem_text: str) -> CircuitProblem | None:
     lowered = " ".join(problem_text.lower().split())
     if "ecg" in lowered and ("front-end" in lowered or "front end" in lowered):
-        return ecg_front_end_problem()
+        return BME_TEMPLATE_FACTORIES["bme_ecg_front_end"]().circuit_problem
     if "emg" in lowered and ("band-pass" in lowered or "band pass" in lowered):
-        return emg_band_pass_chain_problem()
+        return BME_TEMPLATE_FACTORIES["bme_emg_band_pass_chain"]().circuit_problem
     if "pressure" in lowered and "divider" in lowered:
-        return pressure_sensor_divider_problem()
+        return BME_TEMPLATE_FACTORIES["bme_pressure_sensor_divider"]().circuit_problem
     if "pressure" in lowered and "bridge" in lowered:
-        return pressure_sensor_bridge_problem()
+        return BME_TEMPLATE_FACTORIES["bme_pressure_sensor_bridge"]().circuit_problem
     if "strain" in lowered and ("wheatstone" in lowered or "bridge" in lowered):
-        return strain_gauge_wheatstone_bridge_problem()
+        return BME_TEMPLATE_FACTORIES["bme_strain_gauge_wheatstone"]().circuit_problem
     if "thermistor" in lowered and "divider" in lowered:
-        return thermistor_divider_problem()
+        return BME_TEMPLATE_FACTORIES["bme_thermistor_divider"]().circuit_problem
     if "photodiode" in lowered and ("transimpedance" in lowered or "tia" in lowered):
-        return photodiode_transimpedance_amplifier_problem()
+        return BME_TEMPLATE_FACTORIES["bme_photodiode_tia"]().circuit_problem
     if "instrumentation amplifier" in lowered:
-        return instrumentation_amplifier_problem()
+        return BME_TEMPLATE_FACTORIES["bme_instrumentation_amplifier"]().circuit_problem
     if "anti-aliasing" in lowered or "anti aliasing" in lowered:
-        return anti_aliasing_rc_low_pass_problem()
+        return BME_TEMPLATE_FACTORIES["bme_anti_aliasing_low_pass"]().circuit_problem
     return None

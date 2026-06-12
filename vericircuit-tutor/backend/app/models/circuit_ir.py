@@ -147,6 +147,16 @@ class Goal(BaseModel):
     reference: dict[str, Any] | None = None
 
 
+class BMETemplateMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    biomedical_context: str = Field(min_length=1)
+    signal_chain_role: str = Field(min_length=1)
+    assumptions: list[str] = Field(default_factory=list)
+    what_students_should_learn: list[str] = Field(default_factory=list)
+    common_lab_mistakes: list[str] = Field(default_factory=list)
+
+
 class CircuitProblem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -163,6 +173,7 @@ class CircuitProblem(BaseModel):
     components: list[Component] = Field(default_factory=list)
     goals: list[Goal] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
+    bme_metadata: BMETemplateMetadata | None = None
     ambiguities: list[str] = Field(default_factory=list)
     unsupported_features: list[str] = Field(default_factory=list)
 

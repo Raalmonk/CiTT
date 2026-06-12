@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.circuit_ir import BMETemplateMetadata
+
 
 ProblemStatus = Literal["solved", "invalid", "unsupported", "ambiguous"]
 VerificationBadgeLabel = Literal["PASS", "FAIL", "AMBIGUOUS", "UNSUPPORTED"]
@@ -120,6 +122,16 @@ class RCTransientResponse(BaseModel):
     sample_points: list[TransientPoint] = Field(default_factory=list)
 
 
+class TutorObservation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    label: str
+    value: float | None = None
+    unit: str | None = None
+    note: str = ""
+
+
 class SolutionPacket(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -140,3 +152,5 @@ class SolutionPacket(BaseModel):
     generated_netlist: str = ""
     warnings: list[str] = Field(default_factory=list)
     assumptions_used: list[str] = Field(default_factory=list)
+    bme_metadata: BMETemplateMetadata | None = None
+    tutor_observations: list[TutorObservation] = Field(default_factory=list)
