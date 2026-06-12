@@ -68,7 +68,11 @@ def _bme_intro(packet: SolutionPacket) -> list[str]:
     if metadata.typical_signal_range:
         lines.append(f"Typical signal range: {metadata.typical_signal_range}")
     if metadata.safety_note:
-        lines.append(f"Safety note: {metadata.safety_note}")
+        lines.append(f"Safety note, not safety analysis: {metadata.safety_note}")
+    if metadata.nominal_supply_rails_v:
+        lower = min(metadata.nominal_supply_rails_v.values())
+        upper = max(metadata.nominal_supply_rails_v.values())
+        lines.append(f"Template nominal op-amp rails: {lower:.6g} V to {upper:.6g} V.")
     if metadata.recommended_next_block:
         lines.append(f"Recommended next block: {metadata.recommended_next_block}")
     if metadata.what_students_should_learn:

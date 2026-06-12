@@ -63,6 +63,15 @@ def test_bme_templates_are_supported_circuit_ir():
         assert packet.bme_metadata == template.circuit_problem.bme_metadata
         assert packet.bme_metadata.typical_signal_range
         assert packet.bme_metadata.safety_note
+        if template_id in {
+            "bme_ecg_front_end",
+            "bme_photodiode_tia",
+            "bme_instrumentation_amplifier",
+        }:
+            assert packet.bme_metadata.nominal_supply_rails_v == {
+                "negative": 0.0,
+                "positive": 3.3,
+            }
 
 
 def test_bme_ecg_front_end_gain_is_stable():

@@ -160,6 +160,7 @@ class BMETemplateMetadata(BaseModel):
     noise_sources: list[str] = Field(default_factory=list)
     real_world_nonidealities: list[str] = Field(default_factory=list)
     recommended_next_block: str | None = None
+    nominal_supply_rails_v: dict[str, float] | None = None
 
 
 class CircuitProblem(BaseModel):

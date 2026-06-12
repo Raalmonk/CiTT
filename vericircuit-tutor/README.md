@@ -50,6 +50,15 @@ Unsupported in this first version:
 
 Unsupported or ambiguous requests are reported honestly rather than forced through the solver.
 
+## Current BME Boundaries
+
+The BME tutor layer adds biomedical context, practice variants, safety notes, nonideal reminders, and differential/common-mode teaching observations on top of verified circuit results. These notes are educational guardrails, not safety certification or full nonideal simulation.
+
+- Safety notes can remind students about isolation, leakage-current limits, patient-connected design, optical exposure, and ADC anti-aliasing, but the MVP does not calculate leakage current, isolation-barrier ratings, IEC-style constraints, or device compliance.
+- CMRR support currently explains differential input, common-mode input, and their ratio for ECG/instrumentation examples. It does not yet compute resistor-mismatch common-mode leakage, finite-CMRR degradation, or frequency-dependent CMRR.
+- BME meaning is currently attached by deterministic templates. Gemini mode may parse explicit circuit connectivity into general Circuit IR, but safe biomedical interpretation still comes from template matching and validated metadata rather than guessed physiology.
+- Supply-rail notes are tutor warnings from template metadata. They identify when an ideal op-amp answer would exceed the template's nominal rails, but they do not model saturation dynamics, slew rate, clipping recovery, or output-current limits.
+
 ## Architecture
 
 1. **Parser service**
@@ -202,8 +211,14 @@ and returns Circuit IR, Solution Packet, explanation, variants, parser used, and
 ## Future Work
 
 - ngspice integration for cross-checking
-- Schematic rendering
+- General schematic rendering beyond named templates
+- Interactive schematic editing
 - Arbitrary schematic/image recognition
+- CMRR module for resistor mismatch, common-mode leakage, and output error
+- ADC/sampling module for Nyquist, aliasing, and anti-aliasing cutoff recommendations
+- Rail-aware saturation checks with template-specific supplies
+- Noise budget starter for thermal noise, op-amp input noise, and sensor noise estimates
+- BME lab-style report export
 - Dependent sources
 - General, RLC, and nonlinear transient simulation
 - Student-solution diagnosis

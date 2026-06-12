@@ -21,6 +21,7 @@ class BMETemplate(BaseModel):
     noise_sources: list[str] = Field(default_factory=list)
     real_world_nonidealities: list[str] = Field(default_factory=list)
     recommended_next_block: str | None = None
+    nominal_supply_rails_v: dict[str, float] | None = None
 
     @property
     def metadata(self) -> BMETemplateMetadata:
@@ -35,6 +36,7 @@ class BMETemplate(BaseModel):
             noise_sources=self.noise_sources,
             real_world_nonidealities=self.real_world_nonidealities,
             recommended_next_block=self.recommended_next_block,
+            nominal_supply_rails_v=self.nominal_supply_rails_v,
         )
 
 
@@ -117,6 +119,7 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Protection and isolation components change the real front-end behavior.",
         ],
         recommended_next_block="High-pass baseline-wander removal followed by instrumentation gain and driven-reference/common-mode control.",
+        nominal_supply_rails_v={"negative": 0.0, "positive": 3.3},
     ),
     "bme_emg_band_pass_chain": BMETemplateMetadata(
         biomedical_context=(
@@ -302,6 +305,7 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Output swing limits can saturate with high photocurrent or large feedback resistance.",
         ],
         recommended_next_block="Feedback-capacitor stability check, ambient-light rejection, and low-pass filtering before ADC.",
+        nominal_supply_rails_v={"negative": 0.0, "positive": 3.3},
     ),
     "bme_instrumentation_amplifier": BMETemplateMetadata(
         biomedical_context="Many biomedical sensors produce millivolt differential signals on top of a common-mode voltage.",
@@ -333,6 +337,7 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Output swing and supply rails limit usable gain.",
         ],
         recommended_next_block="Band-limiting, level shifting, anti-aliasing, and ADC driver stage.",
+        nominal_supply_rails_v={"negative": 0.0, "positive": 3.3},
     ),
     "bme_anti_aliasing_low_pass": BMETemplateMetadata(
         biomedical_context="Before ADC sampling, biomedical signals need high-frequency content attenuated to reduce aliasing.",
@@ -701,6 +706,9 @@ def build_bme_template(template_id: str) -> BMETemplate:
         noise_sources=list(metadata.noise_sources),
         real_world_nonidealities=list(metadata.real_world_nonidealities),
         recommended_next_block=metadata.recommended_next_block,
+        nominal_supply_rails_v=dict(metadata.nominal_supply_rails_v)
+        if metadata.nominal_supply_rails_v is not None
+        else None,
     )
 
 

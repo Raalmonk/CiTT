@@ -35,7 +35,7 @@ def test_explainer_warns_when_ideal_tia_exceeds_real_3v3_op_amp_swing():
     explanation = explain_solution(packet)
 
     assert "ideal result for tia_output is 10 V" in explanation
-    assert "real single-supply 3.3 V op amp would saturate" in explanation
+    assert "template's nominal 0 V to 3.3 V op-amp rails would saturate" in explanation
 
 
 def test_explainer_teaches_differential_vs_common_mode_for_ecg():

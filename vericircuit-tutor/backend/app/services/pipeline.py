@@ -264,20 +264,26 @@ def _add_output_swing_observations(
         for component in circuit.components
     ):
         return
+    rails = circuit.bme_metadata.nominal_supply_rails_v if circuit.bme_metadata else None
+    if not rails:
+        return
+    lower = min(rails.values())
+    upper = max(rails.values())
     for goal_id, answer in packet.requested_answers.items():
         if answer.unit != "V":
             continue
-        if abs(answer.value) <= 3.3:
+        if lower <= answer.value <= upper:
             continue
         observations.append(
             TutorObservation(
                 id="real_op_amp_saturation_warning",
-                label="Real 3.3 V op-amp output warning",
+                label="Real op-amp output swing warning",
                 value=float(answer.value),
                 unit="V",
                 note=(
                     f"The ideal result for {goal_id} is {answer.value:.6g} V; "
-                    "a real single-supply 3.3 V op amp would saturate before reaching this output."
+                    f"the template's nominal {lower:.6g} V to {upper:.6g} V op-amp rails "
+                    "would saturate before reaching this output."
                 ),
             )
         )
