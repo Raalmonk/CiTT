@@ -203,6 +203,10 @@ Rules:
 - If the problem asks for general transient/time-domain response beyond a first-order RC template, list "transient analysis" in unsupported_features.
 - If an op-amp is ideal and closed-loop assumptions are clear, use ideal_op_amp.
 - If op-amp rails, saturation, slew rate, bias current, finite bandwidth, or nonideal frequency response is requested, list it in unsupported_features.
+- Biomedical words such as ECG, EMG, pressure, strain, thermistor, photodiode, or anti-aliasing do not by themselves justify guessing circuit topology, physiology, safety claims, or BME template metadata.
+- If biomedical component values and connectivity are explicit, parse them as ordinary Circuit IR and put only stated assumptions in assumptions.
+- If a biomedical prompt appears to request a known BME template but leaves topology, values, sensor model, or signal-chain role ambiguous, fill ambiguities instead of inventing a template.
+- Do not return bme_metadata from Gemini; deterministic server templates attach that context after strict template matching.
 - If unsupported components appear, list them in unsupported_features and do not pretend to solve them.
 - If topology or connectivity is ambiguous, fill ambiguities instead of guessing.
 - Final numerical answers are produced only by the internal MNA solver and verifier.

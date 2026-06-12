@@ -155,6 +155,11 @@ class BMETemplateMetadata(BaseModel):
     assumptions: list[str] = Field(default_factory=list)
     what_students_should_learn: list[str] = Field(default_factory=list)
     common_lab_mistakes: list[str] = Field(default_factory=list)
+    typical_signal_range: str | None = None
+    safety_note: str | None = None
+    noise_sources: list[str] = Field(default_factory=list)
+    real_world_nonidealities: list[str] = Field(default_factory=list)
+    recommended_next_block: str | None = None
 
 
 class CircuitProblem(BaseModel):

@@ -19,7 +19,7 @@ from app.services.pipeline import solve_circuit
 from app.services.schematic_generator import render_schematic_svg
 from app.services.variant_generator import (
     generate_goal_variant,
-    generate_value_variant,
+    generate_value_variants,
     generate_variants,
 )
 
@@ -124,16 +124,13 @@ def explain_endpoint(request: ExplainRequest) -> dict[str, str]:
 @app.post("/variant")
 def variant_endpoint(request: VariantRequest) -> dict[str, object]:
     if request.kind == "value":
-        variants = [
-            {
-                "kind": "same_topology_changed_values",
-                "circuit_ir": generate_value_variant(request.circuit_ir).model_dump(),
-            }
-        ]
+        variants = generate_value_variants(request.circuit_ir)
     elif request.kind == "goal":
         variants = [
             {
                 "kind": "same_circuit_different_goal",
+                "prompt": "What if the requested target changes?",
+                "description": "Same circuit with a different requested target quantity.",
                 "circuit_ir": generate_goal_variant(request.circuit_ir).model_dump(),
             }
         ]

@@ -26,3 +26,25 @@ def test_explainer_teaches_bme_emg_band_pass_context():
     assert "band-pass chain" in explanation
     assert "high-pass corner" in explanation
     assert "low-pass corner" in explanation
+
+
+def test_explainer_warns_when_ideal_tia_exceeds_real_3v3_op_amp_swing():
+    template = BME_TEMPLATE_FACTORIES["bme_photodiode_tia"]()
+    packet = solve_circuit(template.circuit_problem)
+
+    explanation = explain_solution(packet)
+
+    assert "ideal result for tia_output is 10 V" in explanation
+    assert "real single-supply 3.3 V op amp would saturate" in explanation
+
+
+def test_explainer_teaches_differential_vs_common_mode_for_ecg():
+    template = BME_TEMPLATE_FACTORIES["bme_ecg_front_end"]()
+    packet = solve_circuit(template.circuit_problem)
+
+    explanation = explain_solution(packet)
+
+    assert "Differential-vs-common-mode" in explanation
+    assert "desired input difference" in explanation
+    assert "common-mode level" in explanation
+    assert "real CMRR depends" in explanation

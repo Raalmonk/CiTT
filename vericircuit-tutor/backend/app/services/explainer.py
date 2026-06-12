@@ -65,6 +65,12 @@ def _bme_intro(packet: SolutionPacket) -> list[str]:
         metadata.biomedical_context,
         f"Signal-chain role: {metadata.signal_chain_role}",
     ]
+    if metadata.typical_signal_range:
+        lines.append(f"Typical signal range: {metadata.typical_signal_range}")
+    if metadata.safety_note:
+        lines.append(f"Safety note: {metadata.safety_note}")
+    if metadata.recommended_next_block:
+        lines.append(f"Recommended next block: {metadata.recommended_next_block}")
     if metadata.what_students_should_learn:
         lines.append("Learning focus: " + _join_sentence_list(metadata.what_students_should_learn))
     if metadata.common_lab_mistakes:
@@ -163,6 +169,21 @@ def _explain_dc(packet: SolutionPacket) -> str:
             "This DC operating-point result is a verified circuit-law solution, not a direct language-model estimate."
         )
 
+    differential = _format_observation(_observation(packet, "differential_input_voltage"))
+    common_mode = _format_observation(_observation(packet, "common_mode_input_voltage"))
+    ratio = _format_observation(_observation(packet, "differential_to_common_mode_ratio"))
+    if differential and common_mode:
+        cmrr_line = (
+            "Differential-vs-common-mode: "
+            f"the desired input difference is {differential}, while the common-mode level is {common_mode}."
+        )
+        if ratio:
+            cmrr_line += f" The differential/common-mode ratio is {ratio}."
+        cmrr_line += (
+            " The ideal circuit responds to the differential signal; real CMRR depends on resistor matching, input stage design, and frequency."
+        )
+        lines.append(cmrr_line)
+
     if packet.node_voltages:
         formatted_nodes = [
             f"{node} = {_format_value(value, 'V')}"
@@ -180,6 +201,10 @@ def _explain_dc(packet: SolutionPacket) -> str:
         lines.append(
             "Read the requested value as the signal-chain output for this biomedical stage, then check its sign and reference nodes before interpreting the physiology."
         )
+
+    saturation = _observation(packet, "real_op_amp_saturation_warning")
+    if saturation and saturation.note:
+        lines.append(saturation.note)
 
     lines.append(_verification_sentence(packet))
     lines.append(

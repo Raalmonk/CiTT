@@ -18,6 +18,11 @@ def test_examples_endpoint_returns_bme_metadata():
     anti_aliasing = next(example for example in examples if example["id"] == "bme_anti_aliasing_low_pass")
     assert anti_aliasing["biomedical_context"]
     assert anti_aliasing["what_students_should_learn"]
+    assert anti_aliasing["typical_signal_range"]
+    assert anti_aliasing["safety_note"]
+    assert anti_aliasing["noise_sources"]
+    assert anti_aliasing["real_world_nonidealities"]
+    assert anti_aliasing["recommended_next_block"]
 
 
 def test_bme_demo_templates_parse_and_solve():
@@ -48,9 +53,16 @@ def test_bme_templates_are_supported_circuit_ir():
         assert template.assumptions
         assert template.what_students_should_learn
         assert template.common_lab_mistakes
+        assert template.typical_signal_range
+        assert template.safety_note
+        assert template.noise_sources
+        assert template.real_world_nonidealities
+        assert template.recommended_next_block
         assert packet.status == "solved", template_id
         assert packet.verification_badge.label == "PASS", template_id
         assert packet.bme_metadata == template.circuit_problem.bme_metadata
+        assert packet.bme_metadata.typical_signal_range
+        assert packet.bme_metadata.safety_note
 
 
 def test_bme_ecg_front_end_gain_is_stable():

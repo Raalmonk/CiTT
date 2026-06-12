@@ -194,6 +194,108 @@ def _build_rc_transient_observations(packet: SolutionPacket) -> list[TutorObserv
     return observations
 
 
+def _input_source_pair(
+    circuit: CircuitProblem,
+    positive_id: str,
+    negative_id: str,
+) -> tuple[Component, Component] | None:
+    positive = _component_by_id(circuit, positive_id)
+    negative = _component_by_id(circuit, negative_id)
+    if positive is None or negative is None:
+        return None
+    if positive.type != "voltage_source" or negative.type != "voltage_source":
+        return None
+    return positive, negative
+
+
+def _add_differential_common_mode_observations(
+    observations: list[TutorObservation],
+    circuit: CircuitProblem,
+) -> None:
+    topology = circuit.topology_id or circuit.id
+    pair = None
+    if topology == "bme_ecg_front_end":
+        pair = _input_source_pair(circuit, "VECGP", "VECGN")
+    elif topology == "bme_instrumentation_amplifier":
+        pair = _input_source_pair(circuit, "VSENP", "VSENN")
+    if pair is None:
+        return
+
+    positive, negative = pair
+    differential_v = positive.value - negative.value
+    common_mode_v = 0.5 * (positive.value + negative.value)
+    observations.extend(
+        [
+            TutorObservation(
+                id="differential_input_voltage",
+                label="Differential input voltage",
+                value=float(differential_v),
+                unit="V",
+                note="Computed from the two input-source values in Circuit IR.",
+            ),
+            TutorObservation(
+                id="common_mode_input_voltage",
+                label="Common-mode input voltage",
+                value=float(common_mode_v),
+                unit="V",
+                note="Average of the two input-source values in Circuit IR.",
+            ),
+        ]
+    )
+    if common_mode_v != 0:
+        observations.append(
+            TutorObservation(
+                id="differential_to_common_mode_ratio",
+                label="Differential/common-mode ratio",
+                value=float(abs(differential_v / common_mode_v)),
+                unit="V/V",
+                note="Shows how small the desired biomedical signal is compared with common-mode level.",
+            )
+        )
+
+
+def _add_output_swing_observations(
+    observations: list[TutorObservation],
+    circuit: CircuitProblem,
+    packet: SolutionPacket,
+) -> None:
+    if not any(
+        component.type in {"ideal_op_amp", "op_amp_ideal"}
+        for component in circuit.components
+    ):
+        return
+    for goal_id, answer in packet.requested_answers.items():
+        if answer.unit != "V":
+            continue
+        if abs(answer.value) <= 3.3:
+            continue
+        observations.append(
+            TutorObservation(
+                id="real_op_amp_saturation_warning",
+                label="Real 3.3 V op-amp output warning",
+                value=float(answer.value),
+                unit="V",
+                note=(
+                    f"The ideal result for {goal_id} is {answer.value:.6g} V; "
+                    "a real single-supply 3.3 V op amp would saturate before reaching this output."
+                ),
+            )
+        )
+        return
+
+
+def _build_bme_dc_observations(
+    circuit: CircuitProblem,
+    packet: SolutionPacket,
+) -> list[TutorObservation]:
+    if circuit.bme_metadata is None:
+        return []
+    observations: list[TutorObservation] = []
+    _add_differential_common_mode_observations(observations, circuit)
+    _add_output_swing_observations(observations, circuit, packet)
+    return observations
+
+
 def _build_tutor_observations(circuit: CircuitProblem, packet: SolutionPacket) -> list[TutorObservation]:
     if packet.status != "solved" or packet.verification_badge.label != "PASS":
         return []
@@ -201,6 +303,8 @@ def _build_tutor_observations(circuit: CircuitProblem, packet: SolutionPacket) -
         return _build_ac_filter_observations(circuit, packet)
     if packet.transient_response:
         return _build_rc_transient_observations(packet)
+    if circuit.bme_metadata is not None:
+        return _build_bme_dc_observations(circuit, packet)
     return []
 
 

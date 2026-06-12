@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.circuit_ir import BMETemplateMetadata, CircuitProblem, Component, Goal
 
@@ -16,6 +16,11 @@ class BMETemplate(BaseModel):
     assumptions: list[str]
     what_students_should_learn: list[str]
     common_lab_mistakes: list[str]
+    typical_signal_range: str | None = None
+    safety_note: str | None = None
+    noise_sources: list[str] = Field(default_factory=list)
+    real_world_nonidealities: list[str] = Field(default_factory=list)
+    recommended_next_block: str | None = None
 
     @property
     def metadata(self) -> BMETemplateMetadata:
@@ -25,6 +30,11 @@ class BMETemplate(BaseModel):
             assumptions=self.assumptions,
             what_students_should_learn=self.what_students_should_learn,
             common_lab_mistakes=self.common_lab_mistakes,
+            typical_signal_range=self.typical_signal_range,
+            safety_note=self.safety_note,
+            noise_sources=self.noise_sources,
+            real_world_nonidealities=self.real_world_nonidealities,
+            recommended_next_block=self.recommended_next_block,
         )
 
 
@@ -94,6 +104,19 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Swapping the amplifier inputs and interpreting the sign incorrectly.",
             "Assuming ideal common-mode rejection when resistor ratios are mismatched.",
         ],
+        typical_signal_range="ECG differential signals are often around 0.5 mV to 5 mV, while electrode offsets can be much larger.",
+        safety_note="Real patient-connected ECG circuits require isolation, leakage-current limits, and approved medical-safety design practices.",
+        noise_sources=[
+            "Power-line interference",
+            "Electrode motion artifacts",
+            "Large electrode half-cell offsets",
+        ],
+        real_world_nonidealities=[
+            "CMRR depends on resistor matching and instrumentation-amplifier design.",
+            "Input bias current and electrode impedance can create extra offsets.",
+            "Protection and isolation components change the real front-end behavior.",
+        ],
+        recommended_next_block="High-pass baseline-wander removal followed by instrumentation gain and driven-reference/common-mode control.",
     ),
     "bme_emg_band_pass_chain": BMETemplateMetadata(
         biomedical_context=(
@@ -114,6 +137,20 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Using Hz where angular frequency rad/s belongs.",
             "Checking only gain magnitude and ignoring phase shift near the passband edges.",
         ],
+        typical_signal_range="Surface EMG is commonly in the microvolt to low millivolt range before amplification.",
+        safety_note="Human-connected EMG systems need isolated front ends and current-limited electrodes.",
+        noise_sources=[
+            "Motion artifact",
+            "Power-line pickup",
+            "Electrode-skin impedance variation",
+            "Cross-talk from nearby muscles",
+        ],
+        real_world_nonidealities=[
+            "Passive stages load each other and the electrode source impedance.",
+            "Amplifier input noise can dominate small EMG signals.",
+            "Real filters use component tolerances that move the corner frequencies.",
+        ],
+        recommended_next_block="Low-noise instrumentation gain, notch filtering when appropriate, rectification/envelope extraction, then ADC anti-aliasing.",
     ),
     "bme_pressure_sensor_divider": BMETemplateMetadata(
         biomedical_context="A resistive pressure sensor converts pressure at one operating point into a resistance.",
@@ -131,6 +168,19 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Loading the divider with the measurement instrument.",
             "Confusing sensor resistance with the output voltage.",
         ],
+        typical_signal_range="Resistive pressure sensors vary by device; this template uses a 10 kOhm to 12 kOhm operating region.",
+        safety_note="Pressure-sensor excitation should be current- and power-limited when attached to patient-facing hardware.",
+        noise_sources=[
+            "Excitation-supply noise",
+            "Lead resistance",
+            "Mechanical vibration",
+        ],
+        real_world_nonidealities=[
+            "Sensor resistance may be nonlinear with pressure.",
+            "Self-heating can shift the sensed resistance.",
+            "ADC input impedance can load the divider output.",
+        ],
+        recommended_next_block="Buffer or instrumentation amplifier followed by calibration and ADC input filtering.",
     ),
     "bme_pressure_sensor_bridge": BMETemplateMetadata(
         biomedical_context="A pressure bridge turns a small pressure-driven resistance change into a differential bridge voltage.",
@@ -148,6 +198,19 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Reversing sense_p and sense_n in the reported bridge voltage.",
             "Assuming a bridge output is zero after one arm changes.",
         ],
+        typical_signal_range="Bridge outputs are often millivolts or less for small resistance changes before gain.",
+        safety_note="Bridge excitation should be limited to avoid sensor heating and unsafe patient-connected power paths.",
+        noise_sources=[
+            "Excitation drift",
+            "Thermal drift",
+            "Lead-wire resistance",
+        ],
+        real_world_nonidealities=[
+            "Bridge balance depends on resistor tolerance and temperature.",
+            "Sensor response may be nonlinear outside the calibrated range.",
+            "Instrumentation-amplifier input offset can be comparable to small bridge outputs.",
+        ],
+        recommended_next_block="Instrumentation amplifier with differential gain, offset trim, and low-pass filtering before ADC.",
     ),
     "bme_strain_gauge_wheatstone": BMETemplateMetadata(
         biomedical_context="A strain gauge changes resistance slightly when a tissue, beam, or load-cell element deforms.",
@@ -165,6 +228,19 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Forgetting that lead resistance can matter in real strain-gauge labs.",
             "Reporting the magnitude without the sign of the bridge output.",
         ],
+        typical_signal_range="Quarter-bridge strain outputs are commonly in the microvolt to millivolt range before amplification.",
+        safety_note="Excitation should be limited to avoid strain-gauge self-heating, especially on tissue-contact fixtures.",
+        noise_sources=[
+            "Thermal drift",
+            "Lead-wire resistance",
+            "Mechanical vibration",
+        ],
+        real_world_nonidealities=[
+            "Gauge factor, adhesive strain transfer, and temperature compensation matter in real measurements.",
+            "Lead resistance and bridge completion resistors can dominate small resistance changes.",
+            "Amplifier offset can hide small bridge imbalance.",
+        ],
+        recommended_next_block="Instrumentation amplifier, bridge balancing, temperature compensation, and calibrated strain conversion.",
     ),
     "bme_thermistor_divider": BMETemplateMetadata(
         biomedical_context="A thermistor maps temperature to resistance for body-temperature or device-temperature sensing.",
@@ -182,6 +258,19 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Using the wrong divider orientation for an NTC thermistor trend.",
             "Ignoring ADC input loading or self-heating in a real lab setup.",
         ],
+        typical_signal_range="A 10 kOhm NTC thermistor is often read around a few volts in a 5 V divider near room/body temperature.",
+        safety_note="Thermistor excitation should be low enough to avoid self-heating and patient-contact heating.",
+        noise_sources=[
+            "ADC quantization noise",
+            "Reference-voltage drift",
+            "Thermal gradients between sensor and target",
+        ],
+        real_world_nonidealities=[
+            "Resistance-temperature behavior is nonlinear and needs a beta or Steinhart-Hart model.",
+            "Self-heating shifts the measured temperature.",
+            "Thermal time constant can lag fast physiology.",
+        ],
+        recommended_next_block="ADC buffering/filtering followed by thermistor calibration and temperature conversion.",
     ),
     "bme_photodiode_tia": BMETemplateMetadata(
         biomedical_context="Optical biosensing often begins with a photodiode current proportional to light intensity.",
@@ -200,6 +289,19 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Forgetting that large feedback resistance magnifies offset and bias-current effects.",
             "Treating the summing node as exactly ground in nonideal hardware without checking limits.",
         ],
+        typical_signal_range="Photodiode currents can range from nA to uA depending on light level and sensor area; this template uses 10 uA.",
+        safety_note="Optical systems should respect illumination exposure limits for tissue, eye, or sample safety.",
+        noise_sources=[
+            "Shot noise",
+            "Ambient light pickup",
+            "Op-amp voltage and current noise",
+        ],
+        real_world_nonidealities=[
+            "Feedback capacitance is often needed for stability.",
+            "Dark current and op-amp bias current add offsets.",
+            "Output swing limits can saturate with high photocurrent or large feedback resistance.",
+        ],
+        recommended_next_block="Feedback-capacitor stability check, ambient-light rejection, and low-pass filtering before ADC.",
     ),
     "bme_instrumentation_amplifier": BMETemplateMetadata(
         biomedical_context="Many biomedical sensors produce millivolt differential signals on top of a common-mode voltage.",
@@ -218,6 +320,19 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Forgetting the gain contribution of the first stage.",
             "Ignoring output swing limits in a real op-amp implementation.",
         ],
+        typical_signal_range="Biomedical differential sensor inputs are often microvolts to millivolts before instrumentation gain.",
+        safety_note="Patient-connected instrumentation amplifiers require isolation, input protection, and leakage-current controls.",
+        noise_sources=[
+            "Common-mode interference",
+            "Input-referred amplifier noise",
+            "Electrode or sensor impedance mismatch",
+        ],
+        real_world_nonidealities=[
+            "CMRR is finite and falls with frequency.",
+            "Input offset and bias currents can be amplified.",
+            "Output swing and supply rails limit usable gain.",
+        ],
+        recommended_next_block="Band-limiting, level shifting, anti-aliasing, and ADC driver stage.",
     ),
     "bme_anti_aliasing_low_pass": BMETemplateMetadata(
         biomedical_context="Before ADC sampling, biomedical signals need high-frequency content attenuated to reduce aliasing.",
@@ -235,6 +350,19 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
             "Forgetting that ADC input impedance and sampling capacitance can load the RC node.",
             "Using 1/(RC) instead of 1/(2*pi*RC) for the cutoff frequency in Hz.",
         ],
+        typical_signal_range="The template uses a normalized 1 V AC source so Vout is the transfer magnitude at the analysis frequency.",
+        safety_note="Anti-aliasing filters in patient-connected systems still sit behind the isolated, protected front end.",
+        noise_sources=[
+            "Wideband amplifier noise",
+            "ADC sampling kickback",
+            "External RF interference",
+        ],
+        real_world_nonidealities=[
+            "ADC input impedance and sampling capacitance can move the effective pole.",
+            "Component tolerances shift the cutoff frequency.",
+            "A single RC pole may not provide enough stop-band attenuation near Nyquist.",
+        ],
+        recommended_next_block="ADC driver or higher-order active anti-aliasing filter matched to the sampling rate.",
     ),
 }
 
@@ -568,6 +696,11 @@ def build_bme_template(template_id: str) -> BMETemplate:
         assumptions=list(metadata.assumptions),
         what_students_should_learn=list(metadata.what_students_should_learn),
         common_lab_mistakes=list(metadata.common_lab_mistakes),
+        typical_signal_range=metadata.typical_signal_range,
+        safety_note=metadata.safety_note,
+        noise_sources=list(metadata.noise_sources),
+        real_world_nonidealities=list(metadata.real_world_nonidealities),
+        recommended_next_block=metadata.recommended_next_block,
     )
 
 

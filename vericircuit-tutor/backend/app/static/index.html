@@ -1803,12 +1803,32 @@
               <div>${escapeHtml(metadata.signal_chain_role)}</div>
             </div>
             <div class="bme-meta-block">
+              <div class="plot-title">Typical signal range</div>
+              <div>${escapeHtml(metadata.typical_signal_range || "Not specified.")}</div>
+            </div>
+            <div class="bme-meta-block">
+              <div class="plot-title">Safety note</div>
+              <div>${escapeHtml(metadata.safety_note || "Not specified.")}</div>
+            </div>
+            <div class="bme-meta-block">
               <div class="plot-title">What students should learn</div>
               ${list(metadata.what_students_should_learn)}
             </div>
             <div class="bme-meta-block">
               <div class="plot-title">Common lab mistakes</div>
               ${list(metadata.common_lab_mistakes)}
+            </div>
+            <div class="bme-meta-block">
+              <div class="plot-title">Noise sources</div>
+              ${list(metadata.noise_sources)}
+            </div>
+            <div class="bme-meta-block">
+              <div class="plot-title">Real-world nonidealities</div>
+              ${list(metadata.real_world_nonidealities)}
+            </div>
+            <div class="bme-meta-block">
+              <div class="plot-title">Recommended next block</div>
+              <div>${escapeHtml(metadata.recommended_next_block || "Not specified.")}</div>
             </div>
           </div>
         `;
@@ -1885,7 +1905,9 @@
         variantsPanel.innerHTML = variants
           .map((variant) => {
             const circuit = variant.circuit_ir || {};
-            return `<div class="row"><div><strong>${variant.kind}</strong><div class="message">${circuit.title || ""}</div></div><button class="secondary" data-variant-id="${circuit.id}">Load</button></div>`;
+            const prompt = variant.prompt || variant.kind || "Practice variant";
+            const detail = variant.description || circuit.title || "";
+            return `<div class="row"><div><strong>${escapeHtml(prompt)}</strong><div class="message">${escapeHtml(detail)}</div><div class="message">${escapeHtml(circuit.title || "")}</div></div><button class="secondary" data-variant-id="${circuit.id}">Load</button></div>`;
           })
           .join("");
         [...variantsPanel.querySelectorAll("button[data-variant-id]")].forEach((button) => {
