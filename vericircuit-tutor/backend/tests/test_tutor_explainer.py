@@ -13,6 +13,9 @@ def test_explainer_teaches_bme_low_pass_from_packet_context():
     assert "ADC" in explanation
     assert "Nyquist" in explanation
     assert "attenuation at Nyquist" in explanation
+    assert "ADC quantization estimate" in explanation
+    assert "ADC input loading marker" in explanation
+    assert "Noise budget starter" in explanation
     assert "447.562 mV" in explanation
     assert "corner frequency" in explanation
     assert "verified Solution Packet" in explanation
@@ -40,6 +43,9 @@ def test_explainer_warns_when_ideal_tia_exceeds_real_3v3_op_amp_swing():
     assert "template's nominal 0 V to 3.3 V op-amp rails" in explanation
     assert "usable output window is 0.1 V to 3.2 V" in explanation
     assert "would saturate" in explanation
+    assert "Noise budget starter" in explanation
+    assert "photodiode shot noise" in explanation
+    assert "op-amp input-referred noise" in explanation
 
 
 def test_explainer_teaches_differential_vs_common_mode_for_ecg():

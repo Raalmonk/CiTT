@@ -27,6 +27,14 @@ class BMETemplate(BaseModel):
     output_swing_margin_v: float = 0.0
     adc_sampling_frequency_hz: float | None = None
     adc_target_cutoff_hz: float | None = None
+    adc_resolution_bits: int | None = None
+    adc_full_scale_voltage_v: float | None = None
+    adc_input_impedance_ohm: float | None = None
+    noise_bandwidth_hz: float | None = None
+    thermal_noise_temperature_k: float = 300.0
+    thermal_noise_resistor_ids: list[str] = Field(default_factory=list)
+    photodiode_shot_noise_current_id: str | None = None
+    op_amp_input_noise_nv_per_sqrt_hz: float | None = None
     cmrr_mismatch_percent: float | None = None
     cmrr_mismatch_component_id: str | None = None
 
@@ -49,6 +57,14 @@ class BMETemplate(BaseModel):
             output_swing_margin_v=self.output_swing_margin_v,
             adc_sampling_frequency_hz=self.adc_sampling_frequency_hz,
             adc_target_cutoff_hz=self.adc_target_cutoff_hz,
+            adc_resolution_bits=self.adc_resolution_bits,
+            adc_full_scale_voltage_v=self.adc_full_scale_voltage_v,
+            adc_input_impedance_ohm=self.adc_input_impedance_ohm,
+            noise_bandwidth_hz=self.noise_bandwidth_hz,
+            thermal_noise_temperature_k=self.thermal_noise_temperature_k,
+            thermal_noise_resistor_ids=self.thermal_noise_resistor_ids,
+            photodiode_shot_noise_current_id=self.photodiode_shot_noise_current_id,
+            op_amp_input_noise_nv_per_sqrt_hz=self.op_amp_input_noise_nv_per_sqrt_hz,
             cmrr_mismatch_percent=self.cmrr_mismatch_percent,
             cmrr_mismatch_component_id=self.cmrr_mismatch_component_id,
         )
@@ -137,6 +153,9 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         supply_negative_v=0.0,
         supply_positive_v=3.3,
         output_swing_margin_v=0.1,
+        noise_bandwidth_hz=150.0,
+        thermal_noise_resistor_ids=["RINN", "RF", "RINP", "RREF"],
+        op_amp_input_noise_nv_per_sqrt_hz=20.0,
         cmrr_mismatch_percent=1.0,
         cmrr_mismatch_component_id="RF",
     ),
@@ -328,6 +347,10 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         supply_negative_v=0.0,
         supply_positive_v=3.3,
         output_swing_margin_v=0.1,
+        noise_bandwidth_hz=1000.0,
+        thermal_noise_resistor_ids=["RF"],
+        photodiode_shot_noise_current_id="IPD",
+        op_amp_input_noise_nv_per_sqrt_hz=15.0,
     ),
     "bme_instrumentation_amplifier": BMETemplateMetadata(
         biomedical_context="Many biomedical sensors produce millivolt differential signals on top of a common-mode voltage.",
@@ -363,6 +386,9 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         supply_negative_v=0.0,
         supply_positive_v=3.3,
         output_swing_margin_v=0.1,
+        noise_bandwidth_hz=500.0,
+        thermal_noise_resistor_ids=["R1", "R2", "RG", "R3", "R4", "R5", "R6"],
+        op_amp_input_noise_nv_per_sqrt_hz=20.0,
         cmrr_mismatch_percent=1.0,
         cmrr_mismatch_component_id="R4",
     ),
@@ -397,6 +423,11 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         recommended_next_block="ADC driver or higher-order active anti-aliasing filter matched to the sampling rate.",
         adc_sampling_frequency_hz=4000.0,
         adc_target_cutoff_hz=500.0,
+        adc_resolution_bits=12,
+        adc_full_scale_voltage_v=3.3,
+        adc_input_impedance_ohm=1_000_000.0,
+        noise_bandwidth_hz=500.0,
+        thermal_noise_resistor_ids=["R1"],
     ),
 }
 
@@ -743,6 +774,14 @@ def build_bme_template(template_id: str) -> BMETemplate:
         output_swing_margin_v=metadata.output_swing_margin_v,
         adc_sampling_frequency_hz=metadata.adc_sampling_frequency_hz,
         adc_target_cutoff_hz=metadata.adc_target_cutoff_hz,
+        adc_resolution_bits=metadata.adc_resolution_bits,
+        adc_full_scale_voltage_v=metadata.adc_full_scale_voltage_v,
+        adc_input_impedance_ohm=metadata.adc_input_impedance_ohm,
+        noise_bandwidth_hz=metadata.noise_bandwidth_hz,
+        thermal_noise_temperature_k=metadata.thermal_noise_temperature_k,
+        thermal_noise_resistor_ids=list(metadata.thermal_noise_resistor_ids),
+        photodiode_shot_noise_current_id=metadata.photodiode_shot_noise_current_id,
+        op_amp_input_noise_nv_per_sqrt_hz=metadata.op_amp_input_noise_nv_per_sqrt_hz,
         cmrr_mismatch_percent=metadata.cmrr_mismatch_percent,
         cmrr_mismatch_component_id=metadata.cmrr_mismatch_component_id,
     )

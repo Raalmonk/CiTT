@@ -21,6 +21,10 @@ from app.services.validator import validate_circuit
 from app.services.verifier import verify_solution
 
 
+BOLTZMANN_J_PER_K = 1.380649e-23
+ELEMENTARY_CHARGE_C = 1.602176634e-19
+
+
 def _component_by_id(circuit: CircuitProblem, component_id: str) -> Component | None:
     return next((component for component in circuit.components if component.id == component_id), None)
 
@@ -42,6 +46,10 @@ def _first_ac_source_magnitude(circuit: CircuitProblem) -> float | None:
 
 def _first_ac_answer(packet: SolutionPacket):
     return next(iter(packet.ac_requested_answers.values()), None)
+
+
+def _first_resistor(circuit: CircuitProblem) -> Component | None:
+    return next((component for component in circuit.components if component.type == "resistor"), None)
 
 
 def _add_cutoff_observation(
@@ -130,6 +138,69 @@ def _add_adc_sampling_observations(
             )
         )
 
+    if metadata.adc_resolution_bits is not None and metadata.adc_full_scale_voltage_v is not None:
+        quantization_step_v = (
+            float(metadata.adc_full_scale_voltage_v) / (2 ** int(metadata.adc_resolution_bits))
+        )
+        observations.append(
+            TutorObservation(
+                id="adc_quantization_step",
+                label="ADC quantization step",
+                value=float(quantization_step_v),
+                unit="V",
+                note=(
+                    f"Educational estimate for an ideal {metadata.adc_resolution_bits}-bit ADC over "
+                    f"{metadata.adc_full_scale_voltage_v:.6g} V full scale."
+                ),
+            )
+        )
+        observations.append(
+            TutorObservation(
+                id="adc_quantization_noise_rms",
+                label="ADC quantization noise estimate",
+                value=float(quantization_step_v / math.sqrt(12.0)),
+                unit="V_rms",
+                note="Ideal uniform-quantizer RMS estimate, not an ADC datasheet noise model.",
+            )
+        )
+
+    resistor = _first_resistor(circuit)
+    if (
+        resistor is not None
+        and resistor.value > 0
+        and metadata.adc_input_impedance_ohm is not None
+        and metadata.adc_input_impedance_ohm > 0
+    ):
+        loading_ratio_percent = resistor.value / float(metadata.adc_input_impedance_ohm) * 100.0
+        observations.append(
+            TutorObservation(
+                id="adc_input_loading_ratio",
+                label="ADC input loading marker",
+                value=float(loading_ratio_percent),
+                unit="%",
+                note=(
+                    f"Rsource/Radc using {resistor.id} and the template ADC input impedance. "
+                    "This is a loading warning marker, not a switched-capacitor ADC input model."
+                ),
+            )
+        )
+        if loading_ratio_percent >= 1.0:
+            loading_note = (
+                "ADC input impedance is close enough to the RC source resistance that loading may shift gain and cutoff."
+            )
+        else:
+            loading_note = (
+                "ADC input impedance is much larger than the RC source resistance in this template, "
+                "but real ADC sampling capacitance and acquisition time still need checking."
+            )
+        observations.append(
+            TutorObservation(
+                id="adc_input_loading_warning",
+                label="ADC input loading warning",
+                note=loading_note,
+            )
+        )
+
     effective_cutoff_hz = cutoff_hz or metadata.adc_target_cutoff_hz
     if effective_cutoff_hz is None or effective_cutoff_hz <= 0:
         return
@@ -152,6 +223,98 @@ def _add_adc_sampling_observations(
             note=(
                 "A single-pole RC anti-aliasing stage reduces high-frequency content before the ADC, "
                 "but it does not prove alias-free sampling; choose cutoff, filter order, and sampling rate together."
+            ),
+        )
+    )
+
+
+def _add_noise_budget_observations(
+    observations: list[TutorObservation],
+    circuit: CircuitProblem,
+) -> None:
+    metadata = circuit.bme_metadata
+    if metadata is None or metadata.noise_bandwidth_hz is None:
+        return
+
+    bandwidth_hz = float(metadata.noise_bandwidth_hz)
+    temperature_k = float(metadata.thermal_noise_temperature_k)
+    observations.append(
+        TutorObservation(
+            id="noise_budget_bandwidth",
+            label="Noise estimate bandwidth",
+            value=bandwidth_hz,
+            unit="Hz",
+            note="Template bandwidth used for educational RMS noise estimates.",
+        )
+    )
+
+    for resistor_id in metadata.thermal_noise_resistor_ids:
+        resistor = _component_by_id(circuit, resistor_id)
+        if resistor is None or resistor.type != "resistor" or resistor.value <= 0:
+            continue
+        thermal_noise_v = math.sqrt(
+            4.0 * BOLTZMANN_J_PER_K * temperature_k * resistor.value * bandwidth_hz
+        )
+        observations.append(
+            TutorObservation(
+                id=f"thermal_noise_{resistor.id}",
+                label=f"{resistor.id} thermal noise",
+                value=float(thermal_noise_v),
+                unit="V_rms",
+                note=(
+                    "Educational estimate using sqrt(4*k*T*R*B); it ignores circuit transfer functions, "
+                    "correlation, and noise gain."
+                ),
+            )
+        )
+
+    current_source_id = metadata.photodiode_shot_noise_current_id
+    if current_source_id:
+        current_source = _component_by_id(circuit, current_source_id)
+        if (
+            current_source is not None
+            and current_source.type == "current_source"
+            and abs(current_source.value) > 0
+        ):
+            shot_noise_a = math.sqrt(
+                2.0 * ELEMENTARY_CHARGE_C * abs(current_source.value) * bandwidth_hz
+            )
+            observations.append(
+                TutorObservation(
+                    id=f"photodiode_shot_noise_{current_source.id}",
+                    label=f"{current_source.id} shot noise",
+                    value=float(shot_noise_a),
+                    unit="A_rms",
+                    note="Educational estimate using sqrt(2*q*I*B) for the template photocurrent.",
+                )
+            )
+
+    if metadata.op_amp_input_noise_nv_per_sqrt_hz is not None:
+        input_noise_v = (
+            float(metadata.op_amp_input_noise_nv_per_sqrt_hz)
+            * 1e-9
+            * math.sqrt(bandwidth_hz)
+        )
+        observations.append(
+            TutorObservation(
+                id="op_amp_input_referred_noise",
+                label="Op-amp input-referred noise",
+                value=float(input_noise_v),
+                unit="V_rms",
+                note=(
+                    f"Educational estimate using en*sqrt(BW) with "
+                    f"en = {metadata.op_amp_input_noise_nv_per_sqrt_hz:.6g} nV/sqrtHz."
+                ),
+            )
+        )
+
+    observations.append(
+        TutorObservation(
+            id="noise_budget_boundary",
+            label="Noise budget boundary",
+            note=(
+                "Noise values are starter estimates for teaching. They are not a full integrated noise, "
+                "noise-gain, alias-noise, or datasheet-accurate design calculation."
             ),
         )
     )
@@ -254,6 +417,7 @@ def _build_ac_filter_observations(
         )
         _add_adc_sampling_observations(observations, circuit, low_pass_cutoff_hz)
 
+    _add_noise_budget_observations(observations, circuit)
     return observations
 
 
@@ -546,6 +710,7 @@ def _build_bme_dc_observations(
     _add_differential_common_mode_observations(observations, circuit)
     _add_cmrr_mismatch_observations(observations, circuit, packet)
     _add_output_swing_observations(observations, circuit, packet)
+    _add_noise_budget_observations(observations, circuit)
     return observations
 
 

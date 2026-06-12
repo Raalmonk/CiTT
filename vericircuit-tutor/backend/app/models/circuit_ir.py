@@ -166,6 +166,14 @@ class BMETemplateMetadata(BaseModel):
     output_swing_margin_v: float = Field(default=0.0, ge=0.0)
     adc_sampling_frequency_hz: float | None = Field(default=None, gt=0.0)
     adc_target_cutoff_hz: float | None = Field(default=None, gt=0.0)
+    adc_resolution_bits: int | None = Field(default=None, ge=1)
+    adc_full_scale_voltage_v: float | None = Field(default=None, gt=0.0)
+    adc_input_impedance_ohm: float | None = Field(default=None, gt=0.0)
+    noise_bandwidth_hz: float | None = Field(default=None, gt=0.0)
+    thermal_noise_temperature_k: float = Field(default=300.0, gt=0.0)
+    thermal_noise_resistor_ids: list[str] = Field(default_factory=list)
+    photodiode_shot_noise_current_id: str | None = None
+    op_amp_input_noise_nv_per_sqrt_hz: float | None = Field(default=None, gt=0.0)
     cmrr_mismatch_percent: float | None = Field(default=None, gt=0.0)
     cmrr_mismatch_component_id: str | None = None
 

@@ -1817,6 +1817,34 @@
                 metadata.adc_target_cutoff_hz
                   ? `target cutoff: ${Number(metadata.adc_target_cutoff_hz).toPrecision(4)} Hz`
                   : null,
+                metadata.adc_resolution_bits
+                  ? `resolution: ${metadata.adc_resolution_bits} bits`
+                  : null,
+                metadata.adc_full_scale_voltage_v
+                  ? `full scale: ${Number(metadata.adc_full_scale_voltage_v).toPrecision(4)} V`
+                  : null,
+                metadata.adc_input_impedance_ohm
+                  ? `input impedance: ${Number(metadata.adc_input_impedance_ohm).toPrecision(4)} ohm`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(", ")
+            : "Not specified.";
+        const noiseContext =
+          metadata.noise_bandwidth_hz !== undefined &&
+          metadata.noise_bandwidth_hz !== null
+            ? [
+                `BW: ${Number(metadata.noise_bandwidth_hz).toPrecision(4)} Hz`,
+                `T: ${Number(metadata.thermal_noise_temperature_k || 300).toPrecision(4)} K`,
+                metadata.thermal_noise_resistor_ids && metadata.thermal_noise_resistor_ids.length
+                  ? `thermal R: ${metadata.thermal_noise_resistor_ids.join(", ")}`
+                  : null,
+                metadata.photodiode_shot_noise_current_id
+                  ? `shot current: ${metadata.photodiode_shot_noise_current_id}`
+                  : null,
+                metadata.op_amp_input_noise_nv_per_sqrt_hz
+                  ? `op amp en: ${Number(metadata.op_amp_input_noise_nv_per_sqrt_hz).toPrecision(4)} nV/sqrtHz`
+                  : null,
               ]
                 .filter(Boolean)
                 .join(", ")
@@ -1846,6 +1874,10 @@
             <div class="bme-meta-block">
               <div class="plot-title">ADC sampling context</div>
               <div>${escapeHtml(adcContext)}</div>
+            </div>
+            <div class="bme-meta-block">
+              <div class="plot-title">Noise estimate context</div>
+              <div>${escapeHtml(noiseContext)}</div>
             </div>
             <div class="bme-meta-block">
               <div class="plot-title">What students should learn</div>

@@ -56,7 +56,8 @@ The BME tutor layer adds biomedical context, practice variants, safety notes, no
 
 - Safety notes can remind students about isolation, leakage-current limits, patient-connected design, optical exposure, and ADC anti-aliasing, but the MVP does not calculate leakage current, isolation-barrier ratings, IEC-style constraints, or device compliance.
 - CMRR support currently explains differential input, common-mode input, their ratio, and a deterministic 1% resistor-ratio mismatch what-if for named ECG/instrumentation templates. It does not yet solve arbitrary resistor tolerance networks, finite-op-amp CMRR degradation, or frequency-dependent CMRR.
-- ADC anti-aliasing support currently reports template sampling frequency, Nyquist frequency, target cutoff, and first-order attenuation at Nyquist. It does not yet compute alias energy, ADC input loading, aperture effects, quantization noise, or higher-order filter behavior.
+- ADC anti-aliasing support currently reports template sampling frequency, Nyquist frequency, target cutoff, first-order attenuation at Nyquist, ideal quantization step/noise, and an input-loading warning marker. It does not yet compute alias energy, aperture effects, switched-capacitor acquisition dynamics, ADC datasheet noise, or higher-order filter behavior.
+- Noise budget support currently gives starter educational estimates for resistor thermal noise, photodiode shot noise, and op-amp input-referred voltage noise from template metadata. It does not yet propagate noise through arbitrary transfer functions, integrate spectral density over shaped bandwidths, include flicker noise, or replace datasheet-level design work.
 - BME meaning is currently attached by deterministic templates. Gemini mode may parse explicit circuit connectivity into general Circuit IR, but safe biomedical interpretation still comes from template matching and validated metadata rather than guessed physiology.
 - Supply-rail notes are tutor warnings from template metadata fields such as `supply_positive_v`, `supply_negative_v`, and `output_swing_margin_v`. They identify when an ideal op-amp answer would exceed the template's usable output window, but they do not model saturation dynamics, slew rate, clipping recovery, or output-current limits.
 
@@ -218,7 +219,7 @@ and returns Circuit IR, Solution Packet, explanation, variants, parser used, and
 - Extend CMRR mismatch analysis beyond named templates and single-ratio what-ifs
 - Expand ADC/sampling support with higher-order filters and alias-energy estimates
 - Component-level rail and output-current limits for op-amp sanity checks
-- Noise budget starter for thermal noise, op-amp input noise, and sensor noise estimates
+- Expand noise budget support with transfer-function propagation, flicker noise, and output-referred totals
 - BME lab-style report export
 - Dependent sources
 - General, RLC, and nonlinear transient simulation

@@ -1,3 +1,5 @@
+import math
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -25,6 +27,10 @@ def test_examples_endpoint_returns_bme_metadata():
     assert anti_aliasing["recommended_next_block"]
     assert anti_aliasing["adc_sampling_frequency_hz"] == 4000.0
     assert anti_aliasing["adc_target_cutoff_hz"] == 500.0
+    assert anti_aliasing["adc_resolution_bits"] == 12
+    assert anti_aliasing["adc_full_scale_voltage_v"] == 3.3
+    assert anti_aliasing["adc_input_impedance_ohm"] == 1_000_000.0
+    assert anti_aliasing["noise_bandwidth_hz"] == 500.0
 
 
 def test_bme_demo_templates_parse_and_solve():
@@ -92,6 +98,24 @@ def test_bme_photodiode_tia_gain_is_stable():
     assert packet.requested_answers["photodiode_current"].value == pytest.approx(10e-6)
 
 
+def test_bme_photodiode_tia_reports_noise_budget_starter():
+    packet = solve_circuit(BME_TEMPLATE_FACTORIES["bme_photodiode_tia"]().circuit_problem)
+    observations = {observation.id: observation for observation in packet.tutor_observations}
+
+    bandwidth_hz = 1000.0
+    assert observations["noise_budget_bandwidth"].value == pytest.approx(bandwidth_hz)
+    assert observations["thermal_noise_RF"].value == pytest.approx(
+        math.sqrt(4.0 * 1.380649e-23 * 300.0 * 1_000_000.0 * bandwidth_hz)
+    )
+    assert observations["photodiode_shot_noise_IPD"].value == pytest.approx(
+        math.sqrt(2.0 * 1.602176634e-19 * 10e-6 * bandwidth_hz)
+    )
+    assert observations["op_amp_input_referred_noise"].value == pytest.approx(
+        15e-9 * math.sqrt(bandwidth_hz)
+    )
+    assert "starter estimates" in observations["noise_budget_boundary"].note
+
+
 def test_bme_instrumentation_amplifier_gain_is_stable():
     packet = solve_circuit(BME_TEMPLATE_FACTORIES["bme_instrumentation_amplifier"]().circuit_problem)
 
@@ -139,4 +163,13 @@ def test_bme_emg_and_anti_aliasing_templates_return_phasors():
     assert anti_alias_observations["adc_attenuation_at_nyquist"].value == pytest.approx(
         -12.296527179496552
     )
+    assert anti_alias_observations["adc_quantization_step"].value == pytest.approx(3.3 / 4096)
+    assert anti_alias_observations["adc_quantization_noise_rms"].value == pytest.approx(
+        (3.3 / 4096) / math.sqrt(12.0)
+    )
+    assert anti_alias_observations["adc_input_loading_ratio"].value == pytest.approx(0.318)
     assert "single-pole RC anti-aliasing" in anti_alias_observations["aliasing_warning"].note
+    assert "switched-capacitor ADC input model" in anti_alias_observations["adc_input_loading_ratio"].note
+    assert anti_alias_observations["thermal_noise_R1"].value == pytest.approx(
+        math.sqrt(4.0 * 1.380649e-23 * 300.0 * 3180.0 * 500.0)
+    )
