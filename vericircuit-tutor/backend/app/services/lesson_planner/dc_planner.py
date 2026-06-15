@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from app.models.circuit_ir import CircuitProblem
 from app.models.solution_packet import SolutionPacket, TutorObservation, TutorStep
 from app.services.lesson_planner import common
@@ -10,6 +12,14 @@ from app.services.lesson_planner.motifs import (
     TransimpedanceMotif,
     VoltageDividerMotif,
 )
+
+
+@dataclass(frozen=True)
+class CurrentDividerMotif:
+    source_id: str
+    top_node: str
+    ground_node: str
+    branch_resistor_ids: list[str]
 
 
 def build_dc_steps(
@@ -27,6 +37,10 @@ def build_dc_steps(
     divider = _select_voltage_divider(circuit, motifs)
     if divider is not None:
         return _voltage_divider_steps(circuit, packet, divider)
+
+    current_divider = _detect_current_divider(graph)
+    if current_divider is not None:
+        return _current_divider_steps(circuit, packet, current_divider)
 
     return _generic_dc_steps(circuit, packet, graph)
 
@@ -51,6 +65,104 @@ def _select_voltage_divider(
 
 def _goal_ids_for_target(circuit: CircuitProblem, targets: set[str]) -> list[str]:
     return [goal.id for goal in circuit.goals if goal.target in targets or goal.id in targets]
+
+
+def _detect_current_divider(graph: CircuitGraph) -> CurrentDividerMotif | None:
+    for source in graph.current_sources_to_ground():
+        top_node = graph.source_node(source)
+        if top_node is None:
+            continue
+        branches = [
+            component.id
+            for component in graph.components_between(top_node, graph.ground, "resistor")
+        ]
+        if len(branches) >= 2:
+            return CurrentDividerMotif(
+                source_id=source.id,
+                top_node=top_node,
+                ground_node=graph.ground,
+                branch_resistor_ids=branches,
+            )
+    return None
+
+
+def _current_divider_steps(
+    circuit: CircuitProblem,
+    packet: SolutionPacket,
+    motif: CurrentDividerMotif,
+) -> list[TutorStep]:
+    all_goals = [goal.id for goal in circuit.goals]
+    branch_goal_ids = _goal_ids_for_target(circuit, set(motif.branch_resistor_ids))
+    top_goal_ids = _goal_ids_for_target(circuit, {motif.top_node})
+    branch_values = [
+        common.requested_answer_for_goal(packet, goal_id)
+        for goal_id in (branch_goal_ids or all_goals)
+    ]
+    return [
+        TutorStep(
+            id="current_divider_source",
+            title="Anchor the current source and common node",
+            body="The source injects current into a node shared by the parallel resistor branches.",
+            look_at=f"Look at {motif.source_id}, node {motif.top_node}, and ground.",
+            why_it_matters="A current divider starts with a known total current entering a shared node.",
+            common_mistake="Treating the source current as if it flows through every branch in full.",
+            focus=common.focus(
+                circuit,
+                components=[motif.source_id],
+                nodes=[motif.top_node, motif.ground_node],
+                current_paths=[motif.source_id],
+                goals=top_goal_ids,
+            ),
+            verified_values=common.only_present(
+                [common.node_voltage(packet, motif.top_node, "Common branch voltage")]
+            ),
+            next_action="Move from the common node into the parallel branches.",
+        ),
+        TutorStep(
+            id="current_divider_parallel_branches",
+            title="Compare the parallel branch paths",
+            body="Each resistor connects across the same two nodes, so each branch sees the same voltage.",
+            look_at="Look at the resistor branches between the common node and ground.",
+            why_it_matters="The branch currents differ because the resistances differ, not because the branch voltage differs.",
+            common_mistake="Dividing current equally without checking branch resistance.",
+            focus=common.focus(
+                circuit,
+                components=motif.branch_resistor_ids,
+                nodes=[motif.top_node, motif.ground_node],
+                current_paths=motif.branch_resistor_ids,
+            ),
+            verified_values=common.only_present(
+                [
+                    common.component_current(packet, branch_id, f"{branch_id} current")
+                    for branch_id in motif.branch_resistor_ids
+                ]
+            ),
+            next_action="Read the requested branch currents and node voltage.",
+        ),
+        TutorStep(
+            id="current_divider_requested_values",
+            title="Read the current-divider answers",
+            body="The requested node voltage and branch currents are extracted from the verified packet.",
+            look_at="Look at the highlighted branches and requested goals.",
+            why_it_matters="The answer belongs to a branch direction and reference node, not only a magnitude.",
+            common_mistake="Forgetting the stated current direction through each resistor.",
+            focus=common.focus(
+                circuit,
+                components=motif.branch_resistor_ids,
+                nodes=[motif.top_node, motif.ground_node],
+                current_paths=motif.branch_resistor_ids,
+                goals=all_goals,
+            ),
+            verified_values=common.only_present(
+                [
+                    *branch_values,
+                    *[common.requested_answer_for_goal(packet, goal_id) for goal_id in top_goal_ids],
+                ]
+            ),
+            next_action="Check KCL: the branch currents should account for the source current.",
+        ),
+        common.verification_step(circuit, packet),
+    ]
 
 
 def _voltage_divider_steps(

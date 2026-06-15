@@ -65,7 +65,7 @@ The BME tutor layer adds biomedical context, practice variants, safety notes, no
 
 1. **Parser service**
    - `demo_parser.py` recognizes bundled examples without external API keys.
-   - `gemini_parser.py` can call Gemini if `GEMINI_API_KEY` is present, then falls back to the demo parser if unavailable.
+   - `gemini_parser.py` can call Gemini if `GEMINI_API_KEY` or `GOOGLE_API_KEY` is present, then falls back to the demo parser if unavailable.
 
 2. **Circuit IR**
    - Pydantic models define the supported circuit graph, components, goals, assumptions, ambiguities, and unsupported features.
@@ -92,9 +92,37 @@ The BME tutor layer adds biomedical context, practice variants, safety notes, no
    - Template-based for the MVP.
    - Explains only values present in the Solution Packet.
 
-7. **Schematic generator**
+7. **Lesson builder**
+   - `guided_steps.py` builds deterministic step focus for the diagram.
+   - `lesson_builder.py` wraps those steps into a structured `LessonPacket` with objectives, conceptual overview, equation steps, visual cues, common mistakes, checks, practice prompts, verified value references, and limitations.
+   - `LessonPacket` is generated only for solved packets with a `PASS` verification badge.
+   - User-visible lesson numbers are formatted from `SolutionPacket` fields or deterministic `TutorObservation` values, not from Gemini prose.
+
+8. **Visual layer**
+   - `visual_layout.py` builds a lightweight `VisualCircuit` semantic layout with nodes, components, wires, annotations, overlays, and focus regions.
+   - `/visual_layout` exposes that semantic layout for lesson overlays and future renderer improvements.
+   - `render_schematic_svg(circuit)` remains the public SVG path and preserves `data-component-id` and `data-node-id`.
+
+9. **Schematic generator**
    - Creates deterministic SVG diagrams from Circuit IR.
    - Uses named templates for bundled demos and a fallback graph renderer for other supported layouts.
+
+## Gemini Boundary
+
+Gemini mode is optional. The backend reads `GEMINI_API_KEY` or `GOOGLE_API_KEY`; keys are never sent to the frontend. `GEMINI_MODEL` defaults to `gemini-flash-latest` and can be overridden per server environment.
+
+`gemini_client.py` owns Google GenAI client creation and structured JSON calls. `gemini_parser.py` owns the Circuit IR schema and prompt. Gemini may parse natural language into Circuit IR, but final node voltages, currents, powers, phasors, transient values, requested answers, explanations, and lesson numbers come from deterministic solver/verifier outputs.
+
+## Running Tests And Evaluation
+
+From `vericircuit-tutor/backend`:
+
+```bash
+python -m pytest
+python scripts/run_evaluation.py
+```
+
+The evaluation script uses offline benchmark fixtures by default and does not require Gemini credentials or network access.
 
 ## Sign Convention
 

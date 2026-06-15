@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-import os
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.circuit_ir import CircuitProblem
+from app.services.gemini_client import (
+    GeminiClientUnavailable,
+    GeminiStructuredClient,
+    gemini_api_key,
+    gemini_is_configured,
+)
 
 
 class GeminiParserUnavailable(RuntimeError):
@@ -217,46 +222,23 @@ Problem:
 
 
 def _api_key_is_present() -> bool:
-    return bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+    return gemini_is_configured()
 
 
 def parse_with_gemini(problem_text: str) -> CircuitProblem:
-    if not _api_key_is_present():
+    if not gemini_api_key():
         raise GeminiParserUnavailable("GEMINI_API_KEY or GOOGLE_API_KEY is not set.")
 
     try:
-        from google import genai
-        from google.genai import types
-    except ImportError as exc:
-        raise GeminiParserUnavailable(
-            "google-genai is not installed. Install project dependencies before using Gemini mode."
-        ) from exc
-
-    model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
-
-    try:
-        client = genai.Client()
-        response = client.models.generate_content(
-            model=model,
-            contents=_schema_prompt(problem_text),
-            config=types.GenerateContentConfig(
-                temperature=0,
-                response_mime_type="application/json",
-                response_schema=GeminiAPICircuitProblem,
-            ),
+        response_text = GeminiStructuredClient().generate_json_text(
+            prompt=_schema_prompt(problem_text),
+            schema_model=GeminiAPICircuitProblem,
         )
-    except Exception as exc:
-        raise GeminiParserUnavailable(f"Gemini structured parse failed: {exc}") from exc
+    except GeminiClientUnavailable as exc:
+        raise GeminiParserUnavailable(str(exc)) from exc
 
     try:
-        response_parsed = getattr(response, "parsed", None)
-        if response_parsed is not None:
-            if isinstance(response_parsed, GeminiAPICircuitProblem):
-                api_parsed = response_parsed
-            else:
-                api_parsed = GeminiAPICircuitProblem.model_validate(response_parsed)
-        else:
-            api_parsed = GeminiAPICircuitProblem.model_validate_json(response.text)
+        api_parsed = GeminiAPICircuitProblem.model_validate_json(response_text)
         strict_parsed = GeminiCircuitProblem.model_validate(api_parsed.model_dump())
         return CircuitProblem.model_validate(strict_parsed.model_dump())
     except ValueError as exc:

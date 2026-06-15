@@ -1,6 +1,8 @@
 import json
+from pathlib import Path
 
 from app.models.circuit_ir import CircuitProblem
+from app.services.gemini_client import DEFAULT_GEMINI_MODEL
 from app.services.demo_parser import VOLTAGE_DIVIDER_TEXT
 from app.services.gemini_parser import (
     GeminiAPICircuitProblem,
@@ -115,23 +117,33 @@ class FakeModels:
     def __init__(self, response: GeminiResponse):
         self.response = response
         self.config = None
+        self.model = None
 
     def generate_content(self, *, model, contents, config):
+        self.model = model
         self.config = config
         return self.response
 
 
 class FakeClient:
-    def __init__(self, response: GeminiResponse):
+    def __init__(self, response: GeminiResponse, api_key: str):
+        self.api_key = api_key
         self.models = FakeModels(response)
 
 
 def install_fake_gemini_client(monkeypatch, response: GeminiResponse) -> FakeClient:
     from google import genai
 
-    fake_client = FakeClient(response)
+    fake_client = FakeClient(response, api_key="")
+
+    def client_factory(*, api_key: str) -> FakeClient:
+        fake_client.api_key = api_key
+        return fake_client
+
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setattr(genai, "Client", lambda: fake_client)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
+    monkeypatch.setattr(genai, "Client", client_factory)
     return fake_client
 
 
@@ -182,8 +194,10 @@ def test_parse_with_gemini_uses_parsed_model(monkeypatch):
     assert isinstance(circuit, CircuitProblem)
     assert circuit.id == "gemini_voltage_divider"
     assert circuit.components[0].id == "V1"
+    assert fake_client.api_key == "test-key"
+    assert fake_client.models.model == DEFAULT_GEMINI_MODEL
     assert fake_client.models.config.response_mime_type == "application/json"
-    assert fake_client.models.config.response_schema is GeminiAPICircuitProblem
+    assert fake_client.models.config.response_json_schema == GeminiAPICircuitProblem.model_json_schema()
 
 
 def test_parse_with_gemini_falls_back_to_response_text_json(monkeypatch):
@@ -198,6 +212,21 @@ def test_parse_with_gemini_falls_back_to_response_text_json(monkeypatch):
     assert isinstance(circuit, CircuitProblem)
     assert circuit.id == "gemini_voltage_divider"
     assert circuit.goals[0].id == "voltage_across_R2"
+
+
+def test_parse_with_gemini_accepts_google_api_key(monkeypatch):
+    parsed = gemini_api_voltage_divider()
+    fake_client = install_fake_gemini_client(
+        monkeypatch,
+        GeminiResponse(parsed=None, text=json.dumps(parsed.model_dump())),
+    )
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setenv("GOOGLE_API_KEY", "google-test-key")
+
+    circuit = parse_with_gemini("mock parse request")
+
+    assert circuit.id == "gemini_voltage_divider"
+    assert fake_client.api_key == "google-test-key"
 
 
 def test_gemini_api_schema_omits_additional_properties():
@@ -218,3 +247,13 @@ def test_gemini_strict_succeeds_when_gemini_parse_succeeds(monkeypatch):
     assert result.parser_used == "gemini"
     assert result.circuit.id == "gemini_voltage_divider"
     assert result.warnings == []
+
+
+def test_api_keys_do_not_appear_in_static_frontend():
+    static_dir = Path(__file__).resolve().parents[1] / "app" / "static"
+    static_text = "\n".join(path.read_text(encoding="utf-8") for path in static_dir.rglob("*") if path.is_file())
+
+    assert "GEMINI_API_KEY" not in static_text
+    assert "GOOGLE_API_KEY" not in static_text
+    assert "x-goog-api-key" not in static_text.lower()
+    assert "AIza" not in static_text

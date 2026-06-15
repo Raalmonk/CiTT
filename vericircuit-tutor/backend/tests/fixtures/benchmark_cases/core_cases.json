@@ -1,0 +1,61 @@
+[
+  {
+    "id": "voltage_divider_core",
+    "mode": "demo",
+    "problem_text": "A 10 V voltage source is connected in series with R1 = 2 kOhm and R2 = 3 kOhm. Find the voltage across R2 and the current through the circuit.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "expected_answers": {
+      "voltage_across_R2": { "value": 6.0, "unit": "V", "tolerance": 1e-9 },
+      "circuit_current": { "value": 0.002, "unit": "A", "tolerance": 1e-12 }
+    }
+  },
+  {
+    "id": "current_divider_core",
+    "mode": "demo",
+    "problem_text": "A 3 mA current source feeds two parallel resistors R1 = 2 kOhm and R2 = 1 kOhm connected to ground. Find the voltage at the top node and current through each resistor.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "expected_answers": {
+      "top_node_voltage": { "value": 2.0, "unit": "V", "tolerance": 1e-9 },
+      "R1_current": { "value": 0.001, "unit": "A", "tolerance": 1e-12 },
+      "R2_current": { "value": 0.002, "unit": "A", "tolerance": 1e-12 }
+    }
+  },
+  {
+    "id": "rc_low_pass_core",
+    "mode": "demo",
+    "problem_text": "An RC low-pass filter has a 1 V AC source at 159.154943 Hz, R1 = 1 kOhm from input to output, and C1 = 1 uF from output to ground. Find Vout.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "expected_ac_answers": {
+      "vout": { "magnitude": 0.70710678, "phase_deg": -45.0, "unit": "V", "tolerance": 1e-5 }
+    }
+  },
+  {
+    "id": "rc_transient_core",
+    "mode": "demo",
+    "problem_text": "A 5 V source charges an initially uncharged capacitor C1 = 1 uF through R1 = 1 kOhm. Find the first-order RC transient voltage across the capacitor.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "expected_transient": {
+      "time_constant_s": { "value": 0.001, "tolerance": 1e-12 },
+      "final_voltage_v": { "value": 5.0, "tolerance": 1e-9 }
+    }
+  },
+  {
+    "id": "unsupported_diode_honesty",
+    "mode": "demo",
+    "problem_text": "A diode rectifier with a transformer feeds a capacitor input filter. Find the ripple voltage.",
+    "expected_status": "unsupported",
+    "expected_badge": "UNSUPPORTED"
+  },
+  {
+    "id": "mocked_gemini_voltage_divider_contract",
+    "mode": "gemini_mock",
+    "problem_text": "Gemini should parse this as a 5 V source, R1 = 1 kOhm, R2 = 4 kOhm divider, asking for R2 voltage.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "notes": "This fixture documents the mocked-Gemini contract used by tests; the evaluation script skips network Gemini by default."
+  }
+]

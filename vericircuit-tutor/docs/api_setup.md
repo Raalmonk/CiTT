@@ -6,6 +6,8 @@ VeriCircuit Tutor works without external API keys. In that mode, the determinist
 
 Create an API key in Google AI Studio, then set it as a server-side environment variable before starting FastAPI. Never commit API keys. Never paste real API keys into chat or GitHub. Revoke keys if exposed.
 
+The backend accepts either `GOOGLE_API_KEY` or `GEMINI_API_KEY`. `GEMINI_MODEL` is optional and defaults to `gemini-flash-latest`.
+
 ## Windows PowerShell
 
 From the project backend directory:
@@ -18,8 +20,8 @@ cd vericircuit-tutor\backend
 Set environment variables for the current PowerShell session:
 
 ```powershell
-$env:GEMINI_API_KEY = "your_key_here"
-$env:GEMINI_MODEL = "gemini-3.5-flash"
+$env:GOOGLE_API_KEY = "your_key_here"
+$env:GEMINI_MODEL = "gemini-flash-latest"
 ```
 
 Run the app:
@@ -28,7 +30,13 @@ Run the app:
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-You may also use `GOOGLE_API_KEY` instead of `GEMINI_API_KEY`.
+You may also use `GEMINI_API_KEY` instead of `GOOGLE_API_KEY`.
+
+## SDK Integration Shape
+
+The backend uses the Google GenAI Python SDK through `app/services/gemini_client.py`. Structured parser calls request JSON with `response_mime_type="application/json"` and `response_json_schema=<Pydantic model JSON schema>`, then validate the returned text with Pydantic before converting it into normal Circuit IR.
+
+This keeps Gemini mockable in tests and avoids making the parser depend on a live network call. If Google changes the SDK shape again, update `gemini_client.py` and its tests rather than spreading SDK details through parser or pipeline code.
 
 To run strict Gemini mode manually, choose "Gemini strict" in the demo UI or call:
 
@@ -49,16 +57,16 @@ Run the manual Gemini smoke test:
 Windows CMD smoke test:
 
 ```cmd
-set "GEMINI_API_KEY=your_key_here"
-set "GEMINI_MODEL=gemini-3.5-flash"
+set "GOOGLE_API_KEY=your_key_here"
+set "GEMINI_MODEL=gemini-flash-latest"
 .\.venv\Scripts\python.exe scripts\smoke_test_gemini.py
 ```
 
 PowerShell smoke test:
 
 ```powershell
-$env:GEMINI_API_KEY="your_key_here"
-$env:GEMINI_MODEL="gemini-3.5-flash"
+$env:GOOGLE_API_KEY="your_key_here"
+$env:GEMINI_MODEL="gemini-flash-latest"
 .\.venv\Scripts\python.exe scripts\smoke_test_gemini.py
 ```
 
@@ -75,8 +83,8 @@ python -m venv .venv
 Set environment variables for the current shell:
 
 ```bash
-export GEMINI_API_KEY="your_key_here"
-export GEMINI_MODEL="gemini-3.5-flash"
+export GOOGLE_API_KEY="your_key_here"
+export GEMINI_MODEL="gemini-flash-latest"
 ```
 
 Run the app:
@@ -110,6 +118,8 @@ Parser modes:
 - `demo`: deterministic offline parser for bundled examples.
 - `gemini`: Gemini parser with deterministic demo fallback if Gemini is unavailable.
 - `gemini_strict`: Gemini parser only. If Gemini is unavailable or returns invalid JSON, the API returns a controlled ambiguous CircuitProblem instead of silently falling back.
+
+Structured lessons are still deterministic. Gemini does not write final numerical lesson values; the lesson builder formats values from `SolutionPacket`, `TutorObservation`, and deterministic metadata after verification passes.
 
 ## Packaging Note
 

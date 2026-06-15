@@ -156,6 +156,58 @@ class TutorStep(BaseModel):
     next_action: str | None = None
 
 
+class LessonValueRef(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    label: str
+    formatted_value: str | None = None
+    source: Literal[
+        "solution_packet",
+        "tutor_observation",
+        "analysis_view",
+        "deterministic_metadata",
+    ] = "solution_packet"
+    note: str | None = None
+
+
+class LessonEquationStep(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    title: str
+    equation: str
+    explanation: str
+    focus: TutorFocus = Field(default_factory=TutorFocus)
+    value_refs: list[str] = Field(default_factory=list)
+
+
+class LessonCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    label: str
+    passed: bool
+    explanation: str
+    value_ref: str | None = None
+
+
+class LessonPacket(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str
+    learning_objectives: list[str] = Field(default_factory=list)
+    conceptual_overview: list[str] = Field(default_factory=list)
+    step_by_step_derivation: list[TutorStep] = Field(default_factory=list)
+    equation_steps: list[LessonEquationStep] = Field(default_factory=list)
+    visual_cues: list[str] = Field(default_factory=list)
+    common_mistakes: list[str] = Field(default_factory=list)
+    checks: list[LessonCheck] = Field(default_factory=list)
+    practice_prompts: list[str] = Field(default_factory=list)
+    verified_value_refs: list[LessonValueRef] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+
+
 class SolutionPacket(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -179,3 +231,4 @@ class SolutionPacket(BaseModel):
     bme_metadata: BMETemplateMetadata | None = None
     tutor_observations: list[TutorObservation] = Field(default_factory=list)
     guided_steps: list[TutorStep] = Field(default_factory=list)
+    lesson_packet: LessonPacket | None = None

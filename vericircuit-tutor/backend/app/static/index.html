@@ -454,6 +454,42 @@
         min-height: 560px;
       }
 
+      .lesson-overview {
+        display: grid;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .lesson-overview-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .lesson-pill {
+        background: #eef8f3;
+        border: 1px solid #b9e3cf;
+        border-radius: 6px;
+        color: #155c3c;
+        font-size: 12px;
+        padding: 5px 8px;
+      }
+
+      .lesson-equation-block {
+        background: #f7fafc;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        display: grid;
+        gap: 6px;
+        padding: 10px;
+      }
+
+      .lesson-equation {
+        color: #17324d;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        overflow-wrap: anywhere;
+      }
+
       .guided-rail,
       .guided-step-card,
       .guided-diagram-wrap {
@@ -1019,6 +1055,7 @@
             <div>
               <h2>Guided Explanation</h2>
               <div class="message">Step-synchronized circuit explanation with diagram focus.</div>
+              <div id="lessonOverviewPanel" class="lesson-overview message">Run the pipeline to build a structured student lesson.</div>
             </div>
             <button id="resetGuidedViewButton" class="secondary" disabled>Reset view</button>
           </div>
@@ -1162,6 +1199,7 @@
       const guidedStepList = document.getElementById("guidedStepList");
       const guidedStepCard = document.getElementById("guidedStepCard");
       const guidedVerifiedPanel = document.getElementById("guidedVerifiedPanel");
+      const lessonOverviewPanel = document.getElementById("lessonOverviewPanel");
       const prevGuidedStepButton = document.getElementById("prevGuidedStepButton");
       const nextGuidedStepButton = document.getElementById("nextGuidedStepButton");
       const resetGuidedViewButton = document.getElementById("resetGuidedViewButton");
@@ -1176,6 +1214,7 @@
       let selectedNodeId = null;
       let currentStepId = null;
       let currentPhasorItems = [];
+      let currentLesson = null;
       let guidedSteps = [];
       let selectedGuidedStepIndex = 0;
       let originalDiagramViewBox = null;
@@ -1264,6 +1303,7 @@
         selectedComponentId = null;
         selectedProbeComponentId = null;
         selectedNodeId = null;
+        currentLesson = null;
         guidedSteps = [];
         selectedGuidedStepIndex = 0;
         originalDiagramViewBox = null;
@@ -1629,6 +1669,41 @@
         `;
       }
 
+      function focusOverlaps(left = {}, right = {}) {
+        const keys = ["components", "nodes", "goals", "current_paths"];
+        return keys.some((key) => {
+          const leftSet = new Set(left[key] || []);
+          return (right[key] || []).some((item) => leftSet.has(item));
+        });
+      }
+
+      function currentLessonEquation(step) {
+        const equations = currentLesson?.equation_steps || [];
+        if (!step || !equations.length) return null;
+        return (
+          equations.find((equation) => focusOverlaps(equation.focus, step.focus || {})) ||
+          equations[Math.min(selectedGuidedStepIndex, equations.length - 1)] ||
+          null
+        );
+      }
+
+      function renderLessonOverview() {
+        if (!currentLesson) {
+          lessonOverviewPanel.textContent = "Run the pipeline to build a structured student lesson.";
+          return;
+        }
+        const objectives = (currentLesson.learning_objectives || []).slice(0, 3);
+        const checks = currentLesson.checks || [];
+        const passedChecks = checks.filter((check) => check.passed).length;
+        lessonOverviewPanel.innerHTML = `
+          <div>${escapeHtml(currentLesson.summary || "Structured lesson ready.")}</div>
+          <div class="lesson-overview-row">
+            ${objectives.map((item) => `<span class="lesson-pill">${escapeHtml(item)}</span>`).join("")}
+            <span class="lesson-pill">${passedChecks}/${checks.length || 1} checks passed</span>
+          </div>
+        `;
+      }
+
       function diagramSvg() {
         return diagramPanel.querySelector("svg");
       }
@@ -1891,6 +1966,7 @@
         }
 
         const values = step.verified_values || [];
+        const equation = currentLessonEquation(step);
         const teachingBlocks = [
           guidedTeachingBlock("What to look at", step.look_at),
           guidedTeachingBlock("Why it matters", step.why_it_matters),
@@ -1903,6 +1979,15 @@
             teachingBlocks
               ? `<div class="guided-teaching-grid">${teachingBlocks}</div>`
               : `<div class="guided-body">${escapeHtml(step.body)}</div>`
+          }
+          ${
+            equation
+              ? `<div class="lesson-equation-block">
+                  <div class="guided-teaching-label">${escapeHtml(equation.title)}</div>
+                  <div class="lesson-equation">${escapeHtml(equation.equation)}</div>
+                  <div class="guided-teaching-text">${escapeHtml(equation.explanation)}</div>
+                </div>`
+              : ""
           }
           <div>
             <div class="guided-footer-title">Diagram focus</div>
@@ -1928,13 +2013,15 @@
       }
 
       function renderGuidedLesson() {
+        renderLessonOverview();
         renderGuidedStepList();
         renderGuidedStepCard();
         applyGuidedFocus(selectedGuidedStep());
       }
 
       function renderGuidedSteps(packet) {
-        guidedSteps = packet?.guided_steps || [];
+        currentLesson = packet?.lesson_packet || null;
+        guidedSteps = currentLesson?.step_by_step_derivation || packet?.guided_steps || [];
         selectedGuidedStepIndex = 0;
         renderGuidedLesson();
       }

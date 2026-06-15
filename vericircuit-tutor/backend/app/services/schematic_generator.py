@@ -79,6 +79,9 @@ def _schemdraw_svg(drawing: schemdraw.Drawing, renderer: str) -> str:
 
 
 def _tag_svg(svg: str, renderer: str) -> str:
+    renderer_attr = escape(renderer, quote=True)
+    if svg.startswith("<svg ") and "data-vericircuit-renderer=" not in svg[: svg.find(">")]:
+        svg = svg.replace("<svg ", f'<svg data-vericircuit-renderer="{renderer_attr}" ', 1)
     insert_at = svg.find(">") + 1
     if insert_at <= 0:
         return svg

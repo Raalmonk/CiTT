@@ -11,12 +11,14 @@ from pydantic import BaseModel, Field
 from app.models.analysis_view import AnalysisView
 from app.models.circuit_ir import CircuitProblem
 from app.models.solution_packet import SolutionPacket
+from app.models.visual_layout import VisualCircuit
 from app.services.demo_parser import get_demo_examples
 from app.services.analysis_view import build_analysis_view
 from app.services.explainer import explain_solution
 from app.services.parser_service import parse_problem
 from app.services.pipeline import solve_circuit
 from app.services.schematic_generator import render_schematic_svg
+from app.services.visual_layout import build_visual_circuit
 from app.services.variant_generator import (
     generate_goal_variant,
     generate_value_variants,
@@ -114,6 +116,11 @@ def schematic_endpoint(request: SolveRequest) -> Response:
         content=render_schematic_svg(request.circuit_ir),
         media_type="image/svg+xml",
     )
+
+
+@app.post("/visual_layout", response_model=VisualCircuit)
+def visual_layout_endpoint(request: SolveRequest) -> VisualCircuit:
+    return build_visual_circuit(request.circuit_ir)
 
 
 @app.post("/explain")
