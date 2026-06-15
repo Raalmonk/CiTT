@@ -1,6 +1,7 @@
 from xml.etree import ElementTree as ET
 
 from app.services.bme_templates import BME_TEMPLATE_FACTORIES
+from app.models.circuit_ir import CircuitProblem, Component, Goal
 from app.services.demo_parser import voltage_divider_problem
 from app.services.pipeline import solve_circuit
 from app.services.schematic_generator import render_schematic_svg
@@ -55,10 +56,10 @@ def test_voltage_divider_packet_includes_guided_steps():
     packet = solve_circuit(circuit)
 
     assert [step.id for step in packet.guided_steps] == [
-        "voltage_divider_reference",
-        "voltage_divider_series_current",
-        "voltage_divider_output",
-        "voltage_divider_verification_boundary",
+        "divider_reference",
+        "divider_series_path",
+        "divider_output",
+        "verification_boundary",
     ]
     assert packet.guided_steps[2].focus.components == ["R2"]
     assert packet.guided_steps[2].focus.nodes == ["n2", "0"]
@@ -74,10 +75,11 @@ def test_ecg_template_guided_steps_teach_diff_common_mode_and_output():
     packet = solve_circuit(circuit)
 
     step_ids = [step.id for step in packet.guided_steps]
-    assert "ecg_diff_common_mode" in step_ids
-    assert "ecg_output" in step_ids
-    diff_step = next(step for step in packet.guided_steps if step.id == "ecg_diff_common_mode")
-    output_step = next(step for step in packet.guided_steps if step.id == "ecg_output")
+    assert "differential_sources" in step_ids
+    assert "differential_output" in step_ids
+    assert "bme_context_boundary" in step_ids
+    diff_step = next(step for step in packet.guided_steps if step.id == "differential_sources")
+    output_step = next(step for step in packet.guided_steps if step.id == "differential_output")
 
     assert diff_step.focus.components == ["VECGP", "VECGN"]
     assert diff_step.look_at
@@ -114,3 +116,84 @@ def test_guided_focus_ids_query_actual_svg_elements_for_polished_demos():
         packet = solve_circuit(circuit)
 
         _assert_focus_ids_query_svg(circuit, packet)
+
+
+def test_renamed_voltage_divider_uses_structure_not_topology_script():
+    circuit = CircuitProblem(
+        id="renamed_divider",
+        title="Renamed Divider",
+        analysis_type="dc_operating_point",
+        topology_id=None,
+        ground_node="gnd",
+        nodes=["gnd", "vin", "sense"],
+        components=[
+            Component(id="VSUPPLY", type="voltage_source", nodes=["vin", "gnd"], value=12.0, unit="V"),
+            Component(id="R_TOP", type="resistor", nodes=["vin", "sense"], value=3000.0, unit="ohm"),
+            Component(id="R_BOTTOM", type="resistor", nodes=["sense", "gnd"], value=1000.0, unit="ohm"),
+        ],
+        goals=[
+            Goal(
+                id="sense_voltage",
+                quantity="node_voltage",
+                target="sense",
+                reference={"positive_node": "sense", "negative_node": "gnd"},
+            )
+        ],
+    )
+    packet = solve_circuit(circuit)
+
+    assert [step.id for step in packet.guided_steps][:3] == [
+        "divider_reference",
+        "divider_series_path",
+        "divider_output",
+    ]
+    output_step = next(step for step in packet.guided_steps if step.id == "divider_output")
+    assert output_step.focus.components == ["R_BOTTOM"]
+    assert output_step.focus.nodes == ["sense", "gnd"]
+    assert output_step.focus.goals == ["sense_voltage"]
+    _assert_focus_ids_exist(circuit, packet)
+
+
+def test_renamed_rc_low_pass_uses_structure_not_topology_script():
+    circuit = CircuitProblem(
+        id="custom_antialias_stage",
+        title="Custom Sensor Filter",
+        analysis_type="ac_steady_state",
+        topology_id=None,
+        frequency_hz=1000.0,
+        ground_node="ref",
+        nodes=["ref", "drive", "adc_in"],
+        components=[
+            Component(
+                id="VSIG",
+                type="voltage_source",
+                nodes=["drive", "ref"],
+                value=0.0,
+                unit="V",
+                ac_magnitude=1.0,
+                ac_phase_deg=0.0,
+            ),
+            Component(id="RSER", type="resistor", nodes=["drive", "adc_in"], value=3180.0, unit="ohm"),
+            Component(id="CSHUNT", type="capacitor", nodes=["adc_in", "ref"], value=100e-9, unit="F"),
+        ],
+        goals=[
+            Goal(
+                id="adc_input_phasor",
+                quantity="node_voltage",
+                target="adc_in",
+                reference={"positive_node": "adc_in", "negative_node": "ref"},
+            )
+        ],
+    )
+    packet = solve_circuit(circuit)
+
+    assert [step.id for step in packet.guided_steps][:3] == [
+        "ac_source_frequency",
+        "ac_low_pass_pole",
+        "ac_output_phasor",
+    ]
+    pole_step = next(step for step in packet.guided_steps if step.id == "ac_low_pass_pole")
+    assert pole_step.focus.components == ["RSER", "CSHUNT"]
+    assert pole_step.focus.nodes == ["adc_in", "ref"]
+    assert any(value.id == "low_pass_cutoff_frequency" for value in pole_step.verified_values)
+    _assert_focus_ids_exist(circuit, packet)
