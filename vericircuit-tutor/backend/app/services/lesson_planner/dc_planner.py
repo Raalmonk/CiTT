@@ -34,6 +34,9 @@ def build_dc_steps(
     if motifs.transimpedance is not None:
         return _transimpedance_steps(circuit, packet, motifs.transimpedance)
 
+    if _is_bridge_like(circuit, graph):
+        return _bridge_like_steps(circuit, packet, graph)
+
     divider = _select_voltage_divider(circuit, motifs)
     if divider is not None:
         return _voltage_divider_steps(circuit, packet, divider)
@@ -56,11 +59,14 @@ def _select_voltage_divider(
             if goal.quantity == "node_voltage" and goal.target == motif.output_node:
                 return motif
             if goal.quantity in {"component_voltage", "component_current", "component_power"} and goal.target in {
+                motif.source_id,
                 motif.upper_resistor_id,
                 motif.lower_resistor_id,
             }:
                 return motif
-    return motifs.voltage_dividers[0]
+    if not circuit.goals and len(motifs.voltage_dividers) == 1:
+        return motifs.voltage_dividers[0]
+    return None
 
 
 def _goal_ids_for_target(circuit: CircuitProblem, targets: set[str]) -> list[str]:
@@ -444,29 +450,168 @@ def _target_neighborhood(circuit: CircuitProblem, graph: CircuitGraph) -> tuple[
     return list(dict.fromkeys(components)), list(dict.fromkeys(nodes)), goals
 
 
+def _source_nodes(graph: CircuitGraph) -> list[str]:
+    nodes = []
+    for source in [*graph.voltage_sources_to_ground(), *graph.current_sources_to_ground()]:
+        node = graph.source_node(source)
+        if node is not None:
+            nodes.append(node)
+    return list(dict.fromkeys(nodes))
+
+
+def _interior_nodes(circuit: CircuitProblem, graph: CircuitGraph) -> list[str]:
+    source_node_ids = set(_source_nodes(graph))
+    return [
+        node
+        for node in circuit.nodes
+        if node != circuit.ground_node and node not in source_node_ids
+    ]
+
+
+def _relationship_focus(
+    circuit: CircuitProblem,
+    graph: CircuitGraph,
+) -> tuple[list[str], list[str]]:
+    nodes = _interior_nodes(circuit, graph) or [
+        node for node in circuit.nodes if node != circuit.ground_node
+    ]
+    components = []
+    for node in nodes:
+        components.extend(component.id for component in graph.components_at(node))
+    return list(dict.fromkeys(components)), nodes
+
+
+def _bridge_coupling_components(graph: CircuitGraph) -> list[str]:
+    source_node_ids = set(_source_nodes(graph))
+    coupling = []
+    for component in graph.components_of_type("resistor"):
+        if len(component.nodes) != 2 or graph.ground in component.nodes:
+            continue
+        if any(node in source_node_ids for node in component.nodes):
+            continue
+        if all(len(graph.components_at(node)) >= 3 for node in component.nodes):
+            coupling.append(component.id)
+    return coupling
+
+
+def _is_bridge_like(circuit: CircuitProblem, graph: CircuitGraph) -> bool:
+    key = f"{circuit.topology_id or ''} {circuit.id}".lower()
+    return "bridge" in key or bool(_bridge_coupling_components(graph))
+
+
+def _source_reference_step(circuit: CircuitProblem, graph: CircuitGraph) -> TutorStep:
+    source_components = common.source_ids(circuit)
+    source_nodes = _source_nodes(graph)
+    return TutorStep(
+        id="dc_sources_and_ground",
+        title="Identify sources and ground",
+        body="Start by finding the reference node and the components that impose known currents or voltages.",
+        look_at="Look at the sources, their non-ground terminals, and the ground node.",
+        why_it_matters="These references define every node voltage and current sign used later.",
+        common_mistake="Solving from a familiar pattern before checking the actual reference node.",
+        focus=common.focus(
+            circuit,
+            components=source_components,
+            nodes=[*source_nodes, circuit.ground_node],
+            current_paths=source_components,
+        ),
+        verified_values=[],
+        next_action="Use those anchors to decide which nodes must be solved together.",
+    )
+
+
+def _bridge_like_steps(
+    circuit: CircuitProblem,
+    packet: SolutionPacket,
+    graph: CircuitGraph,
+) -> list[TutorStep]:
+    relationship_components, relationship_nodes = _relationship_focus(circuit, graph)
+    coupling_components = _bridge_coupling_components(graph)
+    target_components, target_nodes, goal_ids = _target_neighborhood(circuit, graph)
+    all_goals = [goal.id for goal in circuit.goals]
+    return [
+        _source_reference_step(circuit, graph),
+        TutorStep(
+            id="dc_coupled_node_map",
+            title="Map the coupled interior nodes",
+            body=(
+                "Cut the circuit around the interior nodes. The highlighted coupling branch means those "
+                "node voltages must be solved together instead of as independent dividers."
+            ),
+            look_at="Look at the interior nodes and the branch that ties them together.",
+            why_it_matters="A coupling branch lets the answer at one node depend on the neighboring node.",
+            common_mistake="Using a divider shortcut on each side while ignoring the bridge branch.",
+            focus=common.focus(
+                circuit,
+                components=relationship_components,
+                nodes=relationship_nodes,
+                current_paths=coupling_components or relationship_components,
+            ),
+            verified_values=[],
+            next_action="Zoom into the requested node or bridge branch and write its current balance.",
+        ),
+        TutorStep(
+            id="dc_target_kcl_neighborhood",
+            title="Inspect the target KCL neighborhood",
+            body="The requested value is controlled by the branches directly attached to the highlighted node or component.",
+            look_at="Look at the target node or branch and the neighboring elements that set its current balance.",
+            why_it_matters="This is where the symbolic KCL equation should be written before reading any number.",
+            common_mistake="Reading a current direction without checking the requested from-node and to-node.",
+            focus=common.focus(
+                circuit,
+                components=target_components,
+                nodes=target_nodes,
+                current_paths=target_components,
+                goals=goal_ids,
+            ),
+            verified_values=[],
+            next_action="After the node relationships are clear, read the verified requested values.",
+        ),
+        TutorStep(
+            id="dc_requested_answer",
+            title="Read the verified requested values",
+            body="The requested values are taken from the solved and internally verified packet.",
+            look_at="Look at the highlighted requested targets and the verified quantities below.",
+            why_it_matters="The values belong to the stated node references and branch directions.",
+            common_mistake="Copying a magnitude while losing the sign convention.",
+            focus=common.focus(
+                circuit,
+                components=target_components,
+                nodes=target_nodes,
+                current_paths=target_components,
+                goals=goal_ids or all_goals,
+            ),
+            verified_values=common.all_requested_observations(packet),
+            next_action="Check the verification boundary.",
+        ),
+        common.verification_step(circuit, packet),
+    ]
+
+
 def _generic_dc_steps(
     circuit: CircuitProblem,
     packet: SolutionPacket,
     graph: CircuitGraph,
 ) -> list[TutorStep]:
-    source_components = common.source_ids(circuit)
+    relationship_components, relationship_nodes = _relationship_focus(circuit, graph)
     target_components, target_nodes, goal_ids = _target_neighborhood(circuit, graph)
     return [
+        _source_reference_step(circuit, graph),
         TutorStep(
-            id="dc_sources_and_ground",
-            title="Identify sources and ground",
-            body="Start by finding the reference node and the components that impose known currents or voltages.",
-            look_at="Look at the sources and the ground node before reading any requested answer.",
-            why_it_matters="Ground and source references define the signs and node voltages used by the solver.",
-            common_mistake="Solving a numeric answer without checking the reference node.",
+            id="dc_node_relationships",
+            title="Map the node relationships",
+            body="Treat the highlighted non-reference nodes as unknowns connected by branch laws and KCL.",
+            look_at="Look at how each highlighted branch connects one node voltage to another reference or node.",
+            why_it_matters="For a general circuit, the explanation should follow the graph before choosing a shortcut.",
+            common_mistake="Assuming series or parallel behavior without checking shared nodes.",
             focus=common.focus(
                 circuit,
-                components=source_components,
-                nodes=[circuit.ground_node],
-                current_paths=source_components,
+                components=relationship_components,
+                nodes=relationship_nodes,
+                current_paths=relationship_components,
             ),
             verified_values=[],
-            next_action="Move from the sources toward the requested target.",
+            next_action="Now narrow attention to the requested target neighborhood.",
         ),
         TutorStep(
             id="dc_target_neighborhood",

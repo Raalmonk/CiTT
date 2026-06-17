@@ -82,6 +82,9 @@ def _detect_voltage_dividers(graph: CircuitGraph) -> list[VoltageDividerMotif]:
             if output_node is None or output_node == graph.ground:
                 continue
             for lower in graph.components_between(output_node, graph.ground, "resistor"):
+                output_components = {component.id for component in graph.components_at(output_node)}
+                if output_components != {upper.id, lower.id}:
+                    continue
                 motifs.append(
                     VoltageDividerMotif(
                         source_id=source.id,

@@ -2,7 +2,7 @@ from xml.etree import ElementTree as ET
 
 from app.services.bme_templates import BME_TEMPLATE_FACTORIES
 from app.models.circuit_ir import CircuitProblem, Component, Goal
-from app.services.demo_parser import voltage_divider_problem
+from app.services.demo_parser import bridge_network_problem, voltage_divider_problem
 from app.services.pipeline import solve_circuit
 from app.services.schematic_generator import render_schematic_svg
 
@@ -68,6 +68,32 @@ def test_voltage_divider_packet_includes_guided_steps():
     assert packet.guided_steps[2].common_mistake
     assert any(value.id == "voltage_across_R2" for value in packet.guided_steps[2].verified_values)
     _assert_focus_ids_exist(circuit, packet)
+
+
+def test_bridge_network_uses_coupled_node_steps_not_divider_shortcut():
+    circuit = bridge_network_problem()
+    packet = solve_circuit(circuit)
+
+    step_ids = [step.id for step in packet.guided_steps]
+    assert step_ids[:3] == [
+        "dc_sources_and_ground",
+        "dc_coupled_node_map",
+        "dc_target_kcl_neighborhood",
+    ]
+    assert "divider_series_path" not in step_ids
+
+    coupled_step = next(step for step in packet.guided_steps if step.id == "dc_coupled_node_map")
+    assert "R5" in coupled_step.focus.components
+    assert set(coupled_step.focus.nodes) >= {"n2", "n3"}
+    assert coupled_step.look_at
+    assert coupled_step.why_it_matters
+    assert coupled_step.common_mistake
+
+    answer_step = next(step for step in packet.guided_steps if step.id == "dc_requested_answer")
+    assert set(answer_step.focus.goals) == {"n2_voltage", "n3_voltage", "R5_current"}
+    assert any(value.id == "R5_current" for value in answer_step.verified_values)
+    _assert_focus_ids_exist(circuit, packet)
+    _assert_focus_ids_query_svg(circuit, packet)
 
 
 def test_ecg_template_guided_steps_teach_diff_common_mode_and_output():
@@ -151,6 +177,42 @@ def test_renamed_voltage_divider_uses_structure_not_topology_script():
     assert output_step.focus.components == ["R_BOTTOM"]
     assert output_step.focus.nodes == ["sense", "gnd"]
     assert output_step.focus.goals == ["sense_voltage"]
+    _assert_focus_ids_exist(circuit, packet)
+
+
+def test_unrelated_divider_motif_does_not_steal_generic_target():
+    circuit = CircuitProblem(
+        id="mixed_network_loaded_branch",
+        title="Mixed Network Loaded Branch",
+        analysis_type="dc_operating_point",
+        topology_id=None,
+        ground_node="0",
+        nodes=["0", "rail", "sense", "loaded"],
+        components=[
+            Component(id="V1", type="voltage_source", nodes=["rail", "0"], value=5.0, unit="V"),
+            Component(id="R1", type="resistor", nodes=["rail", "sense"], value=1000.0, unit="ohm"),
+            Component(id="R2", type="resistor", nodes=["sense", "0"], value=2000.0, unit="ohm"),
+            Component(id="R3", type="resistor", nodes=["rail", "loaded"], value=1500.0, unit="ohm"),
+            Component(id="R4", type="resistor", nodes=["loaded", "0"], value=2500.0, unit="ohm"),
+            Component(id="Iload", type="current_source", nodes=["loaded", "0"], value=0.001, unit="A"),
+        ],
+        goals=[
+            Goal(
+                id="loaded_voltage",
+                quantity="node_voltage",
+                target="loaded",
+                reference={"positive_node": "loaded", "negative_node": "0"},
+            )
+        ],
+    )
+    packet = solve_circuit(circuit)
+
+    step_ids = [step.id for step in packet.guided_steps]
+    assert "dc_node_relationships" in step_ids
+    assert "divider_series_path" not in step_ids
+    target_step = next(step for step in packet.guided_steps if step.id == "dc_target_neighborhood")
+    assert "Iload" in target_step.focus.components
+    assert target_step.focus.goals == ["loaded_voltage"]
     _assert_focus_ids_exist(circuit, packet)
 
 

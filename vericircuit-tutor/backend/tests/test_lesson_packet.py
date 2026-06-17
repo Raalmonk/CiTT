@@ -8,6 +8,7 @@ from app.services.demo_parser import (
     voltage_divider_problem,
 )
 from app.services.lesson_builder import lesson_has_unverified_numeric_claims
+from app.models.solution_packet import LessonPacket, TutorFocus, TutorStep
 from app.services.pipeline import solve_circuit
 
 
@@ -113,3 +114,19 @@ def test_lesson_packet_not_generated_for_unverified_packet():
     from app.services.lesson_builder import build_lesson_packet
 
     assert build_lesson_packet(circuit, packet) is None
+
+
+def test_lesson_numeric_guard_ignores_digits_inside_ids():
+    lesson = LessonPacket(
+        summary="A verified lesson is available.",
+        step_by_step_derivation=[
+            TutorStep(
+                id="id_digits",
+                title="Inspect component R13",
+                body="Look at V13, node sense_13, and R5b13 before reading values.",
+                focus=TutorFocus(components=["R13", "R5b13"], nodes=["sense_13"]),
+            )
+        ],
+    )
+
+    assert not lesson_has_unverified_numeric_claims(lesson)

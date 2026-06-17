@@ -193,6 +193,8 @@ Rules:
 - Return only JSON matching the provided schema.
 - Do not solve the circuit.
 - Do not compute final voltages, currents, powers, requested answers, or explanations.
+- The user may ask to create, generate, model, draw, or describe a circuit rather than ask a textbook calculation question. Still produce Circuit IR from the stated topology and component values.
+- If no requested measurement or calculation target is explicit, leave goals empty rather than inventing a goal.
 - Normalize kOhm and kilohm values to ohms, mA values to A, microfarads to F, and all voltages to V.
 - Allowed component types are resistor, voltage_source, current_source, capacitor, inductor, op_amp_ideal, and ideal_op_amp.
 - Use "0" as the ground node.

@@ -2,7 +2,7 @@
 
 ## Benchmark Scope
 
-Use a growing offline benchmark, starting with the structured cases in `backend/tests/fixtures/benchmark_cases/core_cases.json`. The first suite is intentionally small and fast; expand it toward a 30- to 50-problem set as new supported circuit families are added.
+Use a growing offline benchmark in `backend/tests/fixtures/benchmark_cases/`. The evaluator loads every `*_cases.json` fixture in that directory, including the core circuit sanity suite and the BME template submission-evidence suite. Expand it toward a 30- to 50-problem set as new supported circuit families are added.
 
 ## Categories
 
@@ -30,11 +30,13 @@ Score each solved case from 0 to 2 in each dimension:
 ## Procedure
 
 1. Run `python scripts/run_evaluation.py` from `backend`.
-2. Run `python -m pytest` to cover parser, solver, lesson, visual, Gemini mock, and frontend API contracts.
-3. For each supported benchmark case, compare requested answers against expected values and tolerances.
-4. For AC and transient cases, compare magnitude/phase or transient metadata rather than flattening them into DC scalar checks.
-5. For unsupported cases, assert `unsupported` or `ambiguous`, no PASS badge, and no `lesson_packet`.
-6. Inspect any changed SVG template with XML tests before relying on manual screenshots.
+2. For a proposal- or slide-ready summary, run `python scripts/run_evaluation.py --format markdown`.
+3. Run `python -m pytest` to cover parser, solver, lesson, visual, Gemini mock, and frontend API contracts.
+4. For each supported benchmark case, compare requested answers against expected values and tolerances.
+5. For AC and transient cases, compare magnitude/phase or transient metadata rather than flattening them into DC scalar checks.
+6. For BME template cases, require biomedical metadata and any named tutor observations needed for submission evidence.
+7. For unsupported cases, assert `unsupported` or `ambiguous`, no PASS badge, and no `lesson_packet`.
+8. Inspect any changed SVG template with XML tests before relying on manual screenshots.
 
 ## Pass Criteria
 
@@ -43,7 +45,7 @@ Supported circuits should validate, solve, and pass internal verification. Unsup
 ## Expansion Backlog
 
 - Add more bridge/nodal cases with asymmetric values and multiple requested currents.
-- Add op-amp gain, differential amplifier, and transimpedance amplifier benchmark cases.
+- Add more submission-evidence cases around op-amp gain, differential amplifier, and transimpedance amplifier variants.
 - Add AC sweep benchmark expectations for several sampled frequencies.
 - Add fixture-driven mocked Gemini parse outputs for common prompt phrasings.
 - Add visual clarity review notes for each named schematic template.

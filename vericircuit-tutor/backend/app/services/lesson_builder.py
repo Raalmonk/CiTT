@@ -18,7 +18,10 @@ from app.services.value_formatter import format_complex_quantity, format_observa
 
 
 SAFE_NUMERIC_CONSTANTS = {"0", "1", "2"}
-NUMERIC_TOKEN_RE = re.compile(r"(?<![A-Za-z_])[-+]?\d+(?:\.\d+)?(?:e[-+]?\d+)?(?![A-Za-z_])", re.IGNORECASE)
+NUMERIC_TOKEN_RE = re.compile(
+    r"(?<![A-Za-z0-9_])[-+]?\d+(?:\.\d+)?(?:e[-+]?\d+)?(?![A-Za-z0-9_])",
+    re.IGNORECASE,
+)
 
 
 def build_lesson_packet(circuit: CircuitProblem, packet: SolutionPacket) -> LessonPacket | None:

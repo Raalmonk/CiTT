@@ -15,12 +15,17 @@ def focus(
     goals: Iterable[str] = (),
 ) -> TutorFocus:
     component_ids = {component.id for component in circuit.components}
+    current_path_ids = {
+        component.id
+        for component in circuit.components
+        if len(component.nodes) == 2
+    }
     node_ids = set(circuit.nodes)
     goal_ids = {goal.id for goal in circuit.goals}
     return TutorFocus(
         components=[item for item in components if item in component_ids],
         nodes=[item for item in nodes if item in node_ids],
-        current_paths=[item for item in current_paths if item in component_ids],
+        current_paths=[item for item in current_paths if item in current_path_ids],
         goals=[item for item in goals if item in goal_ids],
     )
 

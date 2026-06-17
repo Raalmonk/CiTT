@@ -1,0 +1,154 @@
+[
+  {
+    "id": "bme_ecg_front_end_submission",
+    "category": "bme_template_submission_evidence",
+    "mode": "demo",
+    "problem_text": "BME template: ECG front-end differential amplifier with a 1 mV electrode difference on a 1 V common-mode level. Find the output voltage.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "requires_bme_metadata": true,
+    "expected_tutor_observations": [
+      "differential_input_voltage",
+      "common_mode_input_voltage",
+      "cmrr_mismatch_estimate_db",
+      "noise_budget_boundary"
+    ],
+    "expected_answers": {
+      "ecg_front_end_output": { "value": 0.01, "unit": "V", "tolerance": 1e-9 }
+    }
+  },
+  {
+    "id": "bme_emg_band_pass_submission",
+    "category": "bme_template_submission_evidence",
+    "mode": "demo",
+    "problem_text": "BME template: EMG band-pass chain with an RC high-pass followed by an RC low-pass at 100 Hz. Find Vout.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "requires_bme_metadata": true,
+    "expected_tutor_observations": [
+      "analysis_frequency",
+      "high_pass_cutoff_frequency",
+      "low_pass_cutoff_frequency",
+      "transfer_magnitude_ratio"
+    ],
+    "expected_ac_answers": {
+      "emg_band_pass_output": {
+        "magnitude": 0.8829789928743454,
+        "phase_deg": -2.056982450648962,
+        "unit": "V",
+        "tolerance": 1e-9
+      }
+    }
+  },
+  {
+    "id": "bme_pressure_sensor_divider_submission",
+    "category": "bme_template_submission_evidence",
+    "mode": "demo",
+    "problem_text": "BME template: pressure sensor voltage divider with a 5 V excitation, 10 kOhm bias resistor, and 12 kOhm sensor. Find Vout.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "requires_bme_metadata": true,
+    "expected_answers": {
+      "pressure_divider_output": { "value": 2.727272727272727, "unit": "V", "tolerance": 1e-12 }
+    }
+  },
+  {
+    "id": "bme_pressure_sensor_bridge_submission",
+    "category": "bme_template_submission_evidence",
+    "mode": "demo",
+    "problem_text": "BME template: pressure sensor Wheatstone bridge with one active arm changed by pressure. Find the bridge differential voltage.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "requires_bme_metadata": true,
+    "expected_answers": {
+      "pressure_bridge_p": { "value": 2.5, "unit": "V", "tolerance": 1e-12 },
+      "pressure_bridge_n": { "value": 2.5352112676056344, "unit": "V", "tolerance": 1e-12 },
+      "pressure_bridge_differential": { "value": 0.03521126760563442, "unit": "V", "tolerance": 1e-12 }
+    }
+  },
+  {
+    "id": "bme_strain_gauge_bridge_submission",
+    "category": "bme_template_submission_evidence",
+    "mode": "demo",
+    "problem_text": "BME template: strain gauge Wheatstone bridge with one 1002 ohm gauge arm and three 1000 ohm arms. Find the bridge output.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "requires_bme_metadata": true,
+    "expected_answers": {
+      "strain_bridge_output": { "value": 0.0024975024975026905, "unit": "V", "tolerance": 1e-12 }
+    }
+  },
+  {
+    "id": "bme_thermistor_divider_submission",
+    "category": "bme_template_submission_evidence",
+    "mode": "demo",
+    "problem_text": "BME template: thermistor divider with a 5 V excitation, 10 kOhm fixed resistor, and 12 kOhm thermistor. Find the temperature-sense voltage.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "requires_bme_metadata": true,
+    "expected_answers": {
+      "thermistor_voltage": { "value": 2.727272727272727, "unit": "V", "tolerance": 1e-12 }
+    }
+  },
+  {
+    "id": "bme_photodiode_tia_submission",
+    "category": "bme_template_submission_evidence",
+    "mode": "demo",
+    "problem_text": "BME template: photodiode transimpedance amplifier with 10 uA photocurrent and a 1 MOhm feedback resistor. Find Vout.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "requires_bme_metadata": true,
+    "expected_tutor_observations": [
+      "real_op_amp_saturation_warning",
+      "thermal_noise_RF",
+      "photodiode_shot_noise_IPD",
+      "noise_budget_boundary"
+    ],
+    "expected_answers": {
+      "tia_output": { "value": 10.0, "unit": "V", "tolerance": 1e-12 },
+      "photodiode_current": { "value": 0.00001, "unit": "A", "tolerance": 1e-15 }
+    }
+  },
+  {
+    "id": "bme_instrumentation_amplifier_submission",
+    "category": "bme_template_submission_evidence",
+    "mode": "demo",
+    "problem_text": "BME template: instrumentation amplifier for a 1 mV differential sensor signal using ideal op-amps. Find the output voltage.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "requires_bme_metadata": true,
+    "expected_tutor_observations": [
+      "differential_input_voltage",
+      "common_mode_input_voltage",
+      "cmrr_mismatch_estimate_db",
+      "noise_budget_boundary"
+    ],
+    "expected_answers": {
+      "instrumentation_amp_output": { "value": 0.011, "unit": "V", "tolerance": 1e-9 }
+    }
+  },
+  {
+    "id": "bme_anti_aliasing_low_pass_submission",
+    "category": "bme_template_submission_evidence",
+    "mode": "demo",
+    "problem_text": "BME template: anti-aliasing RC low-pass filter at 1 kHz with R = 3.18 kOhm and C = 100 nF. Find Vout.",
+    "expected_status": "solved",
+    "expected_badge": "PASS",
+    "requires_bme_metadata": true,
+    "expected_tutor_observations": [
+      "adc_sampling_frequency",
+      "adc_nyquist_frequency",
+      "adc_attenuation_at_nyquist",
+      "aliasing_warning",
+      "thermal_noise_R1"
+    ],
+    "expected_ac_answers": {
+      "anti_aliasing_output": {
+        "magnitude": 0.44756213587647853,
+        "phase_deg": -63.412619628195884,
+        "unit": "V",
+        "tolerance": 1e-9
+      }
+    }
+  }
+]

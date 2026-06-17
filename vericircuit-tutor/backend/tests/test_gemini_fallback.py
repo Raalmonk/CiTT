@@ -12,6 +12,7 @@ from app.services.gemini_parser import (
     GeminiComponent,
     GeminiGoal,
     GeminiParserUnavailable,
+    _schema_prompt,
     parse_with_gemini,
 )
 from app.services.parser_service import parse_problem
@@ -234,6 +235,15 @@ def test_gemini_api_schema_omits_additional_properties():
     serialized = json.dumps(schema)
 
     assert "additionalProperties" not in serialized
+
+
+def test_gemini_prompt_supports_circuit_generation_not_only_questions():
+    prompt = _schema_prompt(
+        "Generate a Circuit IR for a 5 V source feeding two resistors in series."
+    )
+
+    assert "create, generate, model, draw, or describe a circuit" in prompt
+    assert "leave goals empty rather than inventing a goal" in prompt
 
 
 def test_gemini_strict_succeeds_when_gemini_parse_succeeds(monkeypatch):
