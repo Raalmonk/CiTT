@@ -8,6 +8,12 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from app.models.coaching import (
+    InstructorDashboardRequest,
+    InstructorDashboardResponse,
+    ReasoningCoachRequest,
+    ReasoningCoachResponse,
+)
 from app.models.analysis_view import AnalysisView
 from app.models.circuit_ir import CircuitProblem
 from app.models.solution_packet import SolutionPacket
@@ -17,6 +23,7 @@ from app.services.analysis_view import build_analysis_view
 from app.services.explainer import explain_solution
 from app.services.parser_service import parse_problem
 from app.services.pipeline import solve_circuit
+from app.services.reasoning_coach import build_instructor_dashboard, coach_student_attempt
 from app.services.schematic_generator import render_schematic_svg
 from app.services.visual_layout import build_visual_circuit
 from app.services.variant_generator import (
@@ -169,3 +176,15 @@ def full_pipeline(request: FullPipelineRequest) -> FullPipelineResponse:
         parser_used=parsed.parser_used,
         warnings=warnings,
     )
+
+
+@app.post("/reasoning_coach", response_model=ReasoningCoachResponse)
+def reasoning_coach(request: ReasoningCoachRequest) -> ReasoningCoachResponse:
+    return coach_student_attempt(request)
+
+
+@app.post("/instructor_dashboard", response_model=InstructorDashboardResponse)
+def instructor_dashboard(
+    request: InstructorDashboardRequest,
+) -> InstructorDashboardResponse:
+    return build_instructor_dashboard(request)

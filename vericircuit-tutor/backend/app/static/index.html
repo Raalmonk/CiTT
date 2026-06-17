@@ -108,6 +108,10 @@
         line-height: 1.45;
       }
 
+      #studentAttemptText {
+        min-height: 120px;
+      }
+
       .button-row {
         align-items: center;
         display: flex;
@@ -143,6 +147,40 @@
         color: #123f61;
         padding: 10px 12px;
         line-height: 1.45;
+      }
+
+      .coach-panel {
+        display: grid;
+        gap: 12px;
+      }
+
+      .coach-card {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        display: grid;
+        gap: 6px;
+        padding: 12px;
+      }
+
+      .coach-title {
+        font-weight: 800;
+      }
+
+      .coach-choice-row,
+      .coach-meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .coach-choice,
+      .coach-meta {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--neutral);
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 8px;
       }
 
       .progress-panel {
@@ -994,8 +1032,40 @@
           <label for="problemText">Lesson prompt</label>
           <textarea id="problemText"></textarea>
         </div>
+        <div>
+          <label for="studentAttemptText">Student frame</label>
+          <textarea id="studentAttemptText" placeholder="My plan..."></textarea>
+        </div>
+        <div class="field-grid">
+          <div>
+            <label for="hintLevelSelect">Hint level</label>
+            <select id="hintLevelSelect">
+              <option value="0">0 Reflection</option>
+              <option value="1" selected>1 Concept</option>
+              <option value="2">2 Method</option>
+              <option value="3">3 Equation</option>
+              <option value="4">4 Checkpoint</option>
+            </select>
+          </div>
+          <div>
+            <label for="confidenceInput">Confidence</label>
+            <input id="confidenceInput" type="number" min="0" max="100" step="5" placeholder="0-100" />
+          </div>
+          <div>
+            <label for="representationModeSelect">Think by</label>
+            <select id="representationModeSelect">
+              <option value="physical_intuition">Physical intuition</option>
+              <option value="diagram">Diagram</option>
+              <option value="kcl_equation">KCL equation</option>
+              <option value="units_magnitude">Units / magnitude</option>
+              <option value="biomedical_context">Biomedical context</option>
+            </select>
+          </div>
+        </div>
         <div class="button-row">
           <button id="runButton">Start guided lesson</button>
+          <button class="secondary" id="coachButton">Coach next step</button>
+          <button class="secondary" id="revealCoachButton">Reveal verified</button>
         </div>
         <div id="status" class="message">Ready.</div>
         <details class="sidebar-advanced">
@@ -1091,6 +1161,10 @@
           <h2>Key Answer</h2>
           <div id="answersPanel" class="answers message">No solution yet.</div>
         </div>
+        <div class="panel wide">
+          <h2>Reasoning Coach</h2>
+          <div id="coachPanel" class="coach-panel message">No coach turn yet.</div>
+        </div>
         <details class="panel wide advanced-panel">
           <summary>Advanced Dashboard</summary>
           <div class="advanced-grid">
@@ -1173,6 +1247,12 @@
       const problemText = document.getElementById("problemText");
       const modeSelect = document.getElementById("modeSelect");
       const runButton = document.getElementById("runButton");
+      const coachButton = document.getElementById("coachButton");
+      const revealCoachButton = document.getElementById("revealCoachButton");
+      const studentAttemptText = document.getElementById("studentAttemptText");
+      const hintLevelSelect = document.getElementById("hintLevelSelect");
+      const confidenceInput = document.getElementById("confidenceInput");
+      const representationModeSelect = document.getElementById("representationModeSelect");
       const valueVariantButton = document.getElementById("valueVariantButton");
       const goalVariantButton = document.getElementById("goalVariantButton");
       const statusEl = document.getElementById("status");
@@ -1181,6 +1261,7 @@
       const netlistPanel = document.getElementById("netlistPanel");
       const badgePanel = document.getElementById("badgePanel");
       const answersPanel = document.getElementById("answersPanel");
+      const coachPanel = document.getElementById("coachPanel");
       const provenancePanel = document.getElementById("provenancePanel");
       const verificationPanel = document.getElementById("verificationPanel");
       const explanationPanel = document.getElementById("explanationPanel");
@@ -1218,6 +1299,7 @@
       let currentStepId = null;
       let currentPhasorItems = [];
       let currentLesson = null;
+      let currentStudentProfile = null;
       let guidedSteps = [];
       let selectedGuidedStepIndex = 0;
       let originalDiagramViewBox = null;
@@ -1316,6 +1398,7 @@
         netlistPanel.textContent = "";
         badgePanel.textContent = "No badge yet.";
         answersPanel.textContent = "No solution yet.";
+        coachPanel.textContent = "No coach turn yet.";
         provenancePanel.textContent = "No provenance yet.";
         verificationPanel.textContent = "No checks yet.";
         explanationPanel.textContent = "";
@@ -2428,6 +2511,125 @@
           .join("");
       }
 
+      function coachMeta(label, value) {
+        if (value === undefined || value === null || value === "") return "";
+        return `<span class="coach-meta">${escapeHtml(label)}: ${escapeHtml(value)}</span>`;
+      }
+
+      function renderCoachResponse(payload) {
+        currentStudentProfile = payload.profile_update || currentStudentProfile;
+        const frame = payload.student_frame || {};
+        const localCheck = payload.local_check || {};
+        const nudge = payload.nudge || {};
+        const metrics = payload.metrics || {};
+        const reflection = payload.reflection || {};
+        const choices = (nudge.choices || [])
+          .map((choice) => `<span class="coach-choice">${escapeHtml(choice)}</span>`)
+          .join("");
+        const practice = (payload.adaptive_practice || [])
+          .map((item) => `
+            <div class="coach-card">
+              <div class="coach-title">${escapeHtml(item.goal)}</div>
+              <div>${escapeHtml(item.prompt)}</div>
+              <div class="coach-meta-row">
+                ${coachMeta("target", item.target_misconception)}
+                ${coachMeta("mode", item.representation_mode)}
+              </div>
+            </div>
+          `)
+          .join("");
+        const learned = (reflection.today_i_learned || [])
+          .map((item) => `<li>${escapeHtml(item)}</li>`)
+          .join("");
+        const misconceptions = (frame.likely_misconceptions || [])
+          .map((item) => `<span class="coach-meta">${escapeHtml(item)}</span>`)
+          .join("");
+        const recurring = Object.entries(currentStudentProfile?.recurring_misconceptions || {})
+          .map(([key, count]) => `<span class="coach-meta">${escapeHtml(key)} x${Number(count)}</span>`)
+          .join("");
+        coachPanel.innerHTML = `
+          <div class="coach-card">
+            <div class="coach-title">Local check</div>
+            <div>${escapeHtml(localCheck.verified_context || "")}</div>
+            <div class="coach-meta-row">
+              ${coachMeta("status", localCheck.status)}
+              ${coachMeta("focus", localCheck.focus_issue)}
+              ${coachMeta("hint", nudge.hint_level)}
+              ${coachMeta("independence", metrics.independence_score)}
+            </div>
+          </div>
+          <div class="coach-card">
+            <div class="coach-title">Nudge</div>
+            <div>${escapeHtml(nudge.message || "")}</div>
+            <strong>${escapeHtml(nudge.question || "")}</strong>
+            <div class="message">${escapeHtml(nudge.representation_prompt || "")}</div>
+            <div class="coach-choice-row">${choices}</div>
+          </div>
+          <div class="coach-card">
+            <div class="coach-title">Student model</div>
+            <div class="coach-meta-row">
+              ${coachMeta("method", frame.suspected_method || "unknown")}
+              ${coachMeta("confidence", frame.confidence || "unknown")}
+              ${coachMeta("budget", metrics.hint_budget_used)}
+            </div>
+            <div class="coach-meta-row">${misconceptions || '<span class="message">No misconception tag this turn.</span>'}</div>
+            <div class="coach-meta-row">${recurring || '<span class="message">No recurring misconception history yet.</span>'}</div>
+            <div class="message">${escapeHtml(metrics.confidence_calibration || reflection.summary || "")}</div>
+          </div>
+          <div class="coach-card">
+            <div class="coach-title">Reflection journal</div>
+            <div>${escapeHtml(reflection.summary || "")}</div>
+            ${learned ? `<ul class="bme-list">${learned}</ul>` : '<div class="message">Journal will fill after a committed coach turn.</div>'}
+          </div>
+          ${practice || '<div class="message">No adaptive practice generated for this turn.</div>'}
+        `;
+
+        renderBadge({ verification_badge: payload.verification_badge });
+        if (payload.solution_packet) {
+          renderPacket(payload.solution_packet);
+        } else {
+          answersPanel.textContent = "Verified values withheld by coach mode until reveal.";
+        }
+      }
+
+      function coachRequestBody(revealSolution = false) {
+        const rawConfidence = confidenceInput.value.trim();
+        const confidence = Number(rawConfidence);
+        const commitment = {
+          attempt_text: studentAttemptText.value,
+        };
+        if (rawConfidence && Number.isFinite(confidence)) {
+          commitment.confidence_percent = confidence;
+        }
+        return {
+          problem_text: problemText.value,
+          mode: modeSelect.value,
+          requested_hint_level: revealSolution ? 5 : Number(hintLevelSelect.value || 1),
+          representation_mode: representationModeSelect.value,
+          reveal_solution: revealSolution,
+          student_commitment: commitment,
+          student_profile: currentStudentProfile,
+        };
+      }
+
+      async function runCoachTurn(revealSolution = false) {
+        statusEl.textContent = revealSolution ? "Coach reveal requested." : "Coach turn started.";
+        coachButton.disabled = true;
+        revealCoachButton.disabled = true;
+        try {
+          const payload = await requestJson("/reasoning_coach", coachRequestBody(revealSolution));
+          renderCoachResponse(payload);
+          statusEl.textContent = payload.nudge?.answer_revealed
+            ? "Verified solution revealed by coach mode."
+            : "Coach nudge ready.";
+        } catch (error) {
+          statusEl.textContent = `Coach error: ${error.message}`;
+        } finally {
+          coachButton.disabled = false;
+          revealCoachButton.disabled = false;
+        }
+      }
+
       function renderTransientResponse(response) {
         const sampleRows = (response.sample_points || [])
           .map((point) => {
@@ -3138,6 +3340,8 @@
       }
 
       runButton.addEventListener("click", runPipeline);
+      coachButton.addEventListener("click", () => runCoachTurn(false));
+      revealCoachButton.addEventListener("click", () => runCoachTurn(true));
       valueVariantButton.addEventListener("click", () => generateVariant("value"));
       goalVariantButton.addEventListener("click", () => generateVariant("goal"));
       updateGoalsButton.addEventListener("click", updateGoalsAndResolve);

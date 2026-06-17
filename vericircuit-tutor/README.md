@@ -6,6 +6,8 @@ VeriCircuit Tutor is a professor-facing MVP of a simulation-grounded AI tutor fo
 
 The LLM or deterministic parser may help translate a problem into a structured circuit representation, and a tutor layer may explain the result, but final numerical answers come only from verified solver output.
 
+The newer coaching path adds a second rule: students should own the next reasoning move. CiTT can now withhold final values, inspect a student's partial frame, and return one local nudge before revealing the verified solution.
+
 ## Why This Exists
 
 Ordinary LLM tutors can produce fluent circuit explanations while making small but consequential mistakes in signs, units, node labels, or current directions. Those mistakes are hard for a student to detect because the prose still sounds confident.
@@ -39,6 +41,8 @@ The MVP supports:
 - SPICE-like netlist generation for transparency
 - Deterministic SVG circuit diagrams generated from Circuit IR
 - Answer provenance showing parser, solver, MNA matrix, RHS, and solution vector
+- A `/reasoning_coach` loop that supports student commitment, local checks, hint ladder levels, misconception tags, representation modes, adaptive practice, reflection journal entries, profile updates, and Level 5 verified reveal
+- An `/instructor_dashboard` summary endpoint for class-level misconception maps from submitted student profiles
 
 Unsupported in this first version:
 
@@ -98,12 +102,19 @@ The BME tutor layer adds biomedical context, practice variants, safety notes, no
    - `LessonPacket` is generated only for solved packets with a `PASS` verification badge.
    - User-visible lesson numbers are formatted from `SolutionPacket` fields or deterministic `TutorObservation` values, not from Gemini prose.
 
-8. **Visual layer**
+8. **Reasoning coach**
+   - `/reasoning_coach` runs parse and solve internally, but does not expose final values unless reveal is explicitly allowed at Level 5 after a student commitment.
+   - It extracts a lightweight `StudentFrame`, detects teachable misconception tags, returns one `CoachNudge`, supports diagram/KCL/physical/unit/biomedical representation modes, generates adaptive practice prompts, and updates a portable `StudentProfile`.
+   - In `gemini` or `gemini_strict` mode, Gemini may also classify the student's partial reasoning into a `StudentFrame`. If that call fails, the coach falls back to deterministic heuristics and records a warning.
+   - `/instructor_dashboard` aggregates submitted student profiles into class-level misconception percentages and suggested interventions. It is a stateless MVP endpoint, not persistent analytics storage.
+   - Student-frame extraction is never allowed to compute or reveal numerical answers; numerical authority remains solver/verifier-grounded.
+
+9. **Visual layer**
    - `visual_layout.py` builds a lightweight `VisualCircuit` semantic layout with nodes, components, wires, annotations, overlays, and focus regions.
    - `/visual_layout` exposes that semantic layout for lesson overlays and future renderer improvements.
    - `render_schematic_svg(circuit)` remains the public SVG path and preserves `data-component-id` and `data-node-id`.
 
-9. **Schematic generator**
+10. **Schematic generator**
    - Creates deterministic SVG diagrams from Circuit IR.
    - Uses named templates for bundled demos and a fallback graph renderer for other supported layouts.
 
@@ -112,6 +123,8 @@ The BME tutor layer adds biomedical context, practice variants, safety notes, no
 Gemini mode is optional. The backend reads `GEMINI_API_KEY` or `GOOGLE_API_KEY`; keys are never sent to the frontend. `GEMINI_MODEL` defaults to `gemini-flash-latest` and can be overridden per server environment.
 
 `gemini_client.py` owns Google GenAI client creation and structured JSON calls. `gemini_parser.py` owns the Circuit IR schema and prompt. Gemini may parse natural language into Circuit IR, but final node voltages, currents, powers, phasors, transient values, requested answers, explanations, and lesson numbers come from deterministic solver/verifier outputs.
+
+The reasoning coach can also use Gemini to classify a student's freeform partial attempt into `StudentFrame` fields such as suspected method, confusion, confidence, and likely misconception. That prompt explicitly forbids solving or revealing final values, and the deterministic coach falls back if Gemini is unavailable.
 
 ## Running Tests And Evaluation
 
@@ -225,6 +238,8 @@ backend/app/examples/
 - `POST /solve`
 - `POST /explain`
 - `POST /variant`
+- `POST /reasoning_coach`
+- `POST /instructor_dashboard`
 - `POST /full_pipeline`
 
 `/full_pipeline` accepts:
@@ -237,6 +252,23 @@ backend/app/examples/
 ```
 
 and returns Circuit IR, Solution Packet, explanation, variants, parser used, and warnings.
+
+`/reasoning_coach` accepts the same problem text plus a student commitment:
+
+```json
+{
+  "problem_text": "A 10 V voltage source is connected in series with R1 = 2 kOhm and R2 = 3 kOhm. Find the voltage across R2 and the current through the circuit.",
+  "mode": "demo",
+  "requested_hint_level": 1,
+  "representation_mode": "physical_intuition",
+  "student_commitment": {
+    "attempt_text": "I think it is a divider, but I am unsure about current direction.",
+    "confidence_percent": 45
+  }
+}
+```
+
+It returns a local check, one nudge, next choices, adaptive practice, profile update, and reflection. `solution_packet` stays `null` until Level 5 reveal is requested after a student-owned attempt. See [docs/reasoning_coach.md](docs/reasoning_coach.md).
 
 ## Future Work
 
@@ -251,5 +283,5 @@ and returns Circuit IR, Solution Packet, explanation, variants, parser used, and
 - BME lab-style report export
 - Dependent sources
 - General, RLC, and nonlinear transient simulation
-- Student-solution diagnosis
+- Persistent student-model storage beyond stateless profile payloads
 - Benchmarking against general LLM answers
