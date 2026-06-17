@@ -12,7 +12,9 @@ from app.services.gemini_parser import (
     GeminiComponent,
     GeminiGoal,
     GeminiParserUnavailable,
+    _image_schema_prompt,
     _schema_prompt,
+    parse_image_with_gemini,
     parse_with_gemini,
 )
 from app.services.parser_service import parse_problem
@@ -119,9 +121,11 @@ class FakeModels:
         self.response = response
         self.config = None
         self.model = None
+        self.contents = None
 
     def generate_content(self, *, model, contents, config):
         self.model = model
+        self.contents = contents
         self.config = config
         return self.response
 
@@ -230,6 +234,21 @@ def test_parse_with_gemini_accepts_google_api_key(monkeypatch):
     assert fake_client.api_key == "google-test-key"
 
 
+def test_parse_image_with_gemini_uses_image_part_and_schema(monkeypatch):
+    parsed = gemini_api_voltage_divider()
+    fake_client = install_fake_gemini_client(monkeypatch, GeminiResponse(parsed=parsed))
+
+    circuit = parse_image_with_gemini(
+        problem_text="Find Vout.",
+        image_bytes=b"fake-png-bytes",
+        mime_type="image/png",
+    )
+
+    assert circuit.id == "gemini_voltage_divider"
+    assert fake_client.models.config.response_json_schema == GeminiAPICircuitProblem.model_json_schema()
+    assert len(fake_client.models.contents) == 2
+
+
 def test_gemini_api_schema_omits_additional_properties():
     schema = GeminiAPICircuitProblem.model_json_schema()
     serialized = json.dumps(schema)
@@ -244,6 +263,14 @@ def test_gemini_prompt_supports_circuit_generation_not_only_questions():
 
     assert "create, generate, model, draw, or describe a circuit" in prompt
     assert "leave goals empty rather than inventing a goal" in prompt
+
+
+def test_gemini_image_prompt_supports_schematic_recognition():
+    prompt = _image_schema_prompt("Find the output voltage.")
+
+    assert "Parse the attached schematic/image" in prompt
+    assert "visible component labels" in prompt
+    assert "fill ambiguities instead of guessing" in prompt
 
 
 def test_gemini_strict_succeeds_when_gemini_parse_succeeds(monkeypatch):

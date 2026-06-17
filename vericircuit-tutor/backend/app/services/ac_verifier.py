@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from app.models.circuit_ir import CircuitProblem, is_ideal_op_amp_type
+from app.models.circuit_ir import CircuitProblem, is_nonideal_op_amp_type, is_op_amp_type
 from app.models.solution_packet import CheckResult, SolutionPacket, VerificationReport
 from app.services.ac_solver import quantity_to_complex
 from app.services.validator import NORMALIZED_UNITS, reachable_from_ground
@@ -93,7 +93,7 @@ def verify_ac_solution(
             missing_component_result = True
             continue
         current = quantity_to_complex(result.current)
-        if is_ideal_op_amp_type(component.type):
+        if is_op_amp_type(component.type):
             node_a, node_b = component.nodes[2], component.nodes[3]
         else:
             node_a, node_b = component.nodes[0], component.nodes[1]
@@ -138,6 +138,28 @@ def verify_ac_solution(
             else "One or more complex values is not finite.",
         )
     )
+
+    for component in problem.components:
+        if not is_nonideal_op_amp_type(component.type):
+            continue
+        if component.output_current_limit_a is None:
+            continue
+        result = solution.ac_component_results.get(component.id)
+        if result is None:
+            output_current = float("inf")
+        else:
+            output_current = abs(quantity_to_complex(result.current))
+        limit_passed = output_current <= component.output_current_limit_a + current_tol
+        checks.append(
+            _check(
+                "nonideal_op_amp_output_current_limit",
+                limit_passed,
+                f"{component.id} output-current phasor magnitude is within the configured limit."
+                if limit_passed
+                else f"{component.id} output-current phasor magnitude exceeds the configured limit.",
+                value=output_current,
+            )
+        )
 
     passed = all(check.passed for check in checks)
     return VerificationReport(

@@ -7,18 +7,82 @@
     <style>
       :root {
         color-scheme: light;
-        --bg: #f7f8fb;
+        --bg: #eef3f8;
+        --bg-top: #f8fbff;
         --panel: #ffffff;
-        --ink: #17202a;
-        --muted: #5f6b7a;
-        --line: #d9dee7;
-        --accent: #1768ac;
-        --accent-dark: #0f4e82;
-        --ok: #117a4b;
-        --bad: #b42318;
-        --warn: #9a5b00;
+        --panel-subtle: #f8fafc;
+        --input: #ffffff;
+        --canvas: #ffffff;
+        --canvas-line: #d9dee7;
+        --canvas-grid: #e5e9f0;
+        --canvas-ink: #17202a;
+        --ink: #142033;
+        --muted: #5c6b7d;
+        --muted-strong: #3f5064;
+        --line: #d5dde8;
+        --line-strong: #b9c6d8;
+        --accent: #145f9f;
+        --accent-dark: #0b416d;
+        --accent-contrast: #ffffff;
+        --accent-soft: #e8f4fc;
+        --accent-line: #b7d6ec;
+        --ok: #0f6b43;
+        --ok-soft: #e6f4ee;
+        --bad: #a92317;
+        --bad-soft: #fee6e3;
+        --warn: #875100;
+        --warn-soft: #fff3d8;
+        --focus: #f59e0b;
+        --focus-strong: #92400e;
+        --focus-soft: #fff7ed;
         --neutral: #455468;
+        --neutral-soft: #edf1f6;
         --code: #111827;
+        --radius: 8px;
+        --radius-sm: 6px;
+        --shadow-panel: 0 14px 36px rgba(20, 32, 51, 0.07);
+        --shadow-elevated: 0 22px 60px rgba(20, 32, 51, 0.1);
+        --shadow-button: 0 7px 16px rgba(20, 95, 159, 0.18);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --bg: #101722;
+          --bg-top: #172232;
+          --panel: #182333;
+          --panel-subtle: #121b28;
+          --input: #0f1722;
+          --canvas: #f8fafc;
+          --canvas-line: #d9dee7;
+          --canvas-grid: #e5e9f0;
+          --canvas-ink: #17202a;
+          --ink: #e7eef7;
+          --muted: #9eabba;
+          --muted-strong: #c5d0dd;
+          --line: #2c3a4b;
+          --line-strong: #40536a;
+          --accent: #74b4e0;
+          --accent-dark: #d9eefc;
+          --accent-contrast: #06131f;
+          --accent-soft: #12334b;
+          --accent-line: #34698f;
+          --ok: #68cfa2;
+          --ok-soft: #123829;
+          --bad: #ff968b;
+          --bad-soft: #3b1b1a;
+          --warn: #efbd72;
+          --warn-soft: #392a13;
+          --focus: #f59e0b;
+          --focus-strong: #92400e;
+          --focus-soft: #fff7ed;
+          --neutral: #bcc8d6;
+          --neutral-soft: #253143;
+          --code: #0b1220;
+          --shadow-panel: 0 18px 44px rgba(0, 0, 0, 0.28);
+          --shadow-elevated: 0 26px 70px rgba(0, 0, 0, 0.36);
+          --shadow-button: 0 10px 24px rgba(116, 180, 224, 0.22);
+        }
       }
 
       * {
@@ -27,37 +91,127 @@
 
       body {
         margin: 0;
-        background: var(--bg);
+        min-height: 100dvh;
+        background:
+          linear-gradient(180deg, var(--bg-top) 0, #eef5fb 320px, var(--bg) 100%);
         color: var(--ink);
         font-family:
-          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
           "Segoe UI", sans-serif;
+        font-size: 14px;
+        line-height: 1.45;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          background:
+            linear-gradient(180deg, var(--bg-top) 0, #111b28 340px, var(--bg) 100%);
+        }
+      }
+
+      ::selection {
+        background: #cfe8f8;
+        color: var(--accent-dark);
       }
 
       header {
         border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(14px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        header {
+          background: rgba(18, 27, 40, 0.92);
+        }
+      }
+
+      .header-inner {
+        align-items: center;
+        display: flex;
+        gap: 18px;
+        justify-content: space-between;
+        margin: 0 auto;
+        max-width: 1540px;
+        min-height: 68px;
+        padding: 10px 20px;
+      }
+
+      .brand-block {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        align-items: center;
+        background: var(--ink);
+        border-radius: var(--radius);
+        color: var(--panel);
+        display: inline-flex;
+        flex: 0 0 auto;
+        font-size: 12px;
+        font-weight: 850;
+        height: 38px;
+        justify-content: center;
+        letter-spacing: 0;
+        width: 38px;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .brand-mark {
+          background: var(--accent);
+          color: var(--accent-contrast);
+        }
+      }
+
+      .header-meta {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .header-pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
         background: var(--panel);
-        padding: 18px 24px;
+        color: var(--muted-strong);
+        font-size: 12px;
+        font-weight: 750;
+        padding: 6px 9px;
+        white-space: nowrap;
       }
 
       h1 {
         margin: 0;
-        font-size: 24px;
-        font-weight: 720;
+        font-size: 21px;
+        font-weight: 780;
+        letter-spacing: 0;
       }
 
       .subtitle {
         margin-top: 4px;
         color: var(--muted);
-        max-width: 880px;
+        font-size: 14px;
+        max-width: 760px;
       }
 
       main {
         align-items: start;
         display: grid;
-        grid-template-columns: minmax(300px, 420px) 1fr;
-        gap: 18px;
-        padding: 18px;
+        grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+        gap: 24px;
+        margin: 0 auto;
+        max-width: 1540px;
+        padding: 24px 20px 28px;
       }
 
       section,
@@ -68,8 +222,19 @@
       .panel {
         background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-panel);
+        min-width: 0;
         padding: 16px;
+      }
+
+      .panel.prominent {
+        box-shadow: var(--shadow-elevated);
+      }
+
+      .control-panel {
+        display: grid;
+        gap: 16px;
       }
 
       .stack {
@@ -78,32 +243,79 @@
         gap: 12px;
       }
 
+      .sidebar-heading {
+        border-bottom: 1px solid var(--line);
+        display: grid;
+        gap: 4px;
+        padding-bottom: 12px;
+      }
+
+      .sidebar-heading h2 {
+        font-size: 16px;
+        margin: 0;
+      }
+
+      .sidebar-heading p {
+        color: var(--muted);
+        margin: 0;
+      }
+
       label {
         display: block;
         margin-bottom: 6px;
         color: var(--muted);
         font-size: 13px;
-        font-weight: 650;
+        font-weight: 680;
       }
 
       select,
       textarea,
+      input,
       button {
         font: inherit;
       }
 
       select,
-      textarea {
+      textarea,
+      input[type="text"],
+      input[type="number"] {
         width: 100%;
         border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #fff;
+        border-radius: var(--radius-sm);
+        background: var(--input);
         color: var(--ink);
+        min-height: 40px;
         padding: 10px;
+        transition:
+          border-color 140ms ease,
+          box-shadow 140ms ease,
+          background 140ms ease;
+      }
+
+      select:focus-visible,
+      textarea:focus-visible,
+      input[type="text"]:focus-visible,
+      input[type="number"]:focus-visible,
+      button:focus-visible,
+      summary:focus-visible {
+        border-color: var(--accent);
+        box-shadow:
+          0 0 0 1px var(--accent),
+          0 0 0 4px rgba(20, 95, 159, 0.16);
+        outline: 0;
+      }
+
+      input[type="checkbox"] {
+        accent-color: var(--accent);
+      }
+
+      input[type="checkbox"]:focus-visible {
+        outline: 3px solid rgba(20, 95, 159, 0.2);
+        outline-offset: 2px;
       }
 
       textarea {
-        min-height: 190px;
+        min-height: 210px;
         resize: vertical;
         line-height: 1.45;
       }
@@ -121,18 +333,43 @@
 
       button {
         border: 0;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         background: var(--accent);
-        color: white;
+        color: var(--accent-contrast);
         cursor: pointer;
+        line-height: 1;
+        min-height: 40px;
         padding: 10px 12px;
         font-weight: 700;
+        white-space: nowrap;
+        box-shadow: var(--shadow-button);
+        transition:
+          background 140ms ease,
+          border-color 140ms ease,
+          box-shadow 140ms ease,
+          color 140ms ease,
+          transform 120ms ease;
+      }
+
+      button:hover:not(:disabled) {
+        background: var(--accent-dark);
+        transform: translateY(-1px);
+      }
+
+      button:active:not(:disabled) {
+        transform: translateY(0) scale(0.99);
       }
 
       button.secondary {
         border: 1px solid var(--line);
-        background: #fff;
+        background: var(--panel);
         color: var(--accent-dark);
+        box-shadow: none;
+      }
+
+      button.secondary:hover:not(:disabled) {
+        border-color: var(--accent-line);
+        background: var(--accent-soft);
       }
 
       button:disabled {
@@ -142,11 +379,131 @@
 
       .authority {
         border-left: 4px solid var(--accent);
-        background: #eef6fc;
-        border-radius: 6px;
-        color: #123f61;
+        background: var(--accent-soft);
+        border-radius: var(--radius-sm);
+        color: var(--accent-dark);
         padding: 10px 12px;
         line-height: 1.45;
+      }
+
+      .status-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        background: var(--panel-subtle);
+        color: var(--muted-strong);
+        font-size: 13px;
+        font-weight: 700;
+        padding: 10px 12px;
+      }
+
+      .status-card[data-tone="working"] {
+        border-color: var(--accent-line);
+        background: var(--accent-soft);
+        color: var(--accent-dark);
+      }
+
+      .status-card[data-tone="success"] {
+        border-color: var(--ok);
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+
+      .status-card[data-tone="warning"] {
+        border-color: var(--warn);
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+
+      .status-card[data-tone="error"] {
+        border-color: var(--bad);
+        background: var(--bad-soft);
+        color: var(--bad);
+      }
+
+      .scope-boundary {
+        border: 1px solid var(--accent-line);
+        background:
+          linear-gradient(180deg, rgba(232, 244, 252, 0.78), rgba(255, 255, 255, 0.94));
+        border-radius: var(--radius);
+        color: var(--accent-dark);
+        display: grid;
+        gap: 10px;
+        line-height: 1.45;
+        padding: 12px;
+      }
+
+      .scope-boundary h2 {
+        margin-bottom: 2px;
+      }
+
+      .scope-summary {
+        display: grid;
+        gap: 4px;
+      }
+
+      .scope-positioning {
+        color: var(--muted-strong);
+      }
+
+      .scope-boundary details {
+        border-top-color: var(--accent-line);
+        margin-top: 0;
+        padding-top: 8px;
+      }
+
+      .scope-group {
+        display: grid;
+        gap: 6px;
+      }
+
+      .scope-group-title {
+        color: var(--accent-dark);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .scope-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .scope-chip {
+        background: var(--panel);
+        border: 1px solid var(--accent-line);
+        border-radius: var(--radius-sm);
+        color: var(--accent-dark);
+        font-size: 12px;
+        font-weight: 750;
+        padding: 5px 7px;
+      }
+
+      .scope-list {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .scope-list li {
+        margin: 3px 0;
+      }
+
+      .capability-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .capability-item {
+        background: var(--panel);
+        border: 1px solid var(--accent-line);
+        border-radius: var(--radius-sm);
+        display: grid;
+        gap: 4px;
+        padding: 9px;
+      }
+
+      .capability-item strong {
+        color: var(--accent-dark);
       }
 
       .coach-panel {
@@ -155,8 +512,9 @@
       }
 
       .coach-card {
+        background: var(--panel-subtle);
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         display: grid;
         gap: 6px;
         padding: 12px;
@@ -177,7 +535,8 @@
       .coach-meta {
         border: 1px solid var(--line);
         border-radius: 999px;
-        color: var(--neutral);
+        background: var(--panel);
+        color: var(--muted-strong);
         font-size: 12px;
         font-weight: 700;
         padding: 4px 8px;
@@ -189,7 +548,7 @@
       }
 
       .progress-bar {
-        background: #e8edf4;
+        background: var(--neutral-soft);
         border-radius: 999px;
         height: 10px;
         overflow: hidden;
@@ -211,7 +570,7 @@
       .step {
         align-items: center;
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         color: var(--muted);
         display: grid;
         gap: 2px;
@@ -245,17 +604,17 @@
       }
 
       .step.pending .step-icon {
-        background: #eef1f5;
+        background: var(--neutral-soft);
         color: var(--neutral);
       }
 
       .step.running {
-        border-color: #9bc2df;
-        background: #f0f7fd;
+        border-color: var(--accent-line);
+        background: var(--accent-soft);
       }
 
       .step.running .step-icon {
-        background: #d8ecfb;
+        background: var(--panel);
         color: var(--accent-dark);
       }
 
@@ -269,22 +628,22 @@
       }
 
       .step.done .step-icon {
-        background: #e6f4ee;
+        background: var(--ok-soft);
         color: var(--ok);
       }
 
       .step.failed {
-        border-color: #f3b5af;
-        background: #fff4f3;
+        border-color: var(--bad);
+        background: var(--bad-soft);
       }
 
       .step.failed .step-icon {
-        background: #fee4e2;
+        background: var(--panel);
         color: var(--bad);
       }
 
       .step.skipped .step-icon {
-        background: #eef1f5;
+        background: var(--neutral-soft);
         color: var(--neutral);
       }
 
@@ -334,19 +693,23 @@
       }
 
       .component-button {
-        background: #fff;
+        background: var(--panel);
         border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        box-shadow: none;
         color: var(--ink);
         display: grid;
         gap: 3px;
         justify-items: start;
+        line-height: 1.35;
         text-align: left;
+        white-space: normal;
       }
 
       .component-button.selected {
         border-color: var(--accent);
-        background: #eef6fc;
-        color: #123f61;
+        background: var(--accent-soft);
+        color: var(--accent-dark);
       }
 
       .field-grid {
@@ -357,25 +720,15 @@
 
       input[readonly],
       select:disabled {
-        background: #f6f7f9;
+        background: var(--neutral-soft);
         color: var(--muted);
-      }
-
-      input[type="text"],
-      input[type="number"] {
-        width: 100%;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #fff;
-        color: var(--ink);
-        padding: 10px;
-        font: inherit;
       }
 
       .goal-item {
         align-items: start;
+        background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         display: grid;
         gap: 3px;
         grid-template-columns: 22px 1fr;
@@ -425,7 +778,7 @@
       }
 
       .diagram svg .current-path.pulse-active {
-        stroke: #1768ac;
+        stroke: var(--accent);
         stroke-dasharray: 8 16;
         animation: currentFlowForward var(--pulse-duration, 1.4s) linear infinite;
         opacity: var(--pulse-opacity, 0.8);
@@ -436,18 +789,18 @@
       }
 
       .diagram svg .current-path.pulse-zero {
-        stroke: #9ca3af;
+        stroke: var(--neutral);
         stroke-dasharray: none;
         animation: none;
         opacity: 0.35;
       }
 
       .branch-current-label {
-        fill: #1768ac;
+        fill: var(--accent);
         font: 700 16px system-ui, sans-serif;
         paint-order: stroke;
         pointer-events: none;
-        stroke: #ffffff;
+        stroke: var(--canvas);
         stroke-linejoin: round;
         stroke-width: 5px;
         text-anchor: middle;
@@ -468,7 +821,11 @@
       .grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 14px;
+        gap: 16px;
+      }
+
+      .workspace-grid {
+        align-items: start;
       }
 
       .wide {
@@ -477,7 +834,25 @@
 
       .student-mode-panel {
         display: grid;
-        gap: 14px;
+        gap: 16px;
+      }
+
+      .panel-header {
+        align-items: start;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+      }
+
+      .panel-copy {
+        color: var(--muted);
+        margin-top: 3px;
+      }
+
+      .result-card {
+        align-content: start;
+        display: grid;
+        gap: 10px;
       }
 
       .student-mode-header,
@@ -490,9 +865,9 @@
 
       .guided-workspace {
         display: grid;
-        gap: 14px;
-        grid-template-columns: minmax(170px, 0.55fr) minmax(420px, 1.45fr) minmax(300px, 1fr);
-        min-height: 560px;
+        gap: 16px;
+        grid-template-columns: minmax(160px, 0.58fr) minmax(360px, 1.5fr) minmax(280px, 1fr);
+        min-height: 580px;
       }
 
       .lesson-overview {
@@ -508,25 +883,26 @@
       }
 
       .lesson-pill {
-        background: #eef8f3;
-        border: 1px solid #b9e3cf;
-        border-radius: 6px;
-        color: #155c3c;
+        background: var(--ok-soft);
+        border: 1px solid var(--ok);
+        border-radius: var(--radius-sm);
+        color: var(--ok);
         font-size: 12px;
+        font-weight: 700;
         padding: 5px 8px;
       }
 
       .lesson-equation-block {
-        background: #f7fafc;
+        background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         display: grid;
         gap: 6px;
         padding: 10px;
       }
 
       .lesson-equation {
-        color: #17324d;
+        color: var(--accent-dark);
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         overflow-wrap: anywhere;
       }
@@ -537,8 +913,28 @@
         min-width: 0;
       }
 
+      .guided-rail,
+      .guided-step-card {
+        background: var(--panel-subtle);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 12px;
+      }
+
+      .guided-rail {
+        max-height: 640px;
+        overflow: auto;
+      }
+
+      .guided-diagram-wrap {
+        background: var(--canvas);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+
       .guided-rail h3 {
-        color: var(--muted);
+        color: var(--muted-strong);
         font-size: 13px;
         letter-spacing: 0;
         margin: 0 0 8px;
@@ -550,22 +946,26 @@
       }
 
       .guided-step-button {
-        background: #fff;
+        background: var(--panel);
         border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        box-shadow: none;
         color: var(--ink);
         display: grid;
         gap: 3px;
         justify-items: start;
+        line-height: 1.35;
         min-height: 66px;
         padding: 10px;
         text-align: left;
+        white-space: normal;
         width: 100%;
       }
 
       .guided-step-button.active {
-        background: #eef6fc;
+        background: var(--accent-soft);
         border-color: var(--accent);
-        color: #123f61;
+        color: var(--accent-dark);
       }
 
       .guided-step-button .guided-step-index {
@@ -582,10 +982,8 @@
 
       .guided-step-card {
         align-content: start;
-        border-left: 1px solid var(--line);
         display: grid;
         gap: 12px;
-        padding-left: 14px;
       }
 
       .guided-step-card h3 {
@@ -605,7 +1003,7 @@
       }
 
       .guided-teaching-block {
-        border-left: 3px solid #c6d8e8;
+        border-left: 3px solid var(--accent-line);
         padding-left: 10px;
       }
 
@@ -630,9 +1028,9 @@
 
       .guided-chip,
       .guided-value {
-        background: #f6f7f9;
+        background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         color: var(--ink);
         font-size: 12px;
         padding: 6px 8px;
@@ -648,12 +1046,36 @@
       }
 
       .guided-caution {
-        background: #fff4df;
+        background: var(--warn-soft);
         border-left: 4px solid var(--warn);
-        border-radius: 6px;
-        color: #6f4300;
+        border-radius: var(--radius-sm);
+        color: var(--warn);
         line-height: 1.45;
         padding: 10px 12px;
+      }
+
+      .empty-state {
+        align-content: center;
+        background: var(--panel-subtle);
+        border: 1px dashed var(--line-strong);
+        border-radius: var(--radius-sm);
+        color: var(--muted);
+        display: grid;
+        gap: 4px;
+        min-height: 76px;
+        padding: 14px;
+      }
+
+      .empty-state strong {
+        color: var(--ink);
+      }
+
+      .inline-gap {
+        margin-top: 8px;
+      }
+
+      .section-gap {
+        margin-top: 10px;
       }
 
       .guided-next-action {
@@ -694,6 +1116,11 @@
         padding: 0 16px 16px;
       }
 
+      .advanced-grid > .panel {
+        background: var(--panel-subtle);
+        box-shadow: none;
+      }
+
       h2 {
         margin: 0 0 10px;
         font-size: 15px;
@@ -706,9 +1133,9 @@
         max-height: 420px;
         white-space: pre-wrap;
         word-break: break-word;
-        border-radius: 6px;
-        background: #111827;
-        color: #e5e7eb;
+        border-radius: var(--radius-sm);
+        background: var(--code);
+        color: #e7edf5;
         padding: 12px;
         font-size: 12px;
         line-height: 1.45;
@@ -739,6 +1166,129 @@
         gap: 14px;
       }
 
+      .plot-controls {
+        align-items: end;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: minmax(180px, 1.2fr) minmax(160px, 0.8fr);
+      }
+
+      .plot-summary {
+        background: var(--panel-subtle);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        color: var(--muted-strong);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px;
+      }
+
+      .plot-summary span {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        font-weight: 700;
+        padding: 5px 7px;
+      }
+
+      .live-sweep-lab {
+        border-top: 1px solid var(--line);
+        display: grid;
+        gap: 12px;
+        padding-top: 12px;
+      }
+
+      .live-sweep-header,
+      .comparison-header {
+        align-items: center;
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+      }
+
+      .live-sweep-title,
+      .comparison-title {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .live-sweep-status {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .live-component-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .live-component-control {
+        background: var(--panel-subtle);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+      }
+
+      .live-control-head,
+      .cursor-readout {
+        align-items: center;
+        display: flex;
+        gap: 8px;
+        justify-content: space-between;
+      }
+
+      .live-control-name {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .live-control-value,
+      .cursor-readout {
+        color: var(--muted-strong);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      input[type="range"] {
+        accent-color: var(--accent);
+        width: 100%;
+      }
+
+      .live-control-row {
+        align-items: center;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: minmax(0, 1fr) minmax(92px, 0.38fr);
+      }
+
+      .frequency-cursor-grid {
+        align-items: end;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: minmax(0, 1fr) minmax(120px, 0.34fr) auto;
+      }
+
+      .comparison-panel {
+        border-top: 1px solid var(--line);
+        display: grid;
+        gap: 10px;
+        padding-top: 12px;
+      }
+
+      .comparison-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
       .plot-grid,
       .phasor-layout,
       .bme-meta-grid {
@@ -761,21 +1311,22 @@
       }
 
       .plot-svg {
-        background: #fff;
+        background: var(--canvas);
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         display: block;
         height: auto;
         width: 100%;
       }
 
       .plot-axis {
-        stroke: #718096;
+        stroke: var(--canvas-ink);
+        opacity: 0.68;
         stroke-width: 1;
       }
 
       .plot-gridline {
-        stroke: #e5e9f0;
+        stroke: var(--canvas-grid);
         stroke-width: 1;
       }
 
@@ -787,13 +1338,17 @@
       }
 
       .plot-marker {
-        fill: #fff;
+        fill: var(--canvas);
         stroke: var(--accent);
         stroke-width: 2;
       }
 
+      .plot-marker.alt {
+        stroke: var(--warn);
+      }
+
       .plot-marker-line {
-        stroke: #9a5b00;
+        stroke: var(--warn);
         stroke-dasharray: 5 5;
         stroke-width: 1.5;
       }
@@ -808,12 +1363,24 @@
         font-weight: 800;
       }
 
+      .sweep-table-wrap {
+        max-height: 360px;
+        overflow: auto;
+      }
+
       .phasor-svg {
-        background: #fff;
+        background: var(--canvas);
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         display: block;
         width: 100%;
+      }
+
+      .bme-meta-block {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        padding: 10px;
       }
 
       .bme-list {
@@ -834,6 +1401,14 @@
         padding-bottom: 8px;
       }
 
+      .row > * {
+        min-width: 0;
+      }
+
+      .row span {
+        text-align: right;
+      }
+
       .row:last-child {
         border-bottom: 0;
         padding-bottom: 0;
@@ -849,7 +1424,7 @@
       .badge-large {
         display: inline-flex;
         align-items: center;
-        border-radius: 8px;
+        border-radius: var(--radius);
         font-size: 20px;
         font-weight: 800;
         min-height: 44px;
@@ -857,22 +1432,22 @@
       }
 
       .pass {
-        background: #e6f4ee;
+        background: var(--ok-soft);
         color: var(--ok);
       }
 
       .fail {
-        background: #fee4e2;
+        background: var(--bad-soft);
         color: var(--bad);
       }
 
       .ambiguous {
-        background: #fff4df;
+        background: var(--warn-soft);
         color: var(--warn);
       }
 
       .unsupported {
-        background: #eef1f5;
+        background: var(--neutral-soft);
         color: var(--neutral);
       }
 
@@ -904,6 +1479,12 @@
         justify-content: center;
         min-height: 520px;
         overflow: auto;
+        padding: 12px;
+      }
+
+      .diagram .empty-state {
+        max-width: 380px;
+        text-align: center;
       }
 
       .diagram svg {
@@ -941,7 +1522,7 @@
       .diagram svg .guided-focus .node,
       .diagram svg .guided-focus.node,
       .diagram svg .guided-focus.current-path {
-        stroke: #f59e0b;
+        stroke: var(--focus);
         stroke-width: 8;
         animation: guidedPulse 1.8s ease-in-out infinite;
       }
@@ -950,7 +1531,7 @@
       .diagram svg .guided-focus.component-label,
       .diagram svg .guided-focus .node-label,
       .diagram svg .guided-focus.node-label {
-        fill: #b45309;
+        fill: var(--focus-strong);
       }
 
       .diagram svg .guided-focus.current-path {
@@ -963,16 +1544,39 @@
       }
 
       .diagram svg .guided-reference-marker circle {
-        fill: #fff7ed;
-        stroke: #f59e0b;
+        fill: var(--focus-soft);
+        stroke: var(--focus);
         stroke-width: 4;
       }
 
       .diagram svg .guided-reference-marker text {
-        fill: #92400e;
+        fill: var(--focus-strong);
         font: 800 22px system-ui, sans-serif;
         dominant-baseline: central;
         text-anchor: middle;
+      }
+
+      @media (min-width: 1100px) {
+        .sidebar-panel {
+          max-height: calc(100dvh - 112px);
+          overflow: auto;
+          position: sticky;
+          top: 92px;
+        }
+      }
+
+      @media (max-width: 1280px) and (min-width: 981px) {
+        .guided-workspace {
+          grid-template-columns: minmax(150px, 0.64fr) minmax(340px, 1.36fr);
+        }
+
+        .guided-step-card {
+          grid-column: 1 / -1;
+        }
+
+        .diagram {
+          min-height: 460px;
+        }
       }
 
       @media (max-width: 980px) {
@@ -980,6 +1584,20 @@
         .grid,
         .advanced-grid {
           grid-template-columns: 1fr;
+        }
+
+        main {
+          padding: 14px;
+        }
+
+        .header-inner {
+          align-items: start;
+          display: grid;
+          min-height: 0;
+        }
+
+        .header-meta {
+          justify-content: flex-start;
         }
 
         .steps {
@@ -990,13 +1608,6 @@
           grid-template-columns: 1fr;
         }
 
-        .guided-step-card {
-          border-left: 0;
-          border-top: 1px solid var(--line);
-          padding-left: 0;
-          padding-top: 14px;
-        }
-
         .student-mode-header,
         .guided-footer {
           display: grid;
@@ -1005,25 +1616,73 @@
         .editor-layout,
         .field-grid,
         .probe-grid,
+        .frequency-cursor-grid,
+        .live-component-grid,
+        .plot-controls,
         .plot-grid,
         .phasor-layout,
         .bme-meta-grid {
           grid-template-columns: 1fr;
         }
       }
+
+      @media (max-width: 640px) {
+        .panel {
+          padding: 14px;
+        }
+
+        .button-row {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+
+        .button-row button {
+          width: 100%;
+          white-space: normal;
+        }
+
+        .diagram {
+          min-height: 360px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
     </style>
   </head>
   <body>
     <header>
-      <h1>VeriCircuit Tutor</h1>
-      <div class="subtitle">
-        Guided circuit lessons that pair verified values with the part of the
-        schematic students should be looking at right now.
+      <div class="header-inner">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">VC</div>
+          <div>
+            <h1>VeriCircuit Tutor</h1>
+            <div class="subtitle">
+              Guided circuit lessons that pair verified values with the schematic focus students need next.
+            </div>
+          </div>
+        </div>
+        <div class="header-meta" aria-label="Product guarantees">
+          <span class="header-pill">Solver-verified output</span>
+          <span class="header-pill">Coach before reveal</span>
+        </div>
       </div>
     </header>
 
     <main>
-      <aside class="panel stack">
+      <aside class="panel stack sidebar-panel control-panel">
+        <div class="sidebar-heading">
+          <h2>Lesson controls</h2>
+          <p>Choose a supported circuit, capture the student frame, then run the verified teaching flow.</p>
+        </div>
         <div>
           <label for="exampleSelect">Choose lesson</label>
           <select id="exampleSelect"></select>
@@ -1067,7 +1726,8 @@
           <button class="secondary" id="coachButton">Coach next step</button>
           <button class="secondary" id="revealCoachButton">Reveal verified</button>
         </div>
-        <div id="status" class="message">Ready.</div>
+        <div id="status" class="status-card" data-tone="neutral" role="status" aria-live="polite">Ready.</div>
+        <div id="scopeBoundaryPanel" class="scope-boundary message" aria-live="polite">Loading scope boundary.</div>
         <details class="sidebar-advanced">
           <summary>Advanced controls</summary>
           <div class="stack">
@@ -1078,6 +1738,10 @@
                 <option value="gemini">Gemini with demo fallback</option>
                 <option value="gemini_strict">Gemini strict</option>
               </select>
+            </div>
+            <div>
+              <label for="schematicImageInput">Schematic image</label>
+              <input id="schematicImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
             </div>
             <div class="button-row">
               <button class="secondary" id="valueVariantButton">Try value what-if</button>
@@ -1113,8 +1777,8 @@
         </details>
       </aside>
 
-      <section class="grid">
-        <details class="panel wide advanced-panel progress-disclosure">
+      <section class="grid workspace-grid">
+        <details class="panel wide advanced-panel progress-disclosure" open>
           <summary>Lesson preparation</summary>
           <div class="progress-panel">
             <div class="progress-bar" aria-label="Lesson preparation progress">
@@ -1123,29 +1787,54 @@
             <div id="stepsPanel" class="steps"></div>
           </div>
         </details>
-        <div class="panel wide student-mode-panel">
-          <div class="student-mode-header">
+        <div class="panel prominent wide student-mode-panel">
+          <div class="student-mode-header panel-header">
             <div>
               <h2>Guided Explanation</h2>
-              <div class="message">Step-synchronized circuit explanation with diagram focus.</div>
-              <div id="lessonOverviewPanel" class="lesson-overview message">Run the pipeline to build a structured student lesson.</div>
+              <div class="panel-copy">Step-synchronized circuit explanation with diagram focus.</div>
+              <div id="lessonOverviewPanel" class="lesson-overview message">
+                <div class="empty-state">
+                  <strong>Lesson not built yet</strong>
+                  <span>Run the pipeline to prepare verified steps and focus regions.</span>
+                </div>
+              </div>
             </div>
             <button id="resetGuidedViewButton" class="secondary" disabled>Reset view</button>
           </div>
           <div class="guided-workspace">
             <div class="guided-rail">
               <h3>Lesson Steps</h3>
-              <div id="guidedStepList" class="guided-step-list message">Run the pipeline to start a guided lesson.</div>
+              <div id="guidedStepList" class="guided-step-list message">
+                <div class="empty-state">
+                  <strong>No steps loaded</strong>
+                  <span>Verified lesson steps appear here after a PASS packet.</span>
+                </div>
+              </div>
             </div>
             <div class="guided-diagram-wrap">
-              <div id="diagramPanel" class="diagram message">No diagram yet.</div>
+              <div id="diagramPanel" class="diagram message">
+                <div class="empty-state">
+                  <strong>No diagram yet</strong>
+                  <span>Run a supported lesson to render the circuit schematic.</span>
+                </div>
+              </div>
             </div>
-            <div id="guidedStepCard" class="guided-step-card message">No guided step yet.</div>
+            <div id="guidedStepCard" class="guided-step-card message">
+              <div class="empty-state">
+                <strong>No guided step selected</strong>
+                <span>After solving, select a step to inspect what the student should look at.</span>
+              </div>
+            </div>
           </div>
           <div class="guided-footer">
             <div>
               <div class="guided-footer-title">Verified quantities</div>
-              <div id="guidedVerifiedPanel" class="guided-values message">No verified quantities yet.</div>
+              <div id="guidedVerifiedPanel" class="guided-values message">
+                <div class="empty-state">
+                  <strong>No verified quantities yet</strong>
+                  <span>Quantities appear only after deterministic verification passes.</span>
+                </div>
+              </div>
             </div>
             <div class="button-row">
               <button id="prevGuidedStepButton" class="secondary" disabled>Previous</button>
@@ -1153,17 +1842,32 @@
             </div>
           </div>
         </div>
-        <div class="panel">
+        <div class="panel result-card">
           <h2>Verification Badge</h2>
-          <div id="badgePanel" class="message">No badge yet.</div>
+          <div id="badgePanel" class="message">
+            <div class="empty-state">
+              <strong>Waiting for verification</strong>
+              <span>PASS, AMBIGUOUS, UNSUPPORTED, or FAIL will appear here.</span>
+            </div>
+          </div>
         </div>
-        <div class="panel">
+        <div class="panel result-card">
           <h2>Key Answer</h2>
-          <div id="answersPanel" class="answers message">No solution yet.</div>
+          <div id="answersPanel" class="answers message">
+            <div class="empty-state">
+              <strong>No verified answer</strong>
+              <span>Answers stay hidden until the solver and verifier produce a trusted packet.</span>
+            </div>
+          </div>
         </div>
         <div class="panel wide">
           <h2>Reasoning Coach</h2>
-          <div id="coachPanel" class="coach-panel message">No coach turn yet.</div>
+          <div id="coachPanel" class="coach-panel message">
+            <div class="empty-state">
+              <strong>No coach turn yet</strong>
+              <span>Submit a student frame to get one local nudge before reveal.</span>
+            </div>
+          </div>
         </div>
         <details class="panel wide advanced-panel">
           <summary>Advanced Dashboard</summary>
@@ -1182,9 +1886,13 @@
               </div>
             </div>
             <div class="panel wide">
+              <h2>AC Sweep Controls</h2>
+              <div id="sweepEditorPanel" class="editor-form message">Run an AC circuit to configure frequency sweep.</div>
+            </div>
+            <div class="panel wide">
               <h2>Requested Goals</h2>
               <div id="goalsPanel" class="goal-list message">Run the pipeline to edit requested goals.</div>
-              <div class="button-row" style="margin-top: 10px">
+              <div class="button-row section-gap">
                 <button id="updateGoalsButton" class="secondary" disabled>Update goals and re-solve</button>
               </div>
             </div>
@@ -1203,7 +1911,7 @@
                 <label><input id="showBranchLabelsCheckbox" type="checkbox" disabled /> Show branch current labels</label>
                 <button id="clearProbeButton" class="secondary" disabled>Clear selection</button>
               </div>
-              <div id="probeStatusPanel" class="message" style="margin-top: 8px">Probe mode is available after a verified PASS solution.</div>
+              <div id="probeStatusPanel" class="message inline-gap">Probe mode is available after a verified PASS solution.</div>
             </div>
             <div class="panel wide">
               <h2>Probe Panel</h2>
@@ -1246,6 +1954,7 @@
       const exampleSelect = document.getElementById("exampleSelect");
       const problemText = document.getElementById("problemText");
       const modeSelect = document.getElementById("modeSelect");
+      const schematicImageInput = document.getElementById("schematicImageInput");
       const runButton = document.getElementById("runButton");
       const coachButton = document.getElementById("coachButton");
       const revealCoachButton = document.getElementById("revealCoachButton");
@@ -1270,6 +1979,7 @@
       const stepsPanel = document.getElementById("stepsPanel");
       const componentListPanel = document.getElementById("componentListPanel");
       const componentEditorPanel = document.getElementById("componentEditorPanel");
+      const sweepEditorPanel = document.getElementById("sweepEditorPanel");
       const goalsPanel = document.getElementById("goalsPanel");
       const updateGoalsButton = document.getElementById("updateGoalsButton");
       const whatChangedPanel = document.getElementById("whatChangedPanel");
@@ -1287,6 +1997,7 @@
       const prevGuidedStepButton = document.getElementById("prevGuidedStepButton");
       const nextGuidedStepButton = document.getElementById("nextGuidedStepButton");
       const resetGuidedViewButton = document.getElementById("resetGuidedViewButton");
+      const scopeBoundaryPanel = document.getElementById("scopeBoundaryPanel");
 
       let currentCircuit = null;
       let currentParserUsed = null;
@@ -1300,6 +2011,13 @@
       let currentPhasorItems = [];
       let currentLesson = null;
       let currentStudentProfile = null;
+      let selectedSweepSeriesId = null;
+      let selectedSweepPlotType = "bode";
+      let sweepCursorFrequency = null;
+      let sweepComparisonMarkers = [];
+      let liveSweepTimer = null;
+      let liveSweepRequestId = 0;
+      let liveComponentBaselines = {};
       let guidedSteps = [];
       let selectedGuidedStepIndex = 0;
       let originalDiagramViewBox = null;
@@ -1337,6 +2055,28 @@
           .replaceAll('"', "&quot;");
       }
 
+      function emptyStateHtml(title, detail = "") {
+        return `
+          <div class="empty-state">
+            <strong>${escapeHtml(title)}</strong>
+            ${detail ? `<span>${escapeHtml(detail)}</span>` : ""}
+          </div>
+        `;
+      }
+
+      function setEmptyState(element, title, detail = "") {
+        element.innerHTML = emptyStateHtml(title, detail);
+      }
+
+      function setStatus(message, tone = "neutral") {
+        statusEl.dataset.tone = tone;
+        statusEl.textContent = message;
+      }
+
+      function prefersReducedMotion() {
+        return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      }
+
       function resetProgress() {
         pipelineSteps.forEach((step) => {
           stepState[step.id] = { status: "pending", detail: "" };
@@ -1363,7 +2103,7 @@
           running: "",
           done: "&check;",
           failed: "&times;",
-          skipped: "&ndash;",
+          skipped: "-",
         };
         stepsPanel.innerHTML = pipelineSteps
           .map((step) => {
@@ -1379,6 +2119,53 @@
           .join("");
       }
 
+      function renderScopeBoundary(scope) {
+        const capabilityItems = scope.product_capabilities || [];
+        const unsupportedItems = scope.unsupported_features || [];
+        const capabilities = capabilityItems
+          .map((item) => `
+            <div class="capability-item">
+              <strong>${escapeHtml(item.capability)}</strong>
+              <div>${escapeHtml(item.user_value)}</div>
+              <div class="message">${escapeHtml(item.current_evidence)}</div>
+              <div class="message"><strong>Boundary:</strong> ${escapeHtml(item.boundary)}</div>
+            </div>
+          `)
+          .join("");
+        const supportedModes = (scope.supported_analysis_modes || [])
+          .map((item) => `<span class="scope-chip" title="${escapeHtml(item.detail)}">${escapeHtml(item.label)}</span>`)
+          .join("");
+        const unsupported = unsupportedItems
+          .map((item) => `<li><strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.detail)}</li>`)
+          .join("");
+        const bmeBoundary = (scope.bme_boundary || [])
+          .slice(0, 2)
+          .map((item) => `<li>${escapeHtml(item)}</li>`)
+          .join("");
+        scopeBoundaryPanel.innerHTML = `
+          <div class="scope-summary">
+            <h2>Scope boundary</h2>
+            <div class="scope-positioning">${escapeHtml(scope.product_positioning || "")}</div>
+          </div>
+          <div class="scope-group">
+            <div class="scope-group-title">Supported modes</div>
+            <div class="scope-chip-row">${supportedModes}</div>
+          </div>
+          <details>
+            <summary>Capabilities (${capabilityItems.length})</summary>
+            <div class="capability-list">${capabilities || '<div class="message">None listed.</div>'}</div>
+          </details>
+          <details>
+            <summary>Unsupported requests (${unsupportedItems.length})</summary>
+            <ul class="scope-list">${unsupported || '<li>None listed.</li>'}</ul>
+          </details>
+          <details>
+            <summary>BME boundary</summary>
+            <ul class="scope-list">${bmeBoundary}</ul>
+          </details>
+        `;
+      }
+
       function resetResults() {
         currentCircuit = null;
         currentParserUsed = null;
@@ -1389,26 +2176,37 @@
         selectedProbeComponentId = null;
         selectedNodeId = null;
         currentLesson = null;
+        selectedSweepSeriesId = null;
+        selectedSweepPlotType = "bode";
+        sweepCursorFrequency = null;
+        sweepComparisonMarkers = [];
+        liveComponentBaselines = {};
+        liveSweepRequestId += 1;
+        if (liveSweepTimer) {
+          clearTimeout(liveSweepTimer);
+          liveSweepTimer = null;
+        }
         guidedSteps = [];
         selectedGuidedStepIndex = 0;
         originalDiagramViewBox = null;
         irPanel.textContent = "{}";
-        diagramPanel.textContent = "No diagram yet.";
+        setEmptyState(diagramPanel, "No diagram yet", "Run a supported lesson to render the circuit schematic.");
         renderGuidedSteps(null);
         netlistPanel.textContent = "";
-        badgePanel.textContent = "No badge yet.";
-        answersPanel.textContent = "No solution yet.";
-        coachPanel.textContent = "No coach turn yet.";
-        provenancePanel.textContent = "No provenance yet.";
-        verificationPanel.textContent = "No checks yet.";
+        setEmptyState(badgePanel, "Waiting for verification", "PASS, AMBIGUOUS, UNSUPPORTED, or FAIL will appear here.");
+        setEmptyState(answersPanel, "No verified answer", "Answers stay hidden until the solver and verifier produce a trusted packet.");
+        setEmptyState(coachPanel, "No coach turn yet", "Submit a student frame to get one local nudge before reveal.");
+        setEmptyState(provenancePanel, "No provenance yet", "Trace data appears after a solver packet is returned.");
+        setEmptyState(verificationPanel, "No checks yet", "KCL, power, and requested-answer checks appear after solving.");
         explanationPanel.textContent = "";
-        variantsPanel.textContent = "No variants yet.";
-        componentListPanel.textContent = "Run the pipeline to inspect components.";
-        componentEditorPanel.textContent = "No component selected.";
-        goalsPanel.textContent = "Run the pipeline to edit requested goals.";
+        setEmptyState(variantsPanel, "No variants yet", "Practice variants are generated after a PASS packet.");
+        setEmptyState(componentListPanel, "No components loaded", "Run the pipeline to inspect parsed Circuit IR components.");
+        setEmptyState(componentEditorPanel, "No component selected", "Select a parsed component to inspect or edit its value.");
+        setEmptyState(sweepEditorPanel, "No AC sweep controls", "Run an AC circuit to configure frequency sweep.");
+        setEmptyState(goalsPanel, "No requested goals loaded", "Run the pipeline to edit requested output quantities.");
         updateGoalsButton.disabled = true;
-        whatChangedPanel.textContent = "No what-if edits yet.";
-        bmeContextPanel.textContent = "No BME template metadata yet.";
+        setEmptyState(whatChangedPanel, "No what-if edits yet", "Edited values and requested goals will be compared here.");
+        setEmptyState(bmeContextPanel, "No BME template metadata yet", "Biomedical teaching context appears for matching templates.");
         showPulseCheckbox.checked = false;
         showPulseCheckbox.disabled = true;
         showBranchLabelsCheckbox.checked = false;
@@ -1454,8 +2252,8 @@
         return Object.entries(point.node_voltages || {}).find(([node]) => node !== "0") || [];
       }
 
-      function buildSweepSeries(points) {
-        return (points || [])
+      function fallbackSweepSeries(points) {
+        const values = (points || [])
           .map((point) => {
             const [id, answer] = firstSweepAnswer(point);
             const frequency = Number(point.frequency_hz);
@@ -1465,18 +2263,241 @@
               return null;
             }
             return {
-              id,
-              frequency,
+              frequency_hz: frequency,
+              real: Number(answer.real || 0),
+              imag: Number(answer.imag || 0),
               magnitude,
-              magnitudeDb: 20 * Math.log10(Math.max(magnitude, 1e-30)),
-              phase,
-              unit: answer.unit || "",
+              magnitude_db: 20 * Math.log10(Math.max(magnitude, 1e-300)),
+              phase_deg: phase,
             };
           })
           .filter(Boolean);
+        if (!values.length) return [];
+        const [id, answer] = firstSweepAnswer(points[0]);
+        return [
+          {
+            id: id ? `answer:${id}` : "answer:first",
+            label: id ? `Answer ${id}` : "First sweep answer",
+            source: "requested_answer",
+            unit: answer?.unit || "",
+            points: values,
+          },
+        ];
       }
 
-      function renderLinePlot({ title, points, yKey, yUnit, yLabel, color = "#1768ac", logX = false, markers = [] }) {
+      function sweepSeriesFromPacket(packet) {
+        const backendSeries = (packet.ac_sweep_plots || [])
+          .filter((series) => series.points && series.points.length)
+          .map((series) => ({
+            ...series,
+            points: series.points.filter((point) => Number.isFinite(Number(point.frequency_hz))),
+          }))
+          .filter((series) => series.points.length);
+        return backendSeries.length ? backendSeries : fallbackSweepSeries(packet.ac_sweep || []);
+      }
+
+      function seriesPointsForPlot(series) {
+        return (series?.points || [])
+          .map((point) => ({
+            frequency: Number(point.frequency_hz),
+            magnitude: Number(point.magnitude),
+            magnitudeDb: Number(point.magnitude_db),
+            phase: Number(point.phase_deg),
+            real: Number(point.real),
+            imag: Number(point.imag),
+          }))
+          .filter((point) => {
+            return [
+              point.frequency,
+              point.magnitude,
+              point.magnitudeDb,
+              point.phase,
+              point.real,
+              point.imag,
+            ].every(Number.isFinite);
+          });
+      }
+
+      function findSweepSeries(seriesId) {
+        return sweepSeriesFromPacket(currentPacket || {}).find((series) => series.id === seriesId) || null;
+      }
+
+      function selectedSweepSeries() {
+        const series = sweepSeriesFromPacket(currentPacket || {});
+        if (!series.length) return null;
+        return series.find((item) => item.id === selectedSweepSeriesId) || series[0];
+      }
+
+      function sweepFrequencyBounds(series) {
+        const points = seriesPointsForPlot(series);
+        if (!points.length) return null;
+        return {
+          min: points[0].frequency,
+          max: points[points.length - 1].frequency,
+        };
+      }
+
+      function ensureSweepCursor(series) {
+        const bounds = sweepFrequencyBounds(series);
+        if (!bounds) return null;
+        if (
+          !Number.isFinite(Number(sweepCursorFrequency)) ||
+          sweepCursorFrequency < bounds.min ||
+          sweepCursorFrequency > bounds.max
+        ) {
+          sweepCursorFrequency = Math.sqrt(bounds.min * bounds.max);
+        }
+        return sweepCursorFrequency;
+      }
+
+      function nearestSweepPoint(series, frequencyHz) {
+        const points = seriesPointsForPlot(series);
+        if (!points.length || !Number.isFinite(Number(frequencyHz))) return null;
+        return points.reduce((best, point) => {
+          const bestDistance = Math.abs(Math.log10(best.frequency) - Math.log10(frequencyHz));
+          const distance = Math.abs(Math.log10(point.frequency) - Math.log10(frequencyHz));
+          return distance < bestDistance ? point : best;
+        }, points[0]);
+      }
+
+      function sweepMarkerList(series) {
+        if (!series) return [];
+        const markers = [];
+        const cursor = ensureSweepCursor(series);
+        if (cursor) {
+          markers.push({ x: cursor, label: "cursor" });
+        }
+        sweepComparisonMarkers
+          .filter((marker) => marker.seriesId === series.id)
+          .forEach((marker) => {
+            markers.push({ x: marker.frequencyHz, label: marker.label });
+          });
+        return markers;
+      }
+
+      function componentLiveTarget(component) {
+        if (["resistor", "capacitor", "inductor"].includes(component.type)) {
+          return {
+            key: "value",
+            value: Number(component.value),
+            unit: component.unit,
+            label: `${component.id} ${component.unit}`,
+          };
+        }
+        if (["voltage_source", "current_source"].includes(component.type)) {
+          const magnitude = component.ac_magnitude ?? component.value;
+          const unit = component.type === "voltage_source" ? "V" : "A";
+          return {
+            key: component.ac_magnitude !== undefined && component.ac_magnitude !== null ? "ac_magnitude" : "value",
+            value: Number(magnitude),
+            unit,
+            label: `${component.id} AC ${unit}`,
+          };
+        }
+        return null;
+      }
+
+      function liveComponentBaselineKey(component, target) {
+        return `${component.id}:${target.key}`;
+      }
+
+      function ensureLiveComponentBaseline(component, target) {
+        const key = liveComponentBaselineKey(component, target);
+        if (!Number.isFinite(liveComponentBaselines[key]) || liveComponentBaselines[key] <= 0) {
+          liveComponentBaselines[key] = Math.max(Number(target.value), 1e-15);
+        }
+        return liveComponentBaselines[key];
+      }
+
+      function setComponentLiveValue(componentId, key, value) {
+        const component = (currentCircuit?.components || []).find((item) => item.id === componentId);
+        if (!component || !Number.isFinite(Number(value)) || Number(value) <= 0) return null;
+        const oldValue = Number(component[key] ?? component.value);
+        component[key] = Number(value);
+        return {
+          component,
+          oldValue,
+          newValue: Number(value),
+          key,
+        };
+      }
+
+      function liveComponentSnapshot() {
+        return (currentCircuit?.components || [])
+          .map((component) => {
+            const target = componentLiveTarget(component);
+            if (!target) return null;
+            return `${component.id}=${formatPlotNumber(target.value, target.unit)}`;
+          })
+          .filter(Boolean)
+          .join(", ");
+      }
+
+      function comparisonValueRows(series) {
+        if (!series) return "";
+        return sweepComparisonMarkers
+          .filter((marker) => marker.seriesId === series.id)
+          .map((marker) => {
+            const current = nearestSweepPoint(series, marker.frequencyHz);
+            const magDelta = current
+              ? current.magnitudeDb - marker.point.magnitudeDb
+              : null;
+            const phaseDelta = current
+              ? current.phase - marker.point.phase
+              : null;
+            return `
+              <tr>
+                <td><strong>${escapeHtml(marker.label)}</strong><div class="message" title="${escapeHtml(marker.componentSnapshot)}">${escapeHtml(marker.componentSnapshot || "No component snapshot")}</div></td>
+                <td>${formatHz(marker.frequencyHz)}</td>
+                <td>${formatPlotNumber(marker.point.magnitude, marker.unit)}</td>
+                <td>${marker.point.magnitudeDb.toFixed(3)} dB</td>
+                <td>${marker.point.phase.toFixed(3)}&deg;</td>
+                <td>${magDelta === null ? "" : `${magDelta >= 0 ? "+" : ""}${magDelta.toFixed(3)} dB`}</td>
+                <td>${phaseDelta === null ? "" : `${phaseDelta >= 0 ? "+" : ""}${phaseDelta.toFixed(3)}&deg;`}</td>
+                <td><button class="secondary" data-remove-sweep-marker="${escapeHtml(marker.id)}">Remove</button></td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      function addSweepComparisonMarker() {
+        const series = selectedSweepSeries();
+        if (!series) return;
+        const frequency = ensureSweepCursor(series);
+        const point = nearestSweepPoint(series, frequency);
+        if (!point) return;
+        const label = `P${sweepComparisonMarkers.length + 1}`;
+        sweepComparisonMarkers.push({
+          id: `marker_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+          label,
+          seriesId: series.id,
+          seriesLabel: series.label,
+          frequencyHz: point.frequency,
+          unit: series.unit,
+          point: {
+            magnitude: point.magnitude,
+            magnitudeDb: point.magnitudeDb,
+            phase: point.phase,
+            real: point.real,
+            imag: point.imag,
+          },
+          componentSnapshot: liveComponentSnapshot(),
+        });
+        updateSweepPlotDisplay();
+      }
+
+      function removeSweepComparisonMarker(markerId) {
+        sweepComparisonMarkers = sweepComparisonMarkers.filter((marker) => marker.id !== markerId);
+        updateSweepPlotDisplay();
+      }
+
+      function clearSweepComparisonMarkers() {
+        sweepComparisonMarkers = [];
+        updateSweepPlotDisplay();
+      }
+
+      function renderLinePlot({ title, points, yKey, yUnit, yLabel, color = "var(--accent)", logX = false, markers = [] }) {
         if (!points.length) return "";
         const width = 640;
         const height = 260;
@@ -1583,33 +2604,234 @@
         `;
       }
 
+      function renderXyPlot({
+        title,
+        points,
+        xKey,
+        yKey,
+        xUnit,
+        yUnit,
+        xLabel,
+        yLabel,
+        color = "var(--accent)",
+      }) {
+        if (!points.length) return "";
+        const width = 640;
+        const height = 320;
+        const pad = { left: 64, right: 22, top: 28, bottom: 48 };
+        const plotWidth = width - pad.left - pad.right;
+        const plotHeight = height - pad.top - pad.bottom;
+        const xValues = points.map((point) => Number(point[xKey])).filter(Number.isFinite);
+        const yValues = points.map((point) => Number(point[yKey])).filter(Number.isFinite);
+        if (!xValues.length || !yValues.length) return "";
+
+        let xMin = Math.min(...xValues, 0);
+        let xMax = Math.max(...xValues, 0);
+        let yMin = Math.min(...yValues, 0);
+        let yMax = Math.max(...yValues, 0);
+        if (xMin === xMax) {
+          xMin -= 1;
+          xMax += 1;
+        }
+        if (yMin === yMax) {
+          yMin -= 1;
+          yMax += 1;
+        }
+        const xPadding = (xMax - xMin) * 0.08;
+        const yPadding = (yMax - yMin) * 0.08;
+        xMin -= xPadding;
+        xMax += xPadding;
+        yMin -= yPadding;
+        yMax += yPadding;
+
+        const xScale = (value) => pad.left + ((value - xMin) / (xMax - xMin || 1)) * plotWidth;
+        const yScale = (value) => pad.top + (1 - (value - yMin) / (yMax - yMin || 1)) * plotHeight;
+        const polyline = points
+          .map((point) => `${xScale(point[xKey]).toFixed(2)},${yScale(point[yKey]).toFixed(2)}`)
+          .join(" ");
+        const xTicks = [xMin, 0, xMax].filter((value, index, arr) => {
+          return Number.isFinite(value) && arr.findIndex((item) => Math.abs(item - value) <= Math.max(1e-12, Math.abs(value) * 1e-9)) === index;
+        });
+        const yTicks = [yMin, 0, yMax].filter((value, index, arr) => {
+          return Number.isFinite(value) && arr.findIndex((item) => Math.abs(item - value) <= Math.max(1e-12, Math.abs(value) * 1e-9)) === index;
+        });
+        const first = points[0];
+        const last = points[points.length - 1];
+
+        return `
+          <div class="plot-block">
+            <div class="plot-title">${escapeHtml(title)}</div>
+            <svg class="plot-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(title)}">
+              <line class="plot-axis" x1="${pad.left}" y1="${height - pad.bottom}" x2="${width - pad.right}" y2="${height - pad.bottom}" />
+              <line class="plot-axis" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height - pad.bottom}" />
+              ${xTicks
+                .map((tick) => {
+                  const x = xScale(tick);
+                  return `
+                    <line class="plot-gridline" x1="${x.toFixed(2)}" y1="${pad.top}" x2="${x.toFixed(2)}" y2="${height - pad.bottom}" />
+                    <text class="plot-label" x="${x.toFixed(2)}" y="${height - 18}" text-anchor="middle">${formatPlotNumber(tick, xUnit)}</text>
+                  `;
+                })
+                .join("")}
+              ${yTicks
+                .map((tick) => {
+                  const y = yScale(tick);
+                  return `
+                    <line class="plot-gridline" x1="${pad.left}" y1="${y.toFixed(2)}" x2="${width - pad.right}" y2="${y.toFixed(2)}" />
+                    <text class="plot-label" x="${pad.left - 8}" y="${(y + 4).toFixed(2)}" text-anchor="end">${formatPlotNumber(tick, yUnit)}</text>
+                  `;
+                })
+                .join("")}
+              <polyline class="plot-line" stroke="${color}" points="${polyline}" />
+              <circle class="plot-marker" cx="${xScale(first[xKey]).toFixed(2)}" cy="${yScale(first[yKey]).toFixed(2)}" r="4" />
+              <circle class="plot-marker alt" cx="${xScale(last[xKey]).toFixed(2)}" cy="${yScale(last[yKey]).toFixed(2)}" r="4" />
+              <text class="plot-label strong" x="${width / 2}" y="${height - 4}" text-anchor="middle">${escapeHtml(xLabel)}</text>
+              <text class="plot-label strong" transform="translate(14 ${height / 2}) rotate(-90)" text-anchor="middle">${escapeHtml(yLabel)}</text>
+            </svg>
+          </div>
+        `;
+      }
+
       function pointLabelForX(value, points) {
         return points[0]?.frequency !== undefined ? formatHz(value) : `${formatPlotNumber(value)} s`;
       }
 
-      function renderBodePlots(points) {
-        const series = buildSweepSeries(points);
-        if (!series.length) return "";
+      function renderSweepPlot(series, plotType) {
+        const points = seriesPointsForPlot(series);
+        if (!points.length) return `<div class="message">No plot-ready data for this sweep series.</div>`;
+        const markers = sweepMarkerList(series);
+        const summary = `
+          <div class="plot-summary">
+            <span>${escapeHtml(series.label)}</span>
+            <span>${points.length} points</span>
+            <span>${formatHz(points[0].frequency)} to ${formatHz(points[points.length - 1].frequency)}</span>
+            <span>${escapeHtml(series.source || "series")}</span>
+          </div>
+        `;
+        let charts = "";
+        if (plotType === "bode") {
+          charts = `
+            <div class="plot-grid">
+              ${renderLinePlot({
+                title: "Bode magnitude",
+                points,
+                yKey: "magnitudeDb",
+                yUnit: "dB",
+                yLabel: "magnitude",
+                color: "var(--accent)",
+                logX: true,
+                markers,
+              })}
+              ${renderLinePlot({
+                title: "Bode phase",
+                points,
+                yKey: "phase",
+                yUnit: "deg",
+                yLabel: "phase",
+                color: "var(--warn)",
+                logX: true,
+                markers,
+              })}
+            </div>
+          `;
+        } else if (plotType === "magnitude") {
+          charts = renderLinePlot({
+            title: "Magnitude response",
+            points,
+            yKey: "magnitude",
+            yUnit: series.unit,
+            yLabel: "magnitude",
+            color: "var(--accent)",
+            logX: true,
+            markers,
+          });
+        } else if (plotType === "phase") {
+          charts = renderLinePlot({
+            title: "Phase response",
+            points,
+            yKey: "phase",
+            yUnit: "deg",
+            yLabel: "phase",
+            color: "var(--warn)",
+            logX: true,
+            markers,
+          });
+        } else if (plotType === "real_imag") {
+          charts = `
+            <div class="plot-grid">
+              ${renderLinePlot({
+                title: "Real part",
+                points,
+                yKey: "real",
+                yUnit: series.unit,
+                yLabel: "real",
+                color: "var(--accent)",
+                logX: true,
+                markers,
+              })}
+              ${renderLinePlot({
+                title: "Imaginary part",
+                points,
+                yKey: "imag",
+                yUnit: series.unit,
+                yLabel: "imag",
+                color: "var(--ok)",
+                logX: true,
+                markers,
+              })}
+            </div>
+          `;
+        } else if (plotType === "nyquist") {
+          charts = renderXyPlot({
+            title: "Nyquist plot",
+            points,
+            xKey: "real",
+            yKey: "imag",
+            xUnit: series.unit,
+            yUnit: series.unit,
+            xLabel: "real",
+            yLabel: "imaginary",
+            color: "var(--accent)",
+          });
+        }
+
         return `
-          <div class="plot-grid">
-            ${renderLinePlot({
-              title: "Bode magnitude",
-              points: series,
-              yKey: "magnitudeDb",
-              yUnit: "dB",
-              yLabel: "magnitude",
-              color: "#1768ac",
-              logX: true,
-            })}
-            ${renderLinePlot({
-              title: "Bode phase",
-              points: series,
-              yKey: "phase",
-              yUnit: "deg",
-              yLabel: "phase",
-              color: "#9a5b00",
-              logX: true,
-            })}
+          <div class="visualization-stack">
+            ${summary}
+            ${charts}
+            ${renderSweepDataTable(series)}
+          </div>
+        `;
+      }
+
+      function renderSweepDataTable(series) {
+        const rows = seriesPointsForPlot(series)
+          .map((point) => `
+            <tr>
+              <td>${Number(point.frequency).toPrecision(7)}</td>
+              <td>${Number(point.magnitude).toPrecision(7)} ${escapeHtml(series.unit)}</td>
+              <td>${Number(point.magnitudeDb).toFixed(3)} dB</td>
+              <td>${Number(point.phase).toFixed(3)}&deg;</td>
+              <td>${Number(point.real).toPrecision(7)} ${escapeHtml(series.unit)}</td>
+              <td>${Number(point.imag).toPrecision(7)} ${escapeHtml(series.unit)}</td>
+            </tr>
+          `)
+          .join("");
+        return `
+          <div class="sweep-table-wrap">
+            <table class="sweep-table">
+              <thead>
+                <tr>
+                  <th>Frequency (Hz)</th>
+                  <th>Magnitude</th>
+                  <th>Magnitude (dB)</th>
+                  <th>Phase</th>
+                  <th>Real</th>
+                  <th>Imag</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
           </div>
         `;
       }
@@ -1639,7 +2861,7 @@
           yKey: "voltage",
           yUnit: "V",
           yLabel: "capacitor voltage",
-          color: "#117a4b",
+          color: "var(--ok)",
           markers: [
             { x: tau, label: "tau" },
             { x: 5 * tau, label: "5 tau" },
@@ -1647,35 +2869,232 @@
         });
       }
 
-      function renderSweepTable(points) {
-        if (!points || !points.length) {
+      function renderLiveSweepControls(series) {
+        const panel = document.getElementById("sweepLivePanel");
+        if (!panel || !currentCircuit || !series) return;
+        const components = (currentCircuit.components || [])
+          .map((component) => ({ component, target: componentLiveTarget(component) }))
+          .filter((item) => item.target && Number.isFinite(item.target.value) && item.target.value > 0);
+        const cursor = ensureSweepCursor(series);
+        const cursorPoint = nearestSweepPoint(series, cursor);
+        const bounds = sweepFrequencyBounds(series);
+        const sliderMin = bounds ? Math.log10(bounds.min) : 0;
+        const sliderMax = bounds ? Math.log10(bounds.max) : 1;
+        const sliderValue = cursor ? Math.log10(cursor) : sliderMin;
+        const componentControls = components.length
+          ? components
+              .map(({ component, target }) => {
+                const baseline = ensureLiveComponentBaseline(component, target);
+                const sliderOffset = clamp(-3, 3, Math.log10(Math.max(target.value, 1e-15) / baseline));
+                return `
+                  <div class="live-component-control" data-live-component="${escapeHtml(component.id)}" data-live-key="${escapeHtml(target.key)}">
+                    <div class="live-control-head">
+                      <span class="live-control-name">${escapeHtml(component.id)}</span>
+                      <span class="live-control-value" id="liveValue_${escapeHtml(component.id)}_${escapeHtml(target.key)}">${formatPlotNumber(target.value, target.unit)}</span>
+                    </div>
+                    <div class="live-control-row">
+                      <input type="range" min="-3" max="3" step="0.01" value="${sliderOffset}" data-live-slider="${escapeHtml(component.id)}" data-live-key="${escapeHtml(target.key)}" data-live-base="${baseline}" />
+                      <input type="number" min="1e-15" step="any" value="${Number(target.value)}" data-live-number="${escapeHtml(component.id)}" data-live-key="${escapeHtml(target.key)}" />
+                    </div>
+                    <div class="message">${escapeHtml(target.label)}; slider spans 0.001x to 1000x from the starting value.</div>
+                  </div>
+                `;
+              })
+              .join("")
+          : `<div class="message">No draggable AC component values are available for this circuit.</div>`;
+
+        panel.innerHTML = `
+          <div class="live-sweep-lab">
+            <div class="live-sweep-header">
+              <div class="live-sweep-title">Live sweep lab</div>
+              <div id="liveSweepStatus" class="live-sweep-status">Drag component values or the frequency cursor.</div>
+            </div>
+            <div class="live-component-grid">${componentControls}</div>
+            <div class="frequency-cursor-grid">
+              <div>
+                <label for="sweepCursorRange">Frequency cursor</label>
+                <input id="sweepCursorRange" type="range" min="${sliderMin}" max="${sliderMax}" step="0.001" value="${sliderValue}" />
+              </div>
+              <div>
+                <label for="sweepCursorHz">Cursor (Hz)</label>
+                <input id="sweepCursorHz" type="number" min="1e-12" step="any" value="${cursor || ""}" />
+              </div>
+              <button id="addSweepMarkerButton" class="secondary">Add point</button>
+            </div>
+            <div class="cursor-readout">
+              <span>${cursorPoint ? `${formatHz(cursorPoint.frequency)} nearest point` : "No cursor point"}</span>
+              <span>${cursorPoint ? `${formatPlotNumber(cursorPoint.magnitude, series.unit)} / ${cursorPoint.magnitudeDb.toFixed(3)} dB / ${cursorPoint.phase.toFixed(3)} deg` : ""}</span>
+            </div>
+          </div>
+        `;
+
+        panel.querySelectorAll("input[data-live-slider]").forEach((input) => {
+          input.addEventListener("input", () => {
+            const componentId = input.dataset.liveSlider;
+            const key = input.dataset.liveKey;
+            const base = Number(input.dataset.liveBase);
+            const value = base * Math.pow(10, Number(input.value));
+            const result = setComponentLiveValue(componentId, key, value);
+            if (!result) return;
+            const numberInput = panel.querySelector(`input[data-live-number="${attrSelectorValue(componentId)}"][data-live-key="${attrSelectorValue(key)}"]`);
+            const valueEl = document.getElementById(`liveValue_${componentId}_${key}`);
+            if (numberInput) numberInput.value = String(value);
+            if (valueEl) valueEl.textContent = formatPlotNumber(value, componentLiveTarget(result.component)?.unit || "");
+            scheduleLiveSweepResolve({
+              kind: "component_value",
+              componentId,
+              oldValue: result.oldValue,
+              newValue: result.newValue,
+              unit: componentLiveTarget(result.component)?.unit || result.component.unit,
+            });
+          });
+        });
+
+        panel.querySelectorAll("input[data-live-number]").forEach((input) => {
+          const handleNumberInput = () => {
+            const componentId = input.dataset.liveNumber;
+            const key = input.dataset.liveKey;
+            const value = Number(input.value);
+            const result = setComponentLiveValue(componentId, key, value);
+            if (!result) return;
+            scheduleLiveSweepResolve({
+              kind: "component_value",
+              componentId,
+              oldValue: result.oldValue,
+              newValue: result.newValue,
+              unit: componentLiveTarget(result.component)?.unit || result.component.unit,
+            });
+          };
+          input.addEventListener("input", handleNumberInput);
+          input.addEventListener("change", handleNumberInput);
+        });
+
+        const cursorRange = document.getElementById("sweepCursorRange");
+        const cursorHz = document.getElementById("sweepCursorHz");
+        if (cursorRange) {
+          cursorRange.addEventListener("input", () => {
+            sweepCursorFrequency = Math.pow(10, Number(cursorRange.value));
+            if (cursorHz) cursorHz.value = String(sweepCursorFrequency);
+            updateSweepPlotDisplay();
+          });
+        }
+        if (cursorHz) {
+          cursorHz.addEventListener("change", () => {
+            const value = Number(cursorHz.value);
+            if (Number.isFinite(value) && value > 0) {
+              sweepCursorFrequency = value;
+              updateSweepPlotDisplay();
+            }
+          });
+        }
+        document.getElementById("addSweepMarkerButton")?.addEventListener("click", addSweepComparisonMarker);
+      }
+
+      function renderSweepComparisonPanel(series) {
+        const panel = document.getElementById("sweepComparisonPanel");
+        if (!panel || !series) return;
+        const rows = comparisonValueRows(series);
+        const markerCount = sweepComparisonMarkers.filter((marker) => marker.seriesId === series.id).length;
+        panel.innerHTML = `
+          <div class="comparison-panel">
+            <div class="comparison-header">
+              <div>
+                <div class="comparison-title">Comparison points</div>
+                <div class="message">${markerCount ? `${markerCount} saved point(s) for ${escapeHtml(series.label)}.` : "Add points at the cursor to compare before and after dragging values."}</div>
+              </div>
+              <div class="comparison-actions">
+                <button id="clearSweepMarkersButton" class="secondary"${sweepComparisonMarkers.length ? "" : " disabled"}>Clear points</button>
+              </div>
+            </div>
+            ${
+              rows
+                ? `<div class="sweep-table-wrap">
+                    <table class="sweep-table">
+                      <thead>
+                        <tr>
+                          <th>Point</th>
+                          <th>Frequency</th>
+                          <th>Saved mag</th>
+                          <th>Saved dB</th>
+                          <th>Saved phase</th>
+                          <th>Current dB delta</th>
+                          <th>Current phase delta</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>${rows}</tbody>
+                    </table>
+                  </div>`
+                : `<div class="message">No comparison points saved for the selected signal yet.</div>`
+            }
+          </div>
+        `;
+        document.getElementById("clearSweepMarkersButton")?.addEventListener("click", clearSweepComparisonMarkers);
+        panel.querySelectorAll("button[data-remove-sweep-marker]").forEach((button) => {
+          button.addEventListener("click", () => removeSweepComparisonMarker(button.dataset.removeSweepMarker));
+        });
+      }
+
+      function updateSweepPlotDisplay() {
+        const display = document.getElementById("sweepPlotDisplay");
+        const seriesSelect = document.getElementById("sweepSeriesSelect");
+        const plotSelect = document.getElementById("sweepPlotTypeSelect");
+        if (!display || !seriesSelect || !plotSelect) return;
+        const series = sweepSeriesFromPacket(currentPacket || {})
+          .find((item) => item.id === seriesSelect.value);
+        if (!series) {
+          display.textContent = "No sweep series selected.";
+          return;
+        }
+        selectedSweepSeriesId = series.id;
+        selectedSweepPlotType = plotSelect.value;
+        display.innerHTML = renderSweepPlot(series, plotSelect.value);
+        renderLiveSweepControls(series);
+        renderSweepComparisonPanel(series);
+      }
+
+      function renderSweepTable(packet) {
+        const series = sweepSeriesFromPacket(packet);
+        if (!packet.ac_sweep || !packet.ac_sweep.length || !series.length) {
           answersPanel.textContent = "No AC sweep points were produced.";
           return;
         }
-        const rows = points.map((point) => {
-          const requestedEntries = Object.entries(point.requested_answers || {});
-          const [id, answer] = requestedEntries[0] || Object.entries(point.node_voltages || {}).find(([node]) => node !== "0") || [];
-          if (!answer) {
-            return `<tr><td>${Number(point.frequency_hz).toPrecision(7)}</td><td colspan="3">No requested phasor answer</td></tr>`;
-          }
-          return `
-            <tr>
-              <td>${Number(point.frequency_hz).toPrecision(7)}</td>
-              <td>${escapeHtml(id)}</td>
-              <td>${Number(answer.magnitude).toPrecision(7)} ${escapeHtml(answer.unit)}</td>
-              <td>${Number(answer.phase_deg).toFixed(3)}\u00b0</td>
-            </tr>
-          `;
-        });
+        if (!selectedSweepSeriesId || !series.some((item) => item.id === selectedSweepSeriesId)) {
+          selectedSweepSeriesId = series[0].id;
+        }
+        if (!selectedSweepPlotType) {
+          selectedSweepPlotType = "bode";
+        }
+        const options = series
+          .map((item) => `<option value="${escapeHtml(item.id)}"${item.id === selectedSweepSeriesId ? " selected" : ""}>${escapeHtml(item.label)}</option>`)
+          .join("");
         answersPanel.innerHTML = `
           <div class="visualization-stack">
-            ${renderBodePlots(points)}
-            <table class="sweep-table">
-              <thead><tr><th>Frequency (Hz)</th><th>Answer</th><th>Magnitude</th><th>Phase</th></tr></thead>
-              <tbody>${rows.join("")}</tbody>
-            </table>
+            <div class="plot-controls">
+              <div>
+                <label for="sweepSeriesSelect">Signal</label>
+                <select id="sweepSeriesSelect">${options}</select>
+              </div>
+              <div>
+                <label for="sweepPlotTypeSelect">Plot</label>
+                <select id="sweepPlotTypeSelect">
+                  <option value="bode"${selectedSweepPlotType === "bode" ? " selected" : ""}>Bode magnitude + phase</option>
+                  <option value="magnitude"${selectedSweepPlotType === "magnitude" ? " selected" : ""}>Magnitude</option>
+                  <option value="phase"${selectedSweepPlotType === "phase" ? " selected" : ""}>Phase</option>
+                  <option value="real_imag"${selectedSweepPlotType === "real_imag" ? " selected" : ""}>Real + imaginary</option>
+                  <option value="nyquist"${selectedSweepPlotType === "nyquist" ? " selected" : ""}>Nyquist</option>
+                  <option value="table"${selectedSweepPlotType === "table" ? " selected" : ""}>Data table</option>
+                </select>
+              </div>
+            </div>
+            <div id="sweepLivePanel"></div>
+            <div id="sweepPlotDisplay"></div>
+            <div id="sweepComparisonPanel"></div>
           </div>
         `;
+        document.getElementById("sweepSeriesSelect").addEventListener("change", updateSweepPlotDisplay);
+        document.getElementById("sweepPlotTypeSelect").addEventListener("change", updateSweepPlotDisplay);
+        updateSweepPlotDisplay();
       }
 
       function formatEngineering(value, unit) {
@@ -1775,7 +3194,7 @@
 
       function renderLessonOverview() {
         if (!currentLesson) {
-          lessonOverviewPanel.textContent = "Run the pipeline to build a structured student lesson.";
+          setEmptyState(lessonOverviewPanel, "Lesson not built yet", "Run the pipeline to prepare verified steps and focus regions.");
           return;
         }
         const objectives = (currentLesson.learning_objectives || []).slice(0, 3);
@@ -1820,7 +3239,7 @@
         if (!svg || !targetBox) return;
         stopGuidedZoomAnimation();
         const startBox = currentViewBox(svg);
-        if (!animate || !startBox) {
+        if (!animate || !startBox || prefersReducedMotion()) {
           svg.setAttribute("viewBox", formatViewBox(targetBox));
           return;
         }
@@ -2021,7 +3440,7 @@
 
       function renderGuidedStepList() {
         if (!guidedSteps.length) {
-          guidedStepList.textContent = "No guided lesson steps were returned for this packet.";
+          setEmptyState(guidedStepList, "No steps loaded", "Verified lesson steps appear here after a PASS packet.");
           return;
         }
         guidedStepList.innerHTML = guidedSteps
@@ -2043,8 +3462,8 @@
       function renderGuidedStepCard() {
         const step = selectedGuidedStep();
         if (!step) {
-          guidedStepCard.textContent = "No guided step yet.";
-          guidedVerifiedPanel.textContent = "No verified quantities yet.";
+          setEmptyState(guidedStepCard, "No guided step selected", "After solving, select a step to inspect what the student should look at.");
+          setEmptyState(guidedVerifiedPanel, "No verified quantities yet", "Quantities appear only after deterministic verification passes.");
           prevGuidedStepButton.disabled = true;
           nextGuidedStepButton.disabled = true;
           resetGuidedViewButton.disabled = !diagramSvg();
@@ -2274,6 +3693,8 @@
           .trim()
           .toLowerCase()
           .replace(/\s+/g, "")
+          .replaceAll("µ", "u")
+          .replaceAll("μ", "u")
           .replaceAll("ω", "ohm");
         const match = raw.match(/^([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)(.*)$/i);
         if (!match) {
@@ -2308,10 +3729,42 @@
         if (unit === "A") {
           if (suffix === "ma") {
             value *= 0.001;
+          } else if (suffix === "ua") {
+            value *= 1e-6;
           } else if (!["", "a"].includes(suffix)) {
-            throw new Error("Current source values must use A, mA, or no suffix.");
+            throw new Error("Current source values must use A, mA, uA, or no suffix.");
           }
           return { value, unit: "A" };
+        }
+
+        if (unit === "F") {
+          if (["uf", "microf"].includes(suffix)) {
+            value *= 1e-6;
+          } else if (["nf", "nanof"].includes(suffix)) {
+            value *= 1e-9;
+          } else if (["pf", "picof"].includes(suffix)) {
+            value *= 1e-12;
+          } else if (!["", "f"].includes(suffix)) {
+            throw new Error("Capacitor values must use F, uF, nF, pF, or no suffix.");
+          }
+          if (value <= 0) {
+            throw new Error("Capacitor values must be positive.");
+          }
+          return { value, unit: "F" };
+        }
+
+        if (unit === "H") {
+          if (suffix === "mh") {
+            value *= 1e-3;
+          } else if (suffix === "uh") {
+            value *= 1e-6;
+          } else if (!["", "h"].includes(suffix)) {
+            throw new Error("Inductor values must use H, mH, uH, or no suffix.");
+          }
+          if (value <= 0) {
+            throw new Error("Inductor values must be positive.");
+          }
+          return { value, unit: "H" };
         }
 
         throw new Error(`Unsupported unit ${unit}.`);
@@ -2328,8 +3781,9 @@
       function renderCircuitEditor() {
         const components = currentCircuit?.components || [];
         if (!components.length) {
-          componentListPanel.textContent = "Run the pipeline to inspect components.";
-          componentEditorPanel.textContent = "No component selected.";
+          setEmptyState(componentListPanel, "No components loaded", "Run the pipeline to inspect parsed Circuit IR components.");
+          setEmptyState(componentEditorPanel, "No component selected", "Select a parsed component to inspect or edit its value.");
+          renderSweepEditor();
           return;
         }
 
@@ -2385,6 +3839,137 @@
           </div>
         `;
         document.getElementById("updateComponentButton").addEventListener("click", updateSelectedComponent);
+        renderSweepEditor();
+      }
+
+      function isAcAnalysisType(analysisType) {
+        return ["ac_steady_state", "ac_single_frequency", "ac_sweep"].includes(analysisType);
+      }
+
+      function parsePositiveControlValue(id, label) {
+        const value = Number(document.getElementById(id)?.value);
+        if (!Number.isFinite(value) || value <= 0) {
+          throw new Error(`${label} must be a positive finite number.`);
+        }
+        return value;
+      }
+
+      function updateSweepFieldState() {
+        const mode = document.getElementById("analysisModeSelect")?.value || "single";
+        const sweepEnabled = mode === "ac_sweep";
+        ["sweepStartHz", "sweepStopHz", "sweepPoints", "sweepScale"].forEach((id) => {
+          const field = document.getElementById(id);
+          if (field) field.disabled = !sweepEnabled;
+        });
+        const frequencyField = document.getElementById("singleFrequencyHz");
+        if (frequencyField) frequencyField.disabled = sweepEnabled;
+      }
+
+      function renderSweepEditor() {
+        if (!currentCircuit) {
+          setEmptyState(sweepEditorPanel, "No AC sweep controls", "Run an AC circuit to configure frequency sweep.");
+          return;
+        }
+        if (!isAcAnalysisType(currentCircuit.analysis_type)) {
+          setEmptyState(sweepEditorPanel, "AC controls unavailable", "Frequency controls are available for AC phasor circuits.");
+          return;
+        }
+
+        const sweep = currentCircuit.sweep || {};
+        const frequency = Number(currentCircuit.frequency_hz || sweep.start_hz || 1000);
+        const startHz = Number(sweep.start_hz || Math.max(frequency / 10, 1));
+        const stopHz = Number(sweep.stop_hz || Math.max(frequency * 10, startHz * 10));
+        const points = Number(sweep.points_per_decade || 20);
+        const scale = sweep.scale || "log";
+        const mode = currentCircuit.analysis_type === "ac_sweep" ? "ac_sweep" : "single";
+        sweepEditorPanel.innerHTML = `
+          <div class="field-grid">
+            <div>
+              <label for="analysisModeSelect">Mode</label>
+              <select id="analysisModeSelect">
+                <option value="single"${mode === "single" ? " selected" : ""}>Single frequency</option>
+                <option value="ac_sweep"${mode === "ac_sweep" ? " selected" : ""}>Frequency sweep</option>
+              </select>
+            </div>
+            <div>
+              <label for="singleFrequencyHz">Frequency (Hz)</label>
+              <input id="singleFrequencyHz" type="number" min="1e-12" step="any" value="${frequency}" />
+            </div>
+            <div>
+              <label for="sweepStartHz">Start (Hz)</label>
+              <input id="sweepStartHz" type="number" min="1e-12" step="any" value="${startHz}" />
+            </div>
+            <div>
+              <label for="sweepStopHz">Stop (Hz)</label>
+              <input id="sweepStopHz" type="number" min="1e-12" step="any" value="${stopHz}" />
+            </div>
+            <div>
+              <label for="sweepPoints">Points per decade / linear count</label>
+              <input id="sweepPoints" type="number" min="1" step="1" value="${points}" />
+            </div>
+            <div>
+              <label for="sweepScale">Scale</label>
+              <select id="sweepScale">
+                <option value="log"${scale === "log" ? " selected" : ""}>Log</option>
+                <option value="linear"${scale === "linear" ? " selected" : ""}>Linear</option>
+              </select>
+            </div>
+          </div>
+          <div class="button-row">
+            <button id="updateSweepButton">Update frequency settings and re-solve</button>
+          </div>
+        `;
+        document.getElementById("analysisModeSelect").addEventListener("change", updateSweepFieldState);
+        document.getElementById("updateSweepButton").addEventListener("click", updateSweepSettings);
+        updateSweepFieldState();
+      }
+
+      async function updateSweepSettings() {
+        if (!currentCircuit || !isAcAnalysisType(currentCircuit.analysis_type)) {
+          setStatus("Run an AC circuit before updating frequency settings.", "warning");
+          return;
+        }
+
+        try {
+          const oldMode = currentCircuit.analysis_type;
+          const oldSweep = currentCircuit.sweep ? cloneData(currentCircuit.sweep) : null;
+          const oldFrequency = currentCircuit.frequency_hz ?? null;
+          const mode = document.getElementById("analysisModeSelect").value;
+          if (mode === "ac_sweep") {
+            const startHz = parsePositiveControlValue("sweepStartHz", "Sweep start");
+            const stopHz = parsePositiveControlValue("sweepStopHz", "Sweep stop");
+            const points = Math.round(parsePositiveControlValue("sweepPoints", "Sweep points"));
+            if (stopHz <= startHz) {
+              throw new Error("Sweep stop must be greater than sweep start.");
+            }
+            currentCircuit.analysis_type = "ac_sweep";
+            currentCircuit.frequency_hz = null;
+            currentCircuit.sweep = {
+              start_hz: startHz,
+              stop_hz: stopHz,
+              points_per_decade: points,
+              scale: document.getElementById("sweepScale").value,
+            };
+          } else {
+            const frequency = parsePositiveControlValue("singleFrequencyHz", "Frequency");
+            currentCircuit.analysis_type =
+              oldMode === "ac_steady_state" ? "ac_steady_state" : "ac_single_frequency";
+            currentCircuit.frequency_hz = frequency;
+            currentCircuit.sweep = null;
+          }
+
+          await reSolveCurrentCircuit({
+            kind: "sweep",
+            oldMode,
+            newMode: currentCircuit.analysis_type,
+            oldFrequency,
+            newFrequency: currentCircuit.frequency_hz ?? null,
+            oldSweep,
+            newSweep: currentCircuit.sweep ? cloneData(currentCircuit.sweep) : null,
+          });
+        } catch (error) {
+          setStatus(`Invalid frequency settings: ${error.message}`, "error");
+        }
       }
 
       function buildGoalCandidates() {
@@ -2454,7 +4039,7 @@
       function renderGoalEditor() {
         const candidates = buildGoalCandidates();
         if (!candidates.length) {
-          goalsPanel.textContent = "Run the pipeline to edit requested goals.";
+          setEmptyState(goalsPanel, "No requested goals loaded", "Run the pipeline to edit requested output quantities.");
           updateGoalsButton.disabled = true;
           return;
         }
@@ -2487,7 +4072,7 @@
           return;
         }
         if (packet.ac_sweep && packet.ac_sweep.length) {
-          renderSweepTable(packet.ac_sweep);
+          renderSweepTable(packet);
           return;
         }
         if (packet.transient_response) {
@@ -2613,17 +4198,20 @@
       }
 
       async function runCoachTurn(revealSolution = false) {
-        statusEl.textContent = revealSolution ? "Coach reveal requested." : "Coach turn started.";
+        setStatus(revealSolution ? "Coach reveal requested." : "Coach turn started.", "working");
         coachButton.disabled = true;
         revealCoachButton.disabled = true;
         try {
           const payload = await requestJson("/reasoning_coach", coachRequestBody(revealSolution));
           renderCoachResponse(payload);
-          statusEl.textContent = payload.nudge?.answer_revealed
-            ? "Verified solution revealed by coach mode."
-            : "Coach nudge ready.";
+          setStatus(
+            payload.nudge?.answer_revealed
+              ? "Verified solution revealed by coach mode."
+              : "Coach nudge ready.",
+            "success"
+          );
         } catch (error) {
-          statusEl.textContent = `Coach error: ${error.message}`;
+          setStatus(`Coach error: ${error.message}`, "error");
         } finally {
           coachButton.disabled = false;
           revealCoachButton.disabled = false;
@@ -2693,14 +4281,14 @@
           <svg class="phasor-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="phasor probe">
             <defs>
               <marker id="phasorArrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
-                <path d="M0,0 L10,4 L0,8 Z" fill="#1768ac"></path>
+                <path d="M0,0 L10,4 L0,8 Z" fill="var(--accent)"></path>
               </marker>
             </defs>
-            <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="none" stroke="#d9dee7" />
+            <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="none" stroke="var(--canvas-line)" />
             <line x1="${centerX - radius - 18}" y1="${centerY}" x2="${centerX + radius + 18}" y2="${centerY}" class="plot-axis" />
             <line x1="${centerX}" y1="${centerY + radius + 18}" x2="${centerX}" y2="${centerY - radius - 18}" class="plot-axis" />
-            <line x1="${centerX}" y1="${centerY}" x2="${endX.toFixed(2)}" y2="${endY.toFixed(2)}" stroke="#1768ac" stroke-width="4" marker-end="url(#phasorArrow)" />
-            <circle cx="${centerX}" cy="${centerY}" r="4" fill="#17202a" />
+            <line x1="${centerX}" y1="${centerY}" x2="${endX.toFixed(2)}" y2="${endY.toFixed(2)}" stroke="var(--accent)" stroke-width="4" marker-end="url(#phasorArrow)" />
+            <circle cx="${centerX}" cy="${centerY}" r="4" fill="var(--canvas-ink)" />
             <text class="plot-label strong" x="${centerX}" y="22" text-anchor="middle">${escapeHtml(item.label)}</text>
             <text class="plot-label" x="${centerX}" y="${height - 18}" text-anchor="middle">${escapeHtml(label)}</text>
           </svg>
@@ -2718,7 +4306,7 @@
         }
         display.innerHTML = `
           ${phasorSvg(item)}
-          <div class="answers" style="margin-top: 8px">
+          <div class="answers inline-gap">
             <div class="row"><strong>Magnitude</strong><span>${Number(item.value.magnitude).toPrecision(7)} ${escapeHtml(item.value.unit)}</span></div>
             <div class="row"><strong>Phase</strong><span>${Number(item.value.phase_deg).toFixed(3)}°</span></div>
             <div class="row"><strong>Real</strong><span>${Number(item.value.real).toPrecision(7)} ${escapeHtml(item.value.unit)}</span></div>
@@ -2987,7 +4575,7 @@
               renderDiagram(currentCircuit).catch((error) => {
                 diagramPanel.textContent = `Could not render diagram: ${error.message}`;
               });
-              statusEl.textContent = "Loaded variant Circuit IR. Run pipeline from the edited problem text, or solve through the API.";
+              setStatus("Loaded variant Circuit IR. Run pipeline from the edited problem text, or solve through the API.", "working");
             }
           });
         });
@@ -3003,17 +4591,17 @@
           setStepStatus("validate", "failed", "Unresolved ambiguity");
           setStepStatus("solve", "skipped", "Needs clarification");
           setStepStatus("verify", "skipped", "No verified solve");
-          statusEl.textContent = "Ambiguity must be resolved before verified solving.";
+          setStatus("Ambiguity must be resolved before verified solving.", "warning");
         } else if (badge === "UNSUPPORTED") {
           setStepStatus("validate", "failed", "Outside MVP scope");
           setStepStatus("solve", "skipped", "Unsupported circuit");
           setStepStatus("verify", "skipped", "No verified solve");
-          statusEl.textContent = "Unsupported feature outside MVP scope.";
+          setStatus("Unsupported feature outside MVP scope.", "warning");
         } else {
           setStepStatus("validate", packet.status === "solved" ? "done" : "failed");
           setStepStatus("solve", packet.status === "solved" ? "done" : "failed");
           setStepStatus("verify", "failed", "Verification did not pass");
-          statusEl.textContent = "Validation, solving, or verification failed.";
+          setStatus("Validation, solving, or verification failed.", "error");
         }
         return badge;
       }
@@ -3033,7 +4621,7 @@
 
       function renderWhatChanged(previous, next, changeSummary) {
         if (!changeSummary) {
-          whatChangedPanel.textContent = "No what-if edits yet.";
+          setEmptyState(whatChangedPanel, "No what-if edits yet", "Edited values and requested goals will be compared here.");
           return;
         }
 
@@ -3050,6 +4638,19 @@
             <div class="row">
               <strong>Requested goals</strong>
               <span>${changeSummary.oldCount} -> ${changeSummary.newCount}</span>
+            </div>
+          `);
+        } else if (changeSummary.kind === "sweep") {
+          const oldText = changeSummary.oldSweep
+            ? `${changeSummary.oldSweep.start_hz} Hz -> ${changeSummary.oldSweep.stop_hz} Hz (${changeSummary.oldSweep.scale})`
+            : `${changeSummary.oldFrequency || "none"} Hz`;
+          const newText = changeSummary.newSweep
+            ? `${changeSummary.newSweep.start_hz} Hz -> ${changeSummary.newSweep.stop_hz} Hz (${changeSummary.newSweep.scale})`
+            : `${changeSummary.newFrequency || "none"} Hz`;
+          rows.push(`
+            <div class="row">
+              <strong>Frequency settings</strong>
+              <span>${escapeHtml(changeSummary.oldMode)} ${escapeHtml(oldText)} -> ${escapeHtml(changeSummary.newMode)} ${escapeHtml(newText)}</span>
             </div>
           `);
         }
@@ -3097,9 +4698,51 @@
         }
       }
 
+      function scheduleLiveSweepResolve(changeSummary) {
+        if (!currentCircuit || currentCircuit.analysis_type !== "ac_sweep") return;
+        if (liveSweepTimer) clearTimeout(liveSweepTimer);
+        const status = document.getElementById("liveSweepStatus");
+        if (status) status.textContent = "Waiting for drag to settle...";
+        liveSweepTimer = setTimeout(() => {
+          liveSweepTimer = null;
+          liveSweepResolve(changeSummary);
+        }, 260);
+      }
+
+      async function liveSweepResolve(changeSummary) {
+        if (!currentCircuit || currentCircuit.analysis_type !== "ac_sweep") return;
+        const requestId = ++liveSweepRequestId;
+        const previous = currentPacket;
+        const status = document.getElementById("liveSweepStatus");
+        if (status) status.textContent = "Solving sweep...";
+        setStatus("Live sweep update running.", "working");
+        try {
+          const packet = await requestJson("/solve", {
+            circuit_ir: currentCircuit,
+            parser_used: currentParserUsed,
+          });
+          if (requestId !== liveSweepRequestId) return;
+          previousPacket = previous;
+          renderPacket(packet);
+          renderWhatChanged(previous, packet, changeSummary);
+          const badge = packet.verification_badge?.label || "FAIL";
+          setStatus(
+            badge === "PASS" ? "Live sweep updated." : `Live sweep returned ${badge}.`,
+            badge === "PASS" ? "success" : "warning",
+          );
+          const nextStatus = document.getElementById("liveSweepStatus");
+          if (nextStatus) nextStatus.textContent = badge === "PASS" ? "Updated from solver." : `Badge: ${badge}`;
+        } catch (error) {
+          if (requestId !== liveSweepRequestId) return;
+          const nextStatus = document.getElementById("liveSweepStatus");
+          if (nextStatus) nextStatus.textContent = "Live solve failed.";
+          setStatus(`Live sweep error: ${error.message}`, "error");
+        }
+      }
+
       async function reSolveCurrentCircuit(changeSummary) {
         if (!currentCircuit) {
-          statusEl.textContent = "Run the pipeline first so there is a Circuit IR to edit.";
+          setStatus("Run the pipeline first so there is a Circuit IR to edit.", "warning");
           return;
         }
 
@@ -3138,13 +4781,13 @@
           setProgressPercent(92);
           setStepStatus("done", "done");
           setProgressPercent(100);
-          statusEl.textContent = `Re-solved edited Circuit IR. Badge: ${badge}.`;
+          setStatus(`Re-solved edited Circuit IR. Badge: ${badge}.`, badge === "PASS" ? "success" : "warning");
         } catch (error) {
           if (currentStepId) {
             setStepStatus(currentStepId, "failed", "API error");
           }
           setStepStatus("done", "failed");
-          statusEl.textContent = `Error: ${error.message}`;
+          setStatus(`Error: ${error.message}`, "error");
         } finally {
           runButton.disabled = false;
           renderGoalEditor();
@@ -3154,7 +4797,7 @@
       async function updateSelectedComponent() {
         const component = (currentCircuit?.components || []).find((item) => item.id === selectedComponentId);
         if (!component) {
-          statusEl.textContent = "Select a component before updating.";
+          setStatus("Select a component before updating.", "warning");
           return;
         }
 
@@ -3171,13 +4814,13 @@
             unit: parsed.unit,
           });
         } catch (error) {
-          statusEl.textContent = `Invalid component value: ${error.message}`;
+          setStatus(`Invalid component value: ${error.message}`, "error");
         }
       }
 
       async function updateGoalsAndResolve() {
         if (!currentCircuit) {
-          statusEl.textContent = "Run the pipeline first so there is a Circuit IR to edit.";
+          setStatus("Run the pipeline first so there is a Circuit IR to edit.", "warning");
           return;
         }
 
@@ -3189,7 +4832,7 @@
           return goal;
         });
         if (!selectedGoals.length) {
-          statusEl.textContent = "Select at least one requested goal.";
+          setStatus("Select at least one requested goal.", "warning");
           return;
         }
 
@@ -3247,6 +4890,34 @@
         applyGuidedFocus(selectedGuidedStep());
       }
 
+      function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.addEventListener("load", () => {
+            const result = String(reader.result || "");
+            resolve(result.includes(",") ? result.split(",").pop() : result);
+          });
+          reader.addEventListener("error", () => reject(reader.error || new Error("Image read failed.")));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      async function parseCurrentInput() {
+        const imageFile = schematicImageInput?.files?.[0];
+        if (imageFile) {
+          const imageBase64 = await readFileAsBase64(imageFile);
+          return requestJson("/parse_image", {
+            problem_text: problemText.value || "Parse this schematic into Circuit IR.",
+            image_base64: imageBase64,
+            mime_type: imageFile.type || "image/png",
+          });
+        }
+        return requestJson("/parse", {
+          problem_text: problemText.value,
+          mode: modeSelect.value,
+        });
+      }
+
       async function loadExamples() {
         const examples = await fetch("/examples").then((response) => response.json());
         exampleSelect.innerHTML = examples
@@ -3262,22 +4933,31 @@
         }
       }
 
+      async function loadScopeBoundary() {
+        const response = await fetch("/scope");
+        if (!response.ok) {
+          throw new Error(`${response.status}: ${await response.text()}`);
+        }
+        renderScopeBoundary(await response.json());
+      }
+
       async function runPipeline() {
         resetResults();
         resetProgress();
-        statusEl.textContent = "Pipeline started.";
+        setStatus("Pipeline started.", "working");
         runButton.disabled = true;
         currentStepId = "input";
         try {
-          setStepStatus("input", "done", "Text ready");
+          setStepStatus(
+            "input",
+            "done",
+            schematicImageInput?.files?.[0] ? "Image ready" : "Text ready",
+          );
           setStepStatus("edit", "skipped", "No manual edit");
           setProgressPercent(8);
 
           setStepStatus("parse", "running");
-          const parsed = await requestJson("/parse", {
-            problem_text: problemText.value,
-            mode: modeSelect.value,
-          });
+          const parsed = await parseCurrentInput();
           setStepStatus("parse", "done", parsed.parser_used);
           setProgressPercent(22);
 
@@ -3286,7 +4966,7 @@
           irPanel.textContent = pretty(parsed.circuit_ir);
           renderCircuitEditor();
           renderGoalEditor();
-          whatChangedPanel.textContent = "No what-if edits yet.";
+          setEmptyState(whatChangedPanel, "No what-if edits yet", "Edited values and requested goals will be compared here.");
 
           setStepStatus("diagram", "running");
           await renderDiagram(parsed.circuit_ir);
@@ -3311,16 +4991,16 @@
           setStepStatus("done", "done");
           setProgressPercent(100);
           if (badge === "PASS") {
-            statusEl.textContent = `Done. Parser used: ${parsed.parser_used}. Badge: ${badge}.`;
+            setStatus(`Done. Parser used: ${parsed.parser_used}. Badge: ${badge}.`, "success");
           } else if (!statusEl.textContent) {
-            statusEl.textContent = `Done with badge ${badge}.`;
+            setStatus(`Done with badge ${badge}.`, "warning");
           }
         } catch (error) {
           if (currentStepId) {
             setStepStatus(currentStepId, "failed", "API error");
           }
           setStepStatus("done", "failed");
-          statusEl.textContent = `Error: ${error.message}`;
+          setStatus(`Error: ${error.message}`, "error");
         } finally {
           runButton.disabled = false;
         }
@@ -3328,7 +5008,7 @@
 
       async function generateVariant(kind) {
         if (!currentCircuit) {
-          statusEl.textContent = "Run the pipeline first so there is a Circuit IR to vary.";
+          setStatus("Run the pipeline first so there is a Circuit IR to vary.", "warning");
           return;
         }
         const result = await requestJson("/variant", {
@@ -3336,7 +5016,7 @@
           kind,
         });
         renderVariants(result.variants);
-        statusEl.textContent = "Variant generated.";
+        setStatus("Variant generated.", "success");
       }
 
       runButton.addEventListener("click", runPipeline);
@@ -3373,8 +5053,12 @@
         }
       });
       resetProgress();
+      resetResults();
+      loadScopeBoundary().catch((error) => {
+        scopeBoundaryPanel.textContent = `Could not load scope boundary: ${error.message}`;
+      });
       loadExamples().catch((error) => {
-        statusEl.textContent = `Could not load examples: ${error.message}`;
+        setStatus(`Could not load examples: ${error.message}`, "error");
       });
     </script>
   </body>

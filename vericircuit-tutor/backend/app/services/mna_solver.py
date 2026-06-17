@@ -4,7 +4,12 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from app.models.circuit_ir import CircuitProblem, is_ideal_op_amp_type
+from app.models.circuit_ir import (
+    CircuitProblem,
+    Component,
+    is_nonideal_op_amp_type,
+    is_op_amp_type,
+)
 from app.models.solution_packet import CalculationTrace, ComponentResult, QuantityValue
 
 
@@ -13,6 +18,7 @@ SOURCE_SIGN_CONVENTION = (
     "to nodes[1]; power is voltage times current. Negative source power means "
     "the source supplies power to the circuit."
 )
+DEFAULT_NONIDEAL_OPEN_LOOP_GAIN = 100_000.0
 
 
 @dataclass
@@ -25,6 +31,37 @@ class SolveResult:
     component_results: dict[str, ComponentResult] = field(default_factory=dict)
     requested_answers: dict[str, QuantityValue] = field(default_factory=dict)
     calculation_trace: CalculationTrace = field(default_factory=CalculationTrace)
+    warnings: list[str] = field(default_factory=list)
+
+
+def nonideal_open_loop_gain(component: Component) -> float:
+    if component.open_loop_gain is not None:
+        return component.open_loop_gain
+    if component.value > 0:
+        return component.value
+    return DEFAULT_NONIDEAL_OPEN_LOOP_GAIN
+
+
+def nonideal_output_window(component: Component) -> tuple[float, float] | None:
+    if component.supply_positive_v is None or component.supply_negative_v is None:
+        return None
+    margin = component.output_swing_margin_v or 0.0
+    lower = min(component.supply_negative_v, component.supply_positive_v) + margin
+    upper = max(component.supply_negative_v, component.supply_positive_v) - margin
+    if lower > upper:
+        lower, upper = upper, lower
+    return lower, upper
+
+
+def clipped_nonideal_output(component: Component, output_voltage: float) -> float | None:
+    window = nonideal_output_window(component)
+    if window is None:
+        return None
+    lower, upper = window
+    clipped = min(max(output_voltage, lower), upper)
+    if abs(clipped - output_voltage) <= 1e-12:
+        return None
+    return clipped
 
 
 def _node_voltage(node: str, node_voltages: dict[str, float]) -> float:
@@ -113,14 +150,18 @@ def _build_requested_answers(
     return answers
 
 
-def solve_mna(problem: CircuitProblem) -> SolveResult:
+def solve_mna(
+    problem: CircuitProblem,
+    _forced_op_amp_outputs: dict[str, float] | None = None,
+) -> SolveResult:
+    forced_op_amp_outputs = _forced_op_amp_outputs or {}
     ground = problem.ground_node
     non_ground_nodes = [node for node in problem.nodes if node != ground]
     node_index = {node: idx for idx, node in enumerate(non_ground_nodes)}
     voltage_sources = [
         component for component in problem.components if component.type == "voltage_source"
     ]
-    op_amps = [component for component in problem.components if is_ideal_op_amp_type(component.type)]
+    op_amps = [component for component in problem.components if is_op_amp_type(component.type)]
     source_index = {
         component.id: len(non_ground_nodes) + idx
         for idx, component in enumerate(voltage_sources)
@@ -196,12 +237,12 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
                 matrix[idx_b, vs_idx] -= 1.0
                 matrix[vs_idx, idx_b] -= 1.0
             rhs[vs_idx] = component.value
-        elif is_ideal_op_amp_type(component.type):
+        elif is_op_amp_type(component.type):
             if len(component.nodes) != 4:
                 return SolveResult(
                     success=False,
                     message=(
-                        f"{component.id} ideal op-amp must have nodes "
+                        f"{component.id} op-amp must have nodes "
                         "[non_inverting, inverting, output, reference]."
                     ),
                     calculation_trace=CalculationTrace(
@@ -221,10 +262,36 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
                 matrix[idx_out, op_idx] += 1.0
             if idx_ref is not None:
                 matrix[idx_ref, op_idx] -= 1.0
-            if idx_vp is not None:
-                matrix[op_idx, idx_vp] += 1.0
-            if idx_vm is not None:
-                matrix[op_idx, idx_vm] -= 1.0
+            if is_nonideal_op_amp_type(component.type):
+                bias_current = component.input_bias_current_a or 0.0
+                for input_idx in [idx_vp, idx_vm]:
+                    if input_idx is not None:
+                        rhs[input_idx] -= bias_current
+                    if idx_ref is not None:
+                        rhs[idx_ref] += bias_current
+
+                forced_output = forced_op_amp_outputs.get(component.id)
+                if forced_output is not None:
+                    if idx_out is not None:
+                        matrix[op_idx, idx_out] += 1.0
+                    if idx_ref is not None:
+                        matrix[op_idx, idx_ref] -= 1.0
+                    rhs[op_idx] = forced_output
+                else:
+                    gain = nonideal_open_loop_gain(component)
+                    if idx_out is not None:
+                        matrix[op_idx, idx_out] += 1.0
+                    if idx_ref is not None:
+                        matrix[op_idx, idx_ref] -= 1.0
+                    if idx_vp is not None:
+                        matrix[op_idx, idx_vp] -= gain
+                    if idx_vm is not None:
+                        matrix[op_idx, idx_vm] += gain
+            else:
+                if idx_vp is not None:
+                    matrix[op_idx, idx_vp] += 1.0
+                if idx_vm is not None:
+                    matrix[op_idx, idx_vm] -= 1.0
         else:
             return SolveResult(
                 success=False,
@@ -263,6 +330,35 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
     for node, idx in node_index.items():
         node_voltages[node] = float(solution[idx])
 
+    saturation_outputs = dict(forced_op_amp_outputs)
+    saturation_warnings: list[str] = []
+    for component in op_amps:
+        if not is_nonideal_op_amp_type(component.type):
+            continue
+        if component.id in forced_op_amp_outputs:
+            continue
+        output_voltage = _op_amp_output_voltage(component.nodes, node_voltages)
+        clipped_output = clipped_nonideal_output(component, output_voltage)
+        if clipped_output is None:
+            continue
+        saturation_outputs[component.id] = clipped_output
+        message = (
+            f"{component.id} nonideal op-amp saturated: finite-gain output "
+            f"{output_voltage:.6g} V was clamped to {clipped_output:.6g} V by the rail model."
+        )
+        if component.slew_rate_v_per_s is not None:
+            recovery_step = abs(output_voltage - clipped_output)
+            slew_time_s = recovery_step / component.slew_rate_v_per_s
+            message += f" Slew-limited recovery estimate is at least {slew_time_s:.6g} s."
+        if component.clipping_recovery_s is not None:
+            message += f" Clipping recovery parameter is {component.clipping_recovery_s:.6g} s."
+        saturation_warnings.append(message)
+
+    if saturation_warnings:
+        saturated_result = solve_mna(problem, _forced_op_amp_outputs=saturation_outputs)
+        saturated_result.warnings = [*saturation_warnings, *saturated_result.warnings]
+        return saturated_result
+
     voltage_source_currents = {
         component.id: float(solution[source_index[component.id]])
         for component in voltage_sources
@@ -276,7 +372,7 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
     for component in problem.components:
         voltage = (
             _op_amp_output_voltage(component.nodes, node_voltages)
-            if is_ideal_op_amp_type(component.type)
+            if is_op_amp_type(component.type)
             else _component_voltage(component.nodes, node_voltages)
         )
         if component.type == "resistor":
@@ -297,12 +393,19 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
         elif component.type == "voltage_source":
             current = voltage_source_currents[component.id]
             sign_convention = SOURCE_SIGN_CONVENTION
-        elif is_ideal_op_amp_type(component.type):
+        elif is_op_amp_type(component.type):
             current = op_amp_output_currents[component.id]
-            sign_convention = (
-                "Ideal op-amp sign convention: voltage is V(output) - V(reference), "
-                "and output current is positive from output to reference."
-            )
+            if is_nonideal_op_amp_type(component.type):
+                sign_convention = (
+                    "Nonideal op-amp model: voltage is V(output) - V(reference), "
+                    "output current is positive from output to reference, finite gain "
+                    "and optional rail clamp are included."
+                )
+            else:
+                sign_convention = (
+                    "Ideal op-amp sign convention: voltage is V(output) - V(reference), "
+                    "and output current is positive from output to reference."
+                )
         else:
             return SolveResult(
                 success=False,
@@ -317,10 +420,10 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
                 "V",
                 reference={
                     "positive_node": component.nodes[2]
-                    if is_ideal_op_amp_type(component.type)
+                    if is_op_amp_type(component.type)
                     else component.nodes[0],
                     "negative_node": component.nodes[3]
-                    if is_ideal_op_amp_type(component.type)
+                    if is_op_amp_type(component.type)
                     else component.nodes[1],
                 },
             ),
@@ -329,10 +432,10 @@ def solve_mna(problem: CircuitProblem) -> SolveResult:
                 "A",
                 reference={
                     "from_node": component.nodes[2]
-                    if is_ideal_op_amp_type(component.type)
+                    if is_op_amp_type(component.type)
                     else component.nodes[0],
                     "to_node": component.nodes[3]
-                    if is_ideal_op_amp_type(component.type)
+                    if is_op_amp_type(component.type)
                     else component.nodes[1],
                 },
             ),

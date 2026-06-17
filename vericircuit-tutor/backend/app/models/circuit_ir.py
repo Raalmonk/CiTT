@@ -15,6 +15,8 @@ AnalysisType = Literal[
 ]
 ComponentType = str
 IDEAL_OP_AMP_TYPES = {"op_amp_ideal", "ideal_op_amp"}
+NONIDEAL_OP_AMP_TYPES = {"op_amp_nonideal", "nonideal_op_amp"}
+OP_AMP_TYPES = IDEAL_OP_AMP_TYPES | NONIDEAL_OP_AMP_TYPES
 GoalQuantity = Literal[
     "node_voltage",
     "component_voltage",
@@ -26,6 +28,14 @@ GoalQuantity = Literal[
 
 def is_ideal_op_amp_type(component_type: str) -> bool:
     return component_type in IDEAL_OP_AMP_TYPES
+
+
+def is_nonideal_op_amp_type(component_type: str) -> bool:
+    return component_type in NONIDEAL_OP_AMP_TYPES
+
+
+def is_op_amp_type(component_type: str) -> bool:
+    return component_type in OP_AMP_TYPES
 
 
 class Component(BaseModel):
@@ -43,6 +53,8 @@ class Component(BaseModel):
                 "inductor",
                 "op_amp_ideal",
                 "ideal_op_amp",
+                "op_amp_nonideal",
+                "nonideal_op_amp",
             ]
         },
     )
@@ -54,6 +66,16 @@ class Component(BaseModel):
     voltage_reference: dict[str, Any] | None = None
     ac_magnitude: float | None = None
     ac_phase_deg: float | None = None
+    open_loop_gain: float | None = Field(default=None, gt=0.0)
+    gain_bandwidth_hz: float | None = Field(default=None, gt=0.0)
+    bandwidth_hz: float | None = Field(default=None, gt=0.0)
+    supply_positive_v: float | None = None
+    supply_negative_v: float | None = None
+    output_swing_margin_v: float | None = Field(default=None, ge=0.0)
+    input_bias_current_a: float | None = None
+    slew_rate_v_per_s: float | None = Field(default=None, gt=0.0)
+    clipping_recovery_s: float | None = Field(default=None, ge=0.0)
+    output_current_limit_a: float | None = Field(default=None, gt=0.0)
 
     @field_validator("nodes")
     @classmethod
@@ -83,12 +105,32 @@ class Component(BaseModel):
             raise ValueError("AC phasor values must be finite")
         return value
 
+    @field_validator(
+        "open_loop_gain",
+        "gain_bandwidth_hz",
+        "bandwidth_hz",
+        "supply_positive_v",
+        "supply_negative_v",
+        "output_swing_margin_v",
+        "input_bias_current_a",
+        "slew_rate_v_per_s",
+        "clipping_recovery_s",
+        "output_current_limit_a",
+    )
+    @classmethod
+    def nonideal_op_amp_values_must_be_finite(
+        cls, value: float | None
+    ) -> float | None:
+        if value is not None and not math.isfinite(value):
+            raise ValueError("nonideal op-amp model values must be finite")
+        return value
+
     @model_validator(mode="after")
     def node_count_matches_component_type(self) -> "Component":
-        if is_ideal_op_amp_type(self.type):
+        if is_op_amp_type(self.type):
             if len(self.nodes) != 4:
                 raise ValueError(
-                    "ideal op-amp must use four nodes: [non_inverting, inverting, output, reference]"
+                    "op-amp must use four nodes: [non_inverting, inverting, output, reference]"
                 )
         elif len(self.nodes) != 2:
             raise ValueError("two-terminal components must connect exactly two nodes")

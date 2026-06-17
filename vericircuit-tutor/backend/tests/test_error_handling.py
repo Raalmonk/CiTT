@@ -98,6 +98,26 @@ def test_unsupported_natural_language_request_returns_unsupported_badge():
     assert "transient analysis" in packet.verification_badge.message
 
 
+def test_nonideal_op_amp_request_uses_supported_model():
+    circuit = parse_demo_problem("Analyze an op-amp with rail saturation and clipping recovery.")
+    packet = solve_circuit(circuit)
+
+    assert packet.status == "solved"
+    assert packet.verification_badge.label == "PASS"
+    assert circuit.components[-1].type == "nonideal_op_amp"
+    assert packet.requested_answers["vout"].value == 4.8
+    assert any("saturated" in warning for warning in packet.warnings)
+
+
+def test_text_only_image_request_without_image_is_ambiguous():
+    circuit = parse_demo_problem("Find Vout from this image of a schematic.")
+    packet = solve_circuit(circuit)
+
+    assert packet.status == "ambiguous"
+    assert packet.verification_badge.label == "AMBIGUOUS"
+    assert "parse_image" in packet.verification_badge.message
+
+
 def test_ambiguous_natural_language_request_returns_ambiguous_badge():
     circuit = parse_demo_problem("Find the voltage in this circuit.")
     packet = solve_circuit(circuit)

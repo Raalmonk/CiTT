@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.models.circuit_ir import CircuitProblem, is_ideal_op_amp_type
+from app.models.circuit_ir import CircuitProblem, is_nonideal_op_amp_type, is_op_amp_type
 from app.models.solution_packet import CheckResult, SolutionPacket, VerificationReport
 from app.services.validator import NORMALIZED_UNITS, reachable_from_ground
 
@@ -73,7 +73,7 @@ def verify_solution(
         if result is None:
             continue
         current = result.current.value
-        if is_ideal_op_amp_type(component.type):
+        if is_op_amp_type(component.type):
             node_a, node_b = component.nodes[2], component.nodes[3]
         else:
             node_a, node_b = component.nodes[0], component.nodes[1]
@@ -81,6 +81,14 @@ def verify_solution(
             node_residuals[node_a] += current
         if node_b != problem.ground_node:
             node_residuals[node_b] -= current
+        if is_nonideal_op_amp_type(component.type):
+            bias_current = component.input_bias_current_a or 0.0
+            ref_node = component.nodes[3]
+            for input_node in component.nodes[:2]:
+                if input_node != problem.ground_node:
+                    node_residuals[input_node] += bias_current
+                if ref_node != problem.ground_node:
+                    node_residuals[ref_node] -= bias_current
 
     max_kcl_residual = max((abs(value) for value in node_residuals.values()), default=0.0)
     kcl_passed = max_kcl_residual <= current_tol
@@ -98,6 +106,16 @@ def verify_solution(
     signed_power_sum = sum(
         result.power.value for result in solution.component_results.values()
     )
+    for component in problem.components:
+        if not is_nonideal_op_amp_type(component.type):
+            continue
+        bias_current = component.input_bias_current_a or 0.0
+        if bias_current == 0.0:
+            continue
+        ref_voltage = solution.node_voltages.get(component.nodes[3], 0.0)
+        for input_node in component.nodes[:2]:
+            input_voltage = solution.node_voltages.get(input_node, 0.0)
+            signed_power_sum += (input_voltage - ref_voltage) * bias_current
     power_balance_error = abs(signed_power_sum)
     power_passed = power_balance_error <= power_tol
     checks.append(
@@ -123,6 +141,25 @@ def verify_solution(
             else "One or more requested goals is missing an answer.",
         )
     )
+
+    for component in problem.components:
+        if not is_nonideal_op_amp_type(component.type):
+            continue
+        if component.output_current_limit_a is None:
+            continue
+        result = solution.component_results.get(component.id)
+        output_current = abs(result.current.value) if result is not None else float("inf")
+        limit_passed = output_current <= component.output_current_limit_a + current_tol
+        checks.append(
+            _check(
+                "nonideal_op_amp_output_current_limit",
+                limit_passed,
+                f"{component.id} output current is within the configured limit."
+                if limit_passed
+                else f"{component.id} output current exceeds the configured nonideal limit.",
+                value=output_current,
+            )
+        )
 
     passed = all(check.passed for check in checks)
     return VerificationReport(

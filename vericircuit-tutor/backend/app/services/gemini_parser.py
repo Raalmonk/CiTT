@@ -48,13 +48,25 @@ class GeminiAPIComponent(BaseModel):
         "inductor",
         "op_amp_ideal",
         "ideal_op_amp",
+        "op_amp_nonideal",
+        "nonideal_op_amp",
     ]
     nodes: list[str] = Field(min_length=2, max_length=4)
     value: float
-    unit: Literal["ohm", "V", "A", "F", "H", "ideal"]
+    unit: Literal["ohm", "V", "A", "F", "H", "ideal", "model"]
     label: str | None = None
     ac_magnitude: float | None = None
     ac_phase_deg: float | None = None
+    open_loop_gain: float | None = None
+    gain_bandwidth_hz: float | None = None
+    bandwidth_hz: float | None = None
+    supply_positive_v: float | None = None
+    supply_negative_v: float | None = None
+    output_swing_margin_v: float | None = None
+    input_bias_current_a: float | None = None
+    slew_rate_v_per_s: float | None = None
+    clipping_recovery_s: float | None = None
+    output_current_limit_a: float | None = None
 
 
 class GeminiAPIGoal(BaseModel):
@@ -129,13 +141,25 @@ class GeminiComponent(BaseModel):
         "inductor",
         "op_amp_ideal",
         "ideal_op_amp",
+        "op_amp_nonideal",
+        "nonideal_op_amp",
     ]
     nodes: list[str] = Field(min_length=2, max_length=4)
     value: float
-    unit: Literal["ohm", "V", "A", "F", "H", "ideal"]
+    unit: Literal["ohm", "V", "A", "F", "H", "ideal", "model"]
     label: str | None = None
     ac_magnitude: float | None = None
     ac_phase_deg: float | None = None
+    open_loop_gain: float | None = None
+    gain_bandwidth_hz: float | None = None
+    bandwidth_hz: float | None = None
+    supply_positive_v: float | None = None
+    supply_negative_v: float | None = None
+    output_swing_margin_v: float | None = None
+    input_bias_current_a: float | None = None
+    slew_rate_v_per_s: float | None = None
+    clipping_recovery_s: float | None = None
+    output_current_limit_a: float | None = None
 
 
 class GeminiGoal(BaseModel):
@@ -196,11 +220,12 @@ Rules:
 - The user may ask to create, generate, model, draw, or describe a circuit rather than ask a textbook calculation question. Still produce Circuit IR from the stated topology and component values.
 - If no requested measurement or calculation target is explicit, leave goals empty rather than inventing a goal.
 - Normalize kOhm and kilohm values to ohms, mA values to A, microfarads to F, and all voltages to V.
-- Allowed component types are resistor, voltage_source, current_source, capacitor, inductor, op_amp_ideal, and ideal_op_amp.
+- Allowed component types are resistor, voltage_source, current_source, capacitor, inductor, op_amp_ideal, ideal_op_amp, op_amp_nonideal, and nonideal_op_amp.
 - Use "0" as the ground node.
 - For voltage sources, nodes[0] is the positive terminal and nodes[1] is the negative terminal.
 - For current sources, positive current direction is from nodes[0] to nodes[1].
 - For ideal op-amps, nodes must be [non_inverting, inverting, output, reference] and unit must be "ideal".
+- For nonideal op-amps, use nonideal_op_amp, the same four-node order, and unit "model". Put stated rails, output swing margin, open-loop gain, gain-bandwidth or bandwidth, input bias current, slew rate, clipping recovery, and output-current limit into the matching optional fields.
 - Source ac_magnitude and ac_phase_deg define AC phasor amplitude and phase; leave them null for non-source components.
 - If the problem asks for capacitor DC steady state, use analysis_type "dc_operating_point" with a capacitor component.
 - If the problem asks for a first-order RC charging or discharging transient with one capacitor, use analysis_type "rc_transient", include one capacitor component, and set transient.initial_voltage_v. Use transient.time_points_s for requested evaluation times.
@@ -209,7 +234,8 @@ Rules:
 - For AC steady-state, capacitors use impedance 1/(j omega C), inductors use impedance j omega L, and source ac_magnitude/ac_phase_deg define phasors.
 - If the problem asks for general transient/time-domain response beyond a first-order RC template, list "transient analysis" in unsupported_features.
 - If an op-amp is ideal and closed-loop assumptions are clear, use ideal_op_amp.
-- If op-amp rails, saturation, slew rate, bias current, finite bandwidth, or nonideal frequency response is requested, list it in unsupported_features.
+- If op-amp rails, saturation dynamics, slew rate, bias current, clipping recovery, output-current limits, finite bandwidth, or nonideal frequency response is requested and the connectivity is clear, use nonideal_op_amp instead of unsupported_features.
+- If an image/photo/screenshot/schematic is provided to the image parser, read explicit visible connectivity and component text from the image into Circuit IR. If the image is unreadable or connectivity is ambiguous, fill ambiguities instead of guessing.
 - Biomedical words such as ECG, EMG, pressure, strain, thermistor, photodiode, or anti-aliasing do not by themselves justify guessing circuit topology, physiology, safety claims, or BME template metadata.
 - If biomedical component values and connectivity are explicit, parse them as ordinary Circuit IR and put only stated assumptions in assumptions.
 - If a biomedical prompt appears to request a known BME template but leaves topology, values, sensor model, or signal-chain role ambiguous, fill ambiguities instead of inventing a template.
@@ -221,6 +247,20 @@ Rules:
 Problem:
 {problem_text}
 """.strip()
+
+
+def _image_schema_prompt(problem_text: str) -> str:
+    context = problem_text.strip() or "Parse the visible schematic into Circuit IR."
+    return _schema_prompt(
+        f"""
+Parse the attached schematic/image into VeriCircuit Tutor Circuit IR.
+
+Use only visible component labels, node labels, values, and unambiguous wire connectivity from the image plus this user context:
+{context}
+
+If a component value, source polarity, ground reference, op-amp pin, or wire junction is not readable, fill ambiguities instead of guessing.
+""".strip()
+    )
 
 
 def _api_key_is_present() -> bool:
@@ -245,3 +285,32 @@ def parse_with_gemini(problem_text: str) -> CircuitProblem:
         return CircuitProblem.model_validate(strict_parsed.model_dump())
     except ValueError as exc:
         raise GeminiParserUnavailable(f"Gemini did not return valid CircuitProblem JSON: {exc}") from exc
+
+
+def parse_image_with_gemini(
+    *,
+    problem_text: str,
+    image_bytes: bytes,
+    mime_type: str,
+) -> CircuitProblem:
+    if not gemini_api_key():
+        raise GeminiParserUnavailable("GEMINI_API_KEY or GOOGLE_API_KEY is not set.")
+
+    try:
+        response_text = GeminiStructuredClient().generate_json_text_from_image(
+            prompt=_image_schema_prompt(problem_text),
+            image_bytes=image_bytes,
+            mime_type=mime_type,
+            schema_model=GeminiAPICircuitProblem,
+        )
+    except GeminiClientUnavailable as exc:
+        raise GeminiParserUnavailable(str(exc)) from exc
+
+    try:
+        api_parsed = GeminiAPICircuitProblem.model_validate_json(response_text)
+        strict_parsed = GeminiCircuitProblem.model_validate(api_parsed.model_dump())
+        return CircuitProblem.model_validate(strict_parsed.model_dump())
+    except ValueError as exc:
+        raise GeminiParserUnavailable(
+            f"Gemini did not return valid image CircuitProblem JSON: {exc}"
+        ) from exc

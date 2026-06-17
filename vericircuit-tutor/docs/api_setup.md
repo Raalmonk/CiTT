@@ -109,15 +109,16 @@ Run the manual Gemini smoke test:
 
 ## Security And Authority Boundary
 
-Do not put API keys in frontend code. The static UI never receives the key. Gemini mode runs only on the backend parser path.
+Do not put API keys in frontend code. The static UI never receives the key. Gemini mode runs only on backend parser paths such as `/parse`, `/full_pipeline`, and `/parse_image`.
 
-Gemini may only return CircuitProblem JSON. The internal MNA solver generates node voltages and component quantities, and the verifier checks KCL, power balance, units, and requested answers.
+Gemini may only return CircuitProblem JSON, including when `/parse_image` asks it to read visible schematic labels and connectivity from an image. The internal MNA solver generates node voltages and component quantities, and the verifier checks KCL, power balance, units, and requested answers.
 
 Parser modes:
 
 - `demo`: deterministic offline parser for bundled examples.
 - `gemini`: Gemini parser with deterministic demo fallback if Gemini is unavailable.
 - `gemini_strict`: Gemini parser only. If Gemini is unavailable or returns invalid JSON, the API returns a controlled ambiguous CircuitProblem instead of silently falling back.
+- `gemini_image`: image parser used by `/parse_image`; unreadable or ambiguous images return Circuit IR ambiguities instead of guessed values.
 
 Structured lessons are still deterministic. Gemini does not write final numerical lesson values; the lesson builder formats values from `SolutionPacket`, `TutorObservation`, and deterministic metadata after verification passes.
 

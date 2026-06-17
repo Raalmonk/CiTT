@@ -51,6 +51,15 @@ OP_AMP_NON_INVERTING_TEXT = (
     "inverting input. Find Vout."
 )
 
+NONIDEAL_OP_AMP_TEXT = (
+    "A nonideal non-inverting op-amp has Vplus driven by a 1 V source, "
+    "Rg = 1 kOhm from the inverting input to ground, Rf = 9 kOhm from output "
+    "to the inverting input, +/-5 V rails with 0.2 V output swing margin, "
+    "100000 V/V open-loop gain, 1 MHz gain-bandwidth, 50 nA input bias current, "
+    "0.5 V/us slew rate, 2 us clipping recovery, and 20 mA output-current limit. "
+    "Find Vout."
+)
+
 
 def voltage_divider_problem() -> CircuitProblem:
     return CircuitProblem(
@@ -420,6 +429,47 @@ def op_amp_non_inverting_problem() -> CircuitProblem:
     )
 
 
+def nonideal_op_amp_problem() -> CircuitProblem:
+    return CircuitProblem(
+        id="nonideal_op_amp_non_inverting",
+        title="Nonideal Non-Inverting Op-Amp",
+        analysis_type="dc_operating_point",
+        topology_id="op_amp_non_inverting",
+        ground_node="0",
+        nodes=["0", "vp", "vm", "out"],
+        components=[
+            Component(id="V1", type="voltage_source", nodes=["vp", "0"], value=1.0, unit="V"),
+            Component(id="Rg", type="resistor", nodes=["vm", "0"], value=1000.0, unit="ohm"),
+            Component(id="Rf", type="resistor", nodes=["out", "vm"], value=9000.0, unit="ohm"),
+            Component(
+                id="U1",
+                type="nonideal_op_amp",
+                nodes=["vp", "vm", "out", "0"],
+                value=0.0,
+                unit="model",
+                open_loop_gain=100_000.0,
+                gain_bandwidth_hz=1_000_000.0,
+                supply_positive_v=5.0,
+                supply_negative_v=-5.0,
+                output_swing_margin_v=0.2,
+                input_bias_current_a=50e-9,
+                slew_rate_v_per_s=500_000.0,
+                clipping_recovery_s=2e-6,
+                output_current_limit_a=0.02,
+            ),
+        ],
+        goals=[
+            Goal(id="vout", quantity="node_voltage", target="out"),
+            Goal(id="u1_current", quantity="component_current", target="U1"),
+        ],
+        assumptions=[
+            "The op-amp uses a simplified educational nonideal model with finite open-loop gain.",
+            "Output saturation is clipped to the configured rail window.",
+            "Slew rate and clipping recovery are reported as dynamic limits, not a full waveform simulation.",
+        ],
+    )
+
+
 def unsupported_problem(problem_text: str, feature: str) -> CircuitProblem:
     return CircuitProblem(
         id="unsupported_request",
@@ -495,6 +545,11 @@ def get_demo_examples() -> list[dict[str, object]]:
             "title": "Ideal Non-Inverting Op-Amp",
             "problem_text": OP_AMP_NON_INVERTING_TEXT,
         },
+        {
+            "id": "nonideal_op_amp_non_inverting",
+            "title": "Nonideal Non-Inverting Op-Amp",
+            "problem_text": NONIDEAL_OP_AMP_TEXT,
+        },
         *get_bme_demo_examples(),
     ]
 
@@ -514,14 +569,55 @@ def parse_demo_problem(problem_text: str) -> CircuitProblem:
         return rc_transient_charging_problem()
     if "transient" in lowered or "time-domain" in lowered:
         return unsupported_problem(problem_text, "transient analysis")
+    if ("op-amp" in lowered or "op amp" in lowered) and any(
+        term in lowered
+        for term in [
+            "rail",
+            "rails",
+            "saturation",
+            "slew",
+            "bias current",
+            "input bias",
+            "clipping",
+            "clipping recovery",
+            "output current",
+            "output-current",
+            "current limit",
+            "finite bandwidth",
+            "bandwidth",
+            "frequency response",
+        ]
+    ):
+        return nonideal_op_amp_problem()
+    if any(
+        term in lowered
+        for term in [
+            "from this image",
+            "from an image",
+            "from the image",
+            "photo",
+            "picture",
+            "screenshot",
+        ]
+    ):
+        return ambiguous_problem(
+            f"{problem_text} Use /parse_image with image_base64 for schematic/image recognition."
+        )
     if any(term in lowered for term in ["diode", "transistor"]):
-        return unsupported_problem(problem_text, "Unsupported component outside the current MVP scope.")
+        return unsupported_problem(
+            problem_text,
+            "Unsupported component outside the current MVP scope.",
+        )
     if "inductor" in lowered:
         return unsupported_problem(
             problem_text,
             "Inductors are supported only when parsed as AC steady-state or AC sweep circuits.",
         )
-    if "10 v voltage source" in lowered and "r1 = 2 kohm" in lowered and "r2 = 3 kohm" in lowered:
+    if (
+        "10 v voltage source" in lowered
+        and "r1 = 2 kohm" in lowered
+        and "r2 = 3 kohm" in lowered
+    ):
         return voltage_divider_problem()
     if "3 ma current source" in lowered and "parallel resistors" in lowered:
         return current_divider_problem()

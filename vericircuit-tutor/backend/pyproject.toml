@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vericircuit-tutor-backend"
 version = "0.1.0"
-description = "Simulation-grounded AI tutor MVP for undergraduate linear DC circuit analysis."
+description = "Simulation-grounded AI tutor MVP for supported undergraduate circuit-analysis workflows, BME teaching templates, and reasoning coaching."
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.111",

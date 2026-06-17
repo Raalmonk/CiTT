@@ -100,6 +100,32 @@ class ACFrequencyPoint(BaseModel):
     verification: VerificationReport = Field(default_factory=VerificationReport)
 
 
+class ACSweepPlotPoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    frequency_hz: float
+    real: float
+    imag: float
+    magnitude: float
+    magnitude_db: float
+    phase_deg: float
+
+
+class ACSweepPlotSeries(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    label: str
+    source: Literal[
+        "requested_answer",
+        "node_voltage",
+        "component_voltage",
+        "component_current",
+    ]
+    unit: str
+    points: list[ACSweepPlotPoint] = Field(default_factory=list)
+
+
 class TransientPoint(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -221,6 +247,7 @@ class SolutionPacket(BaseModel):
     ac_requested_answers: dict[str, ComplexQuantityValue] = Field(default_factory=dict)
     frequency_hz: float | None = None
     ac_sweep: list[ACFrequencyPoint] = Field(default_factory=list)
+    ac_sweep_plots: list[ACSweepPlotSeries] = Field(default_factory=list)
     transient_response: RCTransientResponse | None = None
     verification: VerificationReport = Field(default_factory=VerificationReport)
     verification_badge: VerificationBadge = Field(default_factory=VerificationBadge)

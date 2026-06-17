@@ -1,6 +1,6 @@
 # VeriCircuit Tutor
 
-VeriCircuit Tutor is a professor-facing MVP of a simulation-grounded AI tutor for undergraduate circuit analysis. The central design rule is simple:
+VeriCircuit Tutor is a professor-facing MVP of a simulation-grounded AI tutor for supported undergraduate circuit-analysis topics, educational BME templates, and reasoning-coach loops. It is not a general-purpose circuit simulator or a biomedical design-verification tool. The central design rule is simple:
 
 **The LLM is not the source of truth. The circuit solver and verification engine are the source of truth.**
 
@@ -20,9 +20,36 @@ natural language -> Circuit IR -> validation -> MNA solver -> verification -> So
 
 The explanation layer is deliberately constrained. It cites values from the Solution Packet instead of inventing answers directly.
 
-## Current Scope
+## Product Capabilities And Scope
 
-The MVP supports:
+The MVP is organized around five product capabilities:
+
+1. **Solver-verified circuit answers**
+   - Converts supported prompts into Circuit IR, validates topology and units, solves with deterministic circuit engines, and returns a Solution Packet with requested answers, provenance, and a verification badge.
+   - Product value: students and instructors can inspect where numbers came from instead of trusting fluent prose.
+   - Boundary: only supported circuit families receive verified answers.
+
+2. **Guided visual lessons**
+   - Builds structured lesson packets with objectives, equation steps, diagram focus IDs, visual cues, common mistakes, checks, limitations, and verified value references.
+   - Product value: students see what part of the schematic matters at each reasoning step.
+   - Boundary: lessons are generated only for solved `PASS` packets.
+
+3. **Reasoning coach before reveal**
+   - Uses `/reasoning_coach` to inspect a student's partial frame, classify local misconceptions, return one nudge, update a portable profile, and withhold final values until Level 5 reveal.
+   - Product value: the tutor supports student reasoning instead of immediately acting as an answer machine.
+   - Boundary: profiles and instructor dashboard summaries are stateless MVP payloads, not persistent LMS analytics.
+
+4. **Biomedical instrumentation teaching layer**
+   - Adds named BME templates, safety notes, nonideal reminders, CMRR what-ifs, ADC sampling observations, starter noise estimates, supply-rail warnings, and practice variants.
+   - Product value: verified circuit results are connected to ECG, EMG, bridge-sensor, thermistor, photodiode, instrumentation-amplifier, and anti-aliasing contexts.
+   - Boundary: BME notes are educational guardrails, not biomedical design verification or safety certification.
+
+5. **Honest unsupported handling**
+   - Returns `UNSUPPORTED` or `AMBIGUOUS` instead of fabricating answers, and exposes `/scope` so UI, docs, and demos share one boundary statement.
+   - Product value: instructors can trust the tool's refusal behavior as much as its solved examples.
+   - Boundary: scope transparency does not expand solver coverage by itself.
+
+The supported circuit-analysis surface currently includes:
 
 - Resistors
 - Independent voltage sources
@@ -33,6 +60,8 @@ The MVP supports:
 - AC sweep data for linear R/L/C/source circuits
 - AC inductors in phasor/sweep mode
 - Ideal op-amp closed-loop DC analysis
+- Educational nonideal op-amp modeling with finite open-loop gain, rail/output-swing clipping, input bias current, output-current limit checks, slew-rate notes, clipping-recovery notes, and AC gain-bandwidth frequency response
+- Gemini schematic/image parsing through `/parse_image`, producing Circuit IR from visible labels and connectivity
 - Ground node
 - Node voltages
 - Component voltages, currents, and powers
@@ -49,21 +78,21 @@ Unsupported in this first version:
 - General transient simulation
 - RLC transient
 - nonlinear transient
-- nonideal op amp behavior
-- arbitrary schematic/image recognition
+- SPICE-grade vendor op-amp macro-model simulation
+- Guaranteed recognition of unreadable, cropped, or ambiguous schematic images
 
 Unsupported or ambiguous requests are reported honestly rather than forced through the solver.
 
 ## Current BME Boundaries
 
-The BME tutor layer adds biomedical context, practice variants, safety notes, nonideal reminders, and differential/common-mode teaching observations on top of verified circuit results. These notes are educational guardrails, not safety certification or full nonideal simulation.
+The BME tutor layer adds biomedical context, practice variants, safety notes, nonideal reminders, and differential/common-mode teaching observations on top of internally verified circuit results. Internal verification here means circuit-law consistency inside the supported solver scope; it is not biomedical design verification. These notes are educational guardrails, not safety certification or full nonideal simulation.
 
 - Safety notes can remind students about isolation, leakage-current limits, patient-connected design, optical exposure, and ADC anti-aliasing, but the MVP does not calculate leakage current, isolation-barrier ratings, IEC-style constraints, or device compliance.
 - CMRR support currently explains differential input, common-mode input, their ratio, and a deterministic 1% resistor-ratio mismatch what-if for named ECG/instrumentation templates. It does not yet solve arbitrary resistor tolerance networks, finite-op-amp CMRR degradation, or frequency-dependent CMRR.
 - ADC anti-aliasing support currently reports template sampling frequency, Nyquist frequency, target cutoff, first-order attenuation at Nyquist, ideal quantization step/noise, and an input-loading warning marker. It does not yet compute alias energy, aperture effects, switched-capacitor acquisition dynamics, ADC datasheet noise, or higher-order filter behavior.
 - Noise budget support currently gives starter educational estimates for resistor thermal noise, photodiode shot noise, and op-amp input-referred voltage noise from template metadata. It does not yet propagate noise through arbitrary transfer functions, integrate spectral density over shaped bandwidths, include flicker noise, or replace datasheet-level design work.
 - BME meaning is currently attached by deterministic templates. Gemini mode may parse explicit circuit connectivity into general Circuit IR, but safe biomedical interpretation still comes from template matching and validated metadata rather than guessed physiology.
-- Supply-rail notes are tutor warnings from template metadata fields such as `supply_positive_v`, `supply_negative_v`, and `output_swing_margin_v`. They identify when an ideal op-amp answer would exceed the template's usable output window, but they do not model saturation dynamics, slew rate, clipping recovery, or output-current limits.
+- Supply-rail notes are tutor warnings from template metadata fields such as `supply_positive_v`, `supply_negative_v`, and `output_swing_margin_v`. For `nonideal_op_amp` components, the solver uses the configured rails and output swing margin to clamp saturated DC output, checks output-current limits, stamps input bias current, and uses gain-bandwidth or open-loop bandwidth for AC frequency response. Slew rate and clipping recovery are exposed as educational dynamic-limit observations, not full waveform simulation.
 
 ## Architecture
 
@@ -73,6 +102,7 @@ The BME tutor layer adds biomedical context, practice variants, safety notes, no
 
 2. **Circuit IR**
    - Pydantic models define the supported circuit graph, components, goals, assumptions, ambiguities, and unsupported features.
+   - `/scope` exposes the current product boundary as a typed API object so the UI, docs, and demos can share the same supported/unsupported and BME-boundary language.
 
 3. **Validator**
    - Checks ground, unique component IDs, finite values, positive resistors/capacitors, normalized SI units, valid goal targets, analysis-specific AC settings, ideal op-amp node shape, and ground-connected graph structure.
@@ -233,8 +263,10 @@ backend/app/examples/
 ## API Endpoints
 
 - `GET /health`
+- `GET /scope`
 - `GET /examples`
 - `POST /parse`
+- `POST /parse_image`
 - `POST /solve`
 - `POST /explain`
 - `POST /variant`
@@ -275,10 +307,10 @@ It returns a local check, one nudge, next choices, adaptive practice, profile up
 - ngspice integration for cross-checking
 - General schematic rendering beyond named templates
 - Interactive schematic editing
-- Arbitrary schematic/image recognition
+- Interactive correction flow for ambiguous schematic/image parses
 - Extend CMRR mismatch analysis beyond named templates and single-ratio what-ifs
 - Expand ADC/sampling support with higher-order filters and alias-energy estimates
-- Component-level rail and output-current limits for op-amp sanity checks
+- SPICE-grade or vendor macro-model op-amp simulation
 - Expand noise budget support with transfer-function propagation, flicker noise, and output-referred totals
 - BME lab-style report export
 - Dependent sources

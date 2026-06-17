@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import math
 
-from app.models.circuit_ir import CircuitProblem, Component
+from app.models.circuit_ir import CircuitProblem, Component, is_nonideal_op_amp_type
 from app.models.solution_packet import (
     ACFrequencyPoint,
+    ACSweepPlotPoint,
+    ACSweepPlotSeries,
     CalculationTrace,
     CheckResult,
+    ComplexQuantityValue,
     SolutionPacket,
     TutorObservation,
     VerificationBadge,
@@ -16,7 +19,7 @@ from app.services.ac_solver import generate_sweep_frequencies, solve_ac
 from app.services.ac_verifier import verify_ac_solution
 from app.services.guided_steps import build_guided_steps
 from app.services.lesson_builder import build_lesson_packet
-from app.services.mna_solver import solve_mna
+from app.services.mna_solver import nonideal_open_loop_gain, nonideal_output_window, solve_mna
 from app.services.netlist_generator import generate_netlist
 from app.services.rc_transient_solver import solve_rc_transient
 from app.services.validator import validate_circuit
@@ -456,6 +459,88 @@ def _build_rc_transient_observations(packet: SolutionPacket) -> list[TutorObserv
     return observations
 
 
+def _sweep_plot_point(
+    frequency_hz: float,
+    value: ComplexQuantityValue,
+) -> ACSweepPlotPoint:
+    magnitude = max(float(value.magnitude), 1e-300)
+    return ACSweepPlotPoint(
+        frequency_hz=float(frequency_hz),
+        real=float(value.real),
+        imag=float(value.imag),
+        magnitude=float(value.magnitude),
+        magnitude_db=float(20.0 * math.log10(magnitude)),
+        phase_deg=float(value.phase_deg),
+    )
+
+
+def _build_ac_sweep_plot_series(
+    circuit: CircuitProblem,
+    points: list[ACFrequencyPoint],
+) -> list[ACSweepPlotSeries]:
+    series: dict[str, ACSweepPlotSeries] = {}
+
+    def add_point(
+        series_id: str,
+        label: str,
+        source: str,
+        unit: str,
+        frequency_hz: float,
+        value: ComplexQuantityValue,
+    ) -> None:
+        if series_id not in series:
+            series[series_id] = ACSweepPlotSeries(
+                id=series_id,
+                label=label,
+                source=source,  # type: ignore[arg-type]
+                unit=unit,
+            )
+        series[series_id].points.append(_sweep_plot_point(frequency_hz, value))
+
+    ground = circuit.ground_node
+    for point in points:
+        frequency_hz = point.frequency_hz
+        for answer_id, value in point.requested_answers.items():
+            add_point(
+                f"answer:{answer_id}",
+                f"Answer {answer_id}",
+                "requested_answer",
+                value.unit,
+                frequency_hz,
+                value,
+            )
+        for node, value in point.node_voltages.items():
+            if node == ground:
+                continue
+            add_point(
+                f"node:{node}",
+                f"Node V({node})",
+                "node_voltage",
+                value.unit,
+                frequency_hz,
+                value,
+            )
+        for component_id, result in point.component_results.items():
+            add_point(
+                f"component:{component_id}:voltage",
+                f"{component_id} voltage",
+                "component_voltage",
+                result.voltage.unit,
+                frequency_hz,
+                result.voltage,
+            )
+            add_point(
+                f"component:{component_id}:current",
+                f"{component_id} current",
+                "component_current",
+                result.current.unit,
+                frequency_hz,
+                result.current,
+            )
+
+    return list(series.values())
+
+
 def _input_source_pair(
     circuit: CircuitProblem,
     positive_id: str,
@@ -716,16 +801,148 @@ def _build_bme_dc_observations(
     return observations
 
 
+def _build_nonideal_op_amp_observations(
+    circuit: CircuitProblem,
+    packet: SolutionPacket,
+) -> list[TutorObservation]:
+    observations: list[TutorObservation] = []
+    for component in circuit.components:
+        if not is_nonideal_op_amp_type(component.type):
+            continue
+
+        observations.append(
+            TutorObservation(
+                id=f"{component.id}_open_loop_gain",
+                label=f"{component.id} nonideal open-loop gain",
+                value=float(nonideal_open_loop_gain(component)),
+                unit="V/V",
+                note="Finite open-loop gain used by the educational nonideal op-amp model.",
+            )
+        )
+
+        if component.input_bias_current_a is not None:
+            observations.append(
+                TutorObservation(
+                    id=f"{component.id}_input_bias_current",
+                    label=f"{component.id} input bias current",
+                    value=float(component.input_bias_current_a),
+                    unit="A",
+                    note="Bias current is stamped at both op-amp input nodes in the DC KCL solve.",
+                )
+            )
+
+        if component.gain_bandwidth_hz is not None:
+            observations.append(
+                TutorObservation(
+                    id=f"{component.id}_gain_bandwidth",
+                    label=f"{component.id} gain-bandwidth",
+                    value=float(component.gain_bandwidth_hz),
+                    unit="Hz",
+                    note="AC analysis uses a single-pole open-loop gain model derived from this gain-bandwidth value.",
+                )
+            )
+        elif component.bandwidth_hz is not None:
+            observations.append(
+                TutorObservation(
+                    id=f"{component.id}_open_loop_bandwidth",
+                    label=f"{component.id} open-loop bandwidth",
+                    value=float(component.bandwidth_hz),
+                    unit="Hz",
+                    note="AC analysis uses this as the single-pole open-loop bandwidth.",
+                )
+            )
+
+        output_current_limit = component.output_current_limit_a
+        dc_result = packet.component_results.get(component.id)
+        ac_result = packet.ac_component_results.get(component.id)
+        if output_current_limit is not None:
+            if dc_result is not None:
+                output_current = abs(dc_result.current.value)
+                observations.append(
+                    TutorObservation(
+                        id=f"{component.id}_output_current_limit",
+                        label=f"{component.id} output-current limit",
+                        value=float(output_current),
+                        unit="A",
+                        note=(
+                            f"Configured limit is {output_current_limit:.6g} A; "
+                            "verification fails if the solved output current exceeds it."
+                        ),
+                    )
+                )
+            elif ac_result is not None:
+                observations.append(
+                    TutorObservation(
+                        id=f"{component.id}_output_current_limit",
+                        label=f"{component.id} output-current limit",
+                        value=float(ac_result.current.magnitude),
+                        unit="A",
+                        note=(
+                            f"Configured limit is {output_current_limit:.6g} A; "
+                            "AC verification checks the phasor current magnitude."
+                        ),
+                    )
+                )
+
+        window = nonideal_output_window(component)
+        if window is not None:
+            lower, upper = window
+            output_voltage = None
+            if dc_result is not None:
+                output_voltage = dc_result.voltage.value
+            elif ac_result is not None:
+                output_voltage = ac_result.voltage.magnitude
+            if output_voltage is not None:
+                observations.append(
+                    TutorObservation(
+                        id=f"{component.id}_output_window",
+                        label=f"{component.id} output rail window",
+                        value=float(output_voltage),
+                        unit="V",
+                        note=(
+                            f"Usable output window is {lower:.6g} V to {upper:.6g} V "
+                            "after output swing margin."
+                        ),
+                    )
+                )
+
+        if component.slew_rate_v_per_s is not None:
+            observations.append(
+                TutorObservation(
+                    id=f"{component.id}_slew_rate",
+                    label=f"{component.id} slew-rate limit",
+                    value=float(component.slew_rate_v_per_s),
+                    unit="V/s",
+                    note="Reported as a transition-speed limit; DC solves use it for saturation recovery estimates.",
+                )
+            )
+
+        if component.clipping_recovery_s is not None:
+            observations.append(
+                TutorObservation(
+                    id=f"{component.id}_clipping_recovery",
+                    label=f"{component.id} clipping recovery",
+                    value=float(component.clipping_recovery_s),
+                    unit="s",
+                    note="Educational recovery-time parameter attached when the output is driven into clipping.",
+                )
+            )
+
+    return observations
+
+
 def _build_tutor_observations(circuit: CircuitProblem, packet: SolutionPacket) -> list[TutorObservation]:
     if packet.status != "solved" or packet.verification_badge.label != "PASS":
         return []
+    observations: list[TutorObservation] = []
     if packet.ac_requested_answers:
-        return _build_ac_filter_observations(circuit, packet)
-    if packet.transient_response:
-        return _build_rc_transient_observations(packet)
-    if circuit.bme_metadata is not None:
-        return _build_bme_dc_observations(circuit, packet)
-    return []
+        observations.extend(_build_ac_filter_observations(circuit, packet))
+    elif packet.transient_response:
+        observations.extend(_build_rc_transient_observations(packet))
+    elif circuit.bme_metadata is not None:
+        observations.extend(_build_bme_dc_observations(circuit, packet))
+    observations.extend(_build_nonideal_op_amp_observations(circuit, packet))
+    return observations
 
 
 def _attach_tutor_context(circuit: CircuitProblem, packet: SolutionPacket) -> SolutionPacket:
@@ -925,6 +1142,7 @@ def solve_circuit(problem: CircuitProblem, parser_used: str | None = None) -> So
             circuit_id=circuit.id,
             status=status,  # type: ignore[arg-type]
             ac_sweep=points,
+            ac_sweep_plots=_build_ac_sweep_plot_series(circuit, points),
             verification=verification,
             verification_badge=VerificationBadge(
                 label="PASS" if verification.passed else "FAIL",
@@ -1032,7 +1250,7 @@ def solve_circuit(problem: CircuitProblem, parser_used: str | None = None) -> So
         requested_answers=solve_result.requested_answers,
         calculation_trace=trace,
         generated_netlist=generate_netlist(circuit),
-        warnings=validation.warnings,
+        warnings=[*validation.warnings, *solve_result.warnings],
         assumptions_used=circuit.assumptions,
     )
     packet.verification = verify_solution(circuit, packet)

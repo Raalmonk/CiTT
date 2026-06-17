@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import base64
+import binascii
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -16,14 +18,16 @@ from app.models.coaching import (
 )
 from app.models.analysis_view import AnalysisView
 from app.models.circuit_ir import CircuitProblem
+from app.models.scope_boundary import ScopeBoundary
 from app.models.solution_packet import SolutionPacket
 from app.models.visual_layout import VisualCircuit
 from app.services.demo_parser import get_demo_examples
 from app.services.analysis_view import build_analysis_view
 from app.services.explainer import explain_solution
-from app.services.parser_service import parse_problem
+from app.services.parser_service import parse_image_problem, parse_problem
 from app.services.pipeline import solve_circuit
 from app.services.reasoning_coach import build_instructor_dashboard, coach_student_attempt
+from app.services.scope_boundary import get_scope_boundary
 from app.services.schematic_generator import render_schematic_svg
 from app.services.visual_layout import build_visual_circuit
 from app.services.variant_generator import (
@@ -36,6 +40,12 @@ from app.services.variant_generator import (
 class ParseRequest(BaseModel):
     problem_text: str = Field(min_length=1)
     mode: Literal["demo", "gemini", "gemini_strict"] = "demo"
+
+
+class ParseImageRequest(BaseModel):
+    image_base64: str = Field(min_length=1)
+    mime_type: Literal["image/png", "image/jpeg", "image/webp"] = "image/png"
+    problem_text: str = "Parse this schematic into Circuit IR."
 
 
 class ParseResponse(BaseModel):
@@ -79,7 +89,7 @@ class FullPipelineResponse(BaseModel):
 
 app = FastAPI(
     title="VeriCircuit Tutor",
-    description="Simulation-grounded AI tutor MVP for controlled linear circuit analysis.",
+    description="Simulation-grounded AI tutor MVP for supported undergraduate circuit-analysis workflows, educational BME templates, and reasoning coaching.",
     version="0.1.0",
 )
 
@@ -97,6 +107,11 @@ def health() -> dict[str, str]:
     return {"status": "ok", "service": "vericircuit-tutor"}
 
 
+@app.get("/scope", response_model=ScopeBoundary)
+def scope() -> ScopeBoundary:
+    return get_scope_boundary()
+
+
 @app.get("/examples")
 def examples() -> list[dict[str, object]]:
     return get_demo_examples()
@@ -105,6 +120,25 @@ def examples() -> list[dict[str, object]]:
 @app.post("/parse", response_model=ParseResponse)
 def parse_endpoint(request: ParseRequest) -> ParseResponse:
     result = parse_problem(request.problem_text, request.mode)
+    return ParseResponse(
+        circuit_ir=result.circuit,
+        parser_used=result.parser_used,
+        warnings=result.warnings,
+    )
+
+
+@app.post("/parse_image", response_model=ParseResponse)
+def parse_image_endpoint(request: ParseImageRequest) -> ParseResponse:
+    try:
+        image_bytes = base64.b64decode(request.image_base64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="image_base64 must be valid base64.") from exc
+
+    result = parse_image_problem(
+        problem_text=request.problem_text,
+        image_bytes=image_bytes,
+        mime_type=request.mime_type,
+    )
     return ParseResponse(
         circuit_ir=result.circuit,
         parser_used=result.parser_used,

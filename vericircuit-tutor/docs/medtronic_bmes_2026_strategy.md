@@ -12,7 +12,31 @@ The strongest story is not that this is a generic circuit tutor. The strongest s
 
 The provided 2026 judging packet asks for five submission criteria: product need and market potential, device utility and novelty, technical feasibility, budget and economic plan, and writing clarity. The live presentation rubric then emphasizes product requirements, design description, actual performance, economic plan, and professional presentation.
 
-VeriCircuit Tutor fits the competition if it is presented as a BME education and design-support product, not as a medical device or clinical diagnostic system.
+VeriCircuit Tutor fits the competition if it is presented as a BME education-support product, not as a medical device, clinical diagnostic system, or biomedical design-verification tool.
+
+## Product Capability Narrative
+
+Frame the product as a controlled learning environment with five visible capabilities:
+
+1. **Verified answer engine**
+   - Student prompts become explicit Circuit IR, then validation, deterministic solving, verification badges, and answer provenance.
+   - The value is not "AI solves circuits"; the value is that numerical authority is inspectable.
+
+2. **Guided visual tutoring**
+   - The tutor turns a verified packet into step-by-step lessons tied to schematic focus regions, equation steps, common mistakes, and verified value references.
+   - This makes the product feel like an instructor-led walkthrough rather than a static calculator.
+
+3. **Reasoning coach**
+   - Before revealing final numbers, the coach asks students to commit to a frame, detects local misconception tags, gives one nudge, and tracks portable learning signals.
+   - This is the main education differentiator: it protects student reasoning time.
+
+4. **BME instrumentation context**
+   - Named ECG, EMG, bridge, thermistor, photodiode, instrumentation-amplifier, and anti-aliasing templates attach signal-chain role, safety reminders, nonideal cautions, and practice variants to verified circuit results.
+   - Keep the claim educational: these are teaching templates, not device-level biomedical verification.
+
+5. **Honest boundary behavior**
+   - Unsupported or ambiguous cases return controlled statuses instead of polished fake answers, and the `/scope` endpoint makes the current product boundary visible in the UI.
+   - This honesty is part of the product capability, not just a disclaimer.
 
 ## Judging Criteria Map
 

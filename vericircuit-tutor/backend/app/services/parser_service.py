@@ -4,7 +4,11 @@ from dataclasses import dataclass
 
 from app.models.circuit_ir import CircuitProblem
 from app.services.demo_parser import ambiguous_problem, parse_demo_problem
-from app.services.gemini_parser import GeminiParserUnavailable, parse_with_gemini
+from app.services.gemini_parser import (
+    GeminiParserUnavailable,
+    parse_image_with_gemini,
+    parse_with_gemini,
+)
 
 
 @dataclass
@@ -49,3 +53,34 @@ def parse_problem(problem_text: str, mode: str = "demo") -> ParseResult:
         parser_used="demo",
         warnings=[],
     )
+
+
+def parse_image_problem(
+    *,
+    problem_text: str,
+    image_bytes: bytes,
+    mime_type: str,
+) -> ParseResult:
+    try:
+        return ParseResult(
+            circuit=parse_image_with_gemini(
+                problem_text=problem_text,
+                image_bytes=image_bytes,
+                mime_type=mime_type,
+            ),
+            parser_used="gemini_image",
+            warnings=[],
+        )
+    except GeminiParserUnavailable as exc:
+        circuit = ambiguous_problem(problem_text or "Parse schematic image.")
+        circuit.id = "gemini_image_parse_failed"
+        circuit.title = "Gemini Image Parse Failed"
+        circuit.ambiguities = [
+            "Gemini image mode could not produce validated CircuitProblem JSON.",
+            str(exc),
+        ]
+        return ParseResult(
+            circuit=circuit,
+            parser_used="gemini_image",
+            warnings=[str(exc)],
+        )

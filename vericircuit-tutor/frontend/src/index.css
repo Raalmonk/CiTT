@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 33% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --primary: 203 84% 32%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 44%;
+    --accent: 196 74% 92%;
+    --accent-foreground: 202 80% 24%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 203 84% 32%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 218 36% 9%;
+    --foreground: 210 40% 96%;
+    --card: 217 33% 13%;
+    --card-foreground: 210 40% 96%;
+    --primary: 201 88% 68%;
+    --primary-foreground: 216 42% 8%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 70%;
+    --accent: 203 56% 18%;
+    --accent-foreground: 201 88% 76%;
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 33% 22%;
+    --input: 217 33% 22%;
+    --ring: 201 88% 68%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply min-h-[100dvh] bg-background text-foreground antialiased;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+}
+
+@layer components {
+  .workspace-panel {
+    @apply overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm;
+  }
+
+  .circuit-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.55) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.55) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .tutor-markdown {
+    @apply min-w-0 text-sm leading-6;
+    overflow-wrap: anywhere;
+  }
+
+  .tutor-markdown > :first-child {
+    margin-top: 0;
+  }
+
+  .tutor-markdown > :last-child {
+    margin-bottom: 0;
+  }
+
+  .tutor-markdown p {
+    @apply my-1;
+  }
+
+  .tutor-markdown ul,
+  .tutor-markdown ol {
+    @apply my-2 pl-5;
+  }
+
+  .tutor-markdown ul {
+    @apply list-disc;
+  }
+
+  .tutor-markdown ol {
+    @apply list-decimal;
+  }
+
+  .tutor-markdown code {
+    @apply rounded bg-muted px-1 py-0.5 font-mono text-[0.86em] text-foreground;
+  }
+
+  .tutor-markdown pre {
+    @apply my-2 overflow-x-auto rounded-md bg-muted p-3 text-foreground;
+  }
+
+  .tutor-markdown pre code {
+    @apply bg-transparent p-0;
+  }
+
+  .tutor-markdown .katex {
+    font-size: 1.03em;
+  }
+
+  .tutor-markdown .katex-display {
+    @apply my-2 overflow-x-auto overflow-y-hidden py-1;
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .tutor-markdown .katex-display > .katex {
+    max-width: none;
+    min-width: max-content;
+  }
+
+  .tutor-markdown .katex-error {
+    @apply rounded bg-destructive/10 px-1 text-destructive;
+  }
+}

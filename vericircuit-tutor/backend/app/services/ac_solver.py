@@ -6,12 +6,18 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from app.models.circuit_ir import CircuitProblem, is_ideal_op_amp_type
+from app.models.circuit_ir import (
+    CircuitProblem,
+    Component,
+    is_nonideal_op_amp_type,
+    is_op_amp_type,
+)
 from app.models.solution_packet import (
     ACComponentResult,
     CalculationTrace,
     ComplexQuantityValue,
 )
+from app.services.mna_solver import nonideal_open_loop_gain
 
 
 AC_SIGN_CONVENTION = (
@@ -75,6 +81,17 @@ def _phasor(magnitude: float | None, phase_deg: float | None) -> complex:
     return magnitude * complex(math.cos(phase_rad), math.sin(phase_rad))
 
 
+def nonideal_frequency_gain(component: Component, frequency_hz: float) -> complex:
+    dc_gain = nonideal_open_loop_gain(component)
+    if component.gain_bandwidth_hz is not None:
+        pole_hz = component.gain_bandwidth_hz / dc_gain
+    else:
+        pole_hz = component.bandwidth_hz
+    if pole_hz is None or pole_hz <= 0:
+        return complex(dc_gain, 0.0)
+    return dc_gain / (1.0 + 1j * (frequency_hz / pole_hz))
+
+
 def _build_requested_answers(
     problem: CircuitProblem,
     node_voltages: dict[str, complex],
@@ -110,7 +127,7 @@ def _build_requested_answers(
                 }
             else:
                 value = quantity_to_complex(result.voltage)
-                if is_ideal_op_amp_type(component.type):
+                if is_op_amp_type(component.type):
                     reference = {
                         "positive_node": component.nodes[2],
                         "negative_node": component.nodes[3],
@@ -151,7 +168,7 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
     voltage_sources = [
         component for component in problem.components if component.type == "voltage_source"
     ]
-    op_amps = [component for component in problem.components if is_ideal_op_amp_type(component.type)]
+    op_amps = [component for component in problem.components if is_op_amp_type(component.type)]
     source_index = {
         component.id: len(non_ground_nodes) + idx
         for idx, component in enumerate(voltage_sources)
@@ -232,12 +249,12 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
                 matrix[idx_b, vs_idx] -= 1.0
                 matrix[vs_idx, idx_b] -= 1.0
             rhs[vs_idx] = _phasor(component.ac_magnitude, component.ac_phase_deg)
-        elif is_ideal_op_amp_type(component.type):
+        elif is_op_amp_type(component.type):
             if len(component.nodes) != 4:
                 return ACSolveResult(
                     success=False,
                     message=(
-                        f"{component.id} ideal op-amp must have nodes "
+                        f"{component.id} op-amp must have nodes "
                         "[non_inverting, inverting, output, reference]."
                     ),
                     frequency_hz=frequency,
@@ -254,10 +271,21 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
                 matrix[idx_out, op_idx] += 1.0
             if idx_ref is not None:
                 matrix[idx_ref, op_idx] -= 1.0
-            if idx_vp is not None:
-                matrix[op_idx, idx_vp] += 1.0
-            if idx_vm is not None:
-                matrix[op_idx, idx_vm] -= 1.0
+            if is_nonideal_op_amp_type(component.type):
+                gain = nonideal_frequency_gain(component, frequency)
+                if idx_out is not None:
+                    matrix[op_idx, idx_out] += 1.0
+                if idx_ref is not None:
+                    matrix[op_idx, idx_ref] -= 1.0
+                if idx_vp is not None:
+                    matrix[op_idx, idx_vp] -= gain
+                if idx_vm is not None:
+                    matrix[op_idx, idx_vm] += gain
+            else:
+                if idx_vp is not None:
+                    matrix[op_idx, idx_vp] += 1.0
+                if idx_vm is not None:
+                    matrix[op_idx, idx_vm] -= 1.0
         else:
             return ACSolveResult(
                 success=False,
@@ -299,17 +327,17 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
     for component in problem.components:
         voltage = (
             _op_amp_output_voltage(component.nodes, node_voltage_values)
-            if is_ideal_op_amp_type(component.type)
+            if is_op_amp_type(component.type)
             else _component_voltage(component.nodes, node_voltage_values)
         )
         reference = (
             {"positive_node": component.nodes[2], "negative_node": component.nodes[3]}
-            if is_ideal_op_amp_type(component.type)
+            if is_op_amp_type(component.type)
             else {"positive_node": component.nodes[0], "negative_node": component.nodes[1]}
         )
         current_reference = (
             {"from_node": component.nodes[2], "to_node": component.nodes[3]}
-            if is_ideal_op_amp_type(component.type)
+            if is_op_amp_type(component.type)
             else {"from_node": component.nodes[0], "to_node": component.nodes[1]}
         )
 
@@ -323,7 +351,7 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
             current = _phasor(component.ac_magnitude, component.ac_phase_deg)
         elif component.type == "voltage_source":
             current = voltage_source_currents[component.id]
-        elif is_ideal_op_amp_type(component.type):
+        elif is_op_amp_type(component.type):
             current = op_amp_output_currents[component.id]
         else:
             return ACSolveResult(

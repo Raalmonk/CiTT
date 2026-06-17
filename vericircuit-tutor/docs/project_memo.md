@@ -20,7 +20,7 @@ The architecture is:
 natural language -> Circuit IR -> validation -> MNA solver -> verification -> Solution Packet -> explanation
 ```
 
-The Circuit IR is a Pydantic model containing nodes, supported components, requested goals, assumptions, ambiguities, and unsupported features. The current supported analysis type is DC operating point for linear circuits with resistors, independent voltage sources, and independent current sources.
+The Circuit IR is a Pydantic model containing nodes, supported components, requested goals, assumptions, ambiguities, and unsupported features. The current supported analysis modes are linear DC operating point, AC phasor/sweep analysis for linear R/L/C/source circuits, first-order RC transient templates, ideal closed-loop op-amp DC, simplified nonideal op-amp analysis, and Gemini image-to-Circuit-IR parsing, all behind explicit validation boundaries.
 
 The solver uses Modified Nodal Analysis. Unknowns are non-ground node voltages plus currents through independent voltage sources. Resistors stamp conductance terms, current sources stamp RHS injections, and voltage sources add MNA rows and columns. The solver returns node voltages, component voltages, currents, powers, and requested answers.
 
@@ -38,11 +38,23 @@ The verifier performs deterministic checks after solving:
 
 The sign convention is consistent across the system: component voltage is `V(nodes[0]) - V(nodes[1])`, current is positive from `nodes[0]` to `nodes[1]`, and signed power is voltage times current. Negative source power means the source supplies energy to the circuit.
 
+## Product Capabilities
+
+The current product is not a general simulator wrapped in chat. It is a controlled learning environment with a few deliberately visible capabilities:
+
+- Verified circuit answers: supported prompts become explicit Circuit IR, solver output, verification badges, and provenance.
+- Guided visual lessons: solved PASS packets become step-by-step teaching moves tied to schematic focus regions and verified value references.
+- Reasoning coach: students can commit a partial frame, receive one local nudge, and reveal final values only after the coach boundary is satisfied.
+- BME teaching templates: biomedical instrumentation context is attached to verified circuit results through named templates and deterministic metadata.
+- Honest unsupported handling: unsupported or ambiguous requests block polished lessons and numerical answers instead of guessing.
+
+Each capability is paired with a boundary. Internal verification means circuit-law consistency inside the supported solver scope, not universal simulation correctness, independent reference checking, or biomedical device verification.
+
 ## MVP Scope
 
-The MVP intentionally supports a narrow set of circuits: linear DC operating point, first-order RC transient templates, AC steady-state/sweep analysis for linear R/L/C circuits and independent sources, and ideal closed-loop op-amp DC. It does not include general transient analysis, DC inductor behavior, diodes, transistors, dependent sources, nonlinear solving, nonideal op-amp behavior, or schematic/image recognition.
+The MVP intentionally supports a narrow set of circuits: linear DC operating point, first-order RC transient templates, AC steady-state/sweep analysis for linear R/L/C circuits and independent sources, ideal closed-loop op-amp DC, simplified nonideal op-amp modeling, and Gemini schematic/image-to-Circuit-IR parsing. The nonideal op-amp model covers finite open-loop gain, rail/output-swing clipping, input bias current, output-current limit checks, slew-rate notes, clipping-recovery notes, and single-pole AC frequency response. The image parser can turn visible schematic labels and connectivity into Circuit IR through Gemini, but ambiguous or unreadable images remain ambiguous. The MVP still does not include general transient analysis, DC inductor behavior, diodes, transistors, dependent sources, nonlinear solving, SPICE-grade op-amp macro-models, or guaranteed recognition of unclear images.
 
-On top of that solver scope, the demo includes named BME templates for ECG/EMG front-ends, pressure and strain bridges, thermistor dividers, photodiode transimpedance amplifiers, instrumentation amplifiers, and anti-aliasing filters. These templates are ordinary Circuit IR examples that still pass through the same validation, solving, and verification pipeline.
+On top of that solver scope, the demo includes named BME teaching templates for ECG/EMG front-ends, pressure and strain bridges, thermistor dividers, photodiode transimpedance amplifiers, instrumentation amplifiers, and anti-aliasing filters. These templates are ordinary Circuit IR examples that still pass through the same validation, solving, and internal verification pipeline; their biomedical notes are educational guardrails, not device-level design verification.
 
 This narrow scope is a feature, not a defect. It makes the verification story clear and inspectable for a professor demo.
 

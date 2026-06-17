@@ -242,6 +242,48 @@ def test_ac_sweep_low_pass_magnitude_decreases():
     assert first_mag > last_mag
 
 
+def test_ac_sweep_exposes_plot_ready_series():
+    circuit = CircuitProblem(
+        id="rc_low_pass_sweep_plots",
+        title="RC Low-Pass Sweep Plots",
+        analysis_type="ac_sweep",
+        sweep=ACSweep(start_hz=10.0, stop_hz=100_000.0, points_per_decade=10),
+        ground_node="0",
+        nodes=["0", "in", "out"],
+        components=[
+            Component(
+                id="V1",
+                type="voltage_source",
+                nodes=["in", "0"],
+                value=0.0,
+                unit="V",
+                ac_magnitude=1.0,
+                ac_phase_deg=0.0,
+            ),
+            Component(id="R1", type="resistor", nodes=["in", "out"], value=1000.0, unit="ohm"),
+            Component(id="C1", type="capacitor", nodes=["out", "0"], value=1e-6, unit="F"),
+        ],
+        goals=[Goal(id="vout", quantity="node_voltage", target="out")],
+    )
+
+    packet = solve_circuit(circuit)
+
+    assert packet.status == "solved"
+    assert packet.verification_badge.label == "PASS"
+    answer_series = next(series for series in packet.ac_sweep_plots if series.id == "answer:vout")
+    assert answer_series.source == "requested_answer"
+    assert answer_series.unit == "V"
+    assert len(answer_series.points) == len(packet.ac_sweep)
+    assert answer_series.points[0].magnitude == pytest.approx(
+        packet.ac_sweep[0].requested_answers["vout"].magnitude
+    )
+    assert answer_series.points[0].magnitude_db == pytest.approx(
+        20.0 * math.log10(packet.ac_sweep[0].requested_answers["vout"].magnitude)
+    )
+    assert any(series.id == "node:out" for series in packet.ac_sweep_plots)
+    assert any(series.id == "component:C1:current" for series in packet.ac_sweep_plots)
+
+
 def test_demo_parser_recognizes_rc_low_pass_sweep_template():
     circuit = parse_demo_problem(RC_LOW_PASS_SWEEP_TEXT)
     packet = solve_circuit(circuit)
@@ -367,6 +409,65 @@ def test_ideal_op_amp_type_alias_non_inverting_amplifier_dc():
         "from_node": "out",
         "to_node": "0",
     }
+
+
+def test_nonideal_op_amp_dc_clamps_to_output_rail_window():
+    circuit = parse_demo_problem(
+        "Analyze an op-amp with rail saturation, slew rate, bias current, clipping recovery, "
+        "output current limit, and frequency response."
+    )
+
+    packet = solve_circuit(circuit)
+
+    assert packet.status == "solved"
+    assert packet.verification_badge.label == "PASS"
+    assert packet.node_voltages["out"] == pytest.approx(4.8)
+    assert abs(packet.component_results["U1"].current.value) == pytest.approx(0.00048, rel=1e-3)
+    assert any("nonideal op-amp saturated" in warning for warning in packet.warnings)
+    assert any(observation.id == "U1_slew_rate" for observation in packet.tutor_observations)
+
+
+def test_nonideal_op_amp_ac_gain_bandwidth_reduces_high_frequency_gain():
+    def circuit_at(frequency_hz: float) -> CircuitProblem:
+        return CircuitProblem(
+            id=f"nonideal_op_amp_ac_{frequency_hz:g}",
+            title="Nonideal Op-Amp AC",
+            analysis_type="ac_steady_state",
+            frequency_hz=frequency_hz,
+            ground_node="0",
+            nodes=["0", "vp", "vm", "out"],
+            components=[
+                Component(
+                    id="V1",
+                    type="voltage_source",
+                    nodes=["vp", "0"],
+                    value=0.0,
+                    unit="V",
+                    ac_magnitude=1.0,
+                    ac_phase_deg=0.0,
+                ),
+                Component(id="Rg", type="resistor", nodes=["vm", "0"], value=1000.0, unit="ohm"),
+                Component(id="Rf", type="resistor", nodes=["out", "vm"], value=9000.0, unit="ohm"),
+                Component(
+                    id="U1",
+                    type="nonideal_op_amp",
+                    nodes=["vp", "vm", "out", "0"],
+                    value=0.0,
+                    unit="model",
+                    open_loop_gain=100_000.0,
+                    gain_bandwidth_hz=100_000.0,
+                ),
+            ],
+            goals=[Goal(id="vout", quantity="node_voltage", target="out")],
+        )
+
+    low_packet = solve_circuit(circuit_at(1.0))
+    high_packet = solve_circuit(circuit_at(100_000.0))
+
+    assert low_packet.verification_badge.label == "PASS"
+    assert high_packet.verification_badge.label == "PASS"
+    assert low_packet.ac_requested_answers["vout"].magnitude == pytest.approx(10.0, rel=1e-2)
+    assert high_packet.ac_requested_answers["vout"].magnitude < 2.0
 
 
 def test_unsupported_transient_request_has_no_numerical_answers():

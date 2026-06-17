@@ -136,7 +136,7 @@ Use this when the demo should show the expanded scope beyond resistor-only DC.
 
 Close with:
 
-> The MVP scope is intentionally controlled: DC operating point, first-order RC transient templates, AC steady-state phasors for linear R/L/C/source circuits, AC sweep data, and ideal closed-loop op-amp DC. It does not handle general transient analysis, DC inductor behavior, diodes, transistors, nonlinear solving, or nonideal op-amp effects such as rails, saturation, slew rate, bias current, or frequency response. Unsupported or ambiguous problems are marked as such instead of being guessed.
+> The MVP scope is intentionally controlled: DC operating point, first-order RC transient templates, AC steady-state phasors for linear R/L/C/source circuits, AC sweep data, ideal closed-loop op-amp DC, an educational nonideal op-amp model, and Gemini schematic/image-to-Circuit-IR parsing. It still does not handle general transient simulation, DC inductor behavior, diodes, transistors, nonlinear solving, SPICE-grade vendor op-amp macro-models, or guaranteed recognition of unreadable schematic images. Unsupported or ambiguous problems are marked as such instead of being guessed.
 
 End on the research point:
 

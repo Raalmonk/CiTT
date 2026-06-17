@@ -4,7 +4,15 @@ import math
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 
-from app.models.circuit_ir import IDEAL_OP_AMP_TYPES, CircuitProblem, Component, is_ideal_op_amp_type
+from app.models.circuit_ir import (
+    IDEAL_OP_AMP_TYPES,
+    NONIDEAL_OP_AMP_TYPES,
+    CircuitProblem,
+    Component,
+    is_ideal_op_amp_type,
+    is_nonideal_op_amp_type,
+    is_op_amp_type,
+)
 from app.models.solution_packet import CheckResult, ProblemStatus
 
 
@@ -25,6 +33,7 @@ SUPPORTED_COMPONENT_TYPES = {
     "capacitor",
     "inductor",
     *IDEAL_OP_AMP_TYPES,
+    *NONIDEAL_OP_AMP_TYPES,
 }
 NORMALIZED_UNITS = {
     "resistor": "ohm",
@@ -33,6 +42,7 @@ NORMALIZED_UNITS = {
     "capacitor": "F",
     "inductor": "H",
     **{component_type: "ideal" for component_type in IDEAL_OP_AMP_TYPES},
+    **{component_type: "model" for component_type in NONIDEAL_OP_AMP_TYPES},
 }
 AC_SUPPORTED_COMPONENT_TYPES = {
     "resistor",
@@ -41,6 +51,7 @@ AC_SUPPORTED_COMPONENT_TYPES = {
     "capacitor",
     "inductor",
     *IDEAL_OP_AMP_TYPES,
+    *NONIDEAL_OP_AMP_TYPES,
 }
 NONIDEAL_OP_AMP_FEATURE_TERMS = {
     "rail",
@@ -49,6 +60,11 @@ NONIDEAL_OP_AMP_FEATURE_TERMS = {
     "slew",
     "bias current",
     "input bias",
+    "clipping",
+    "clipping recovery",
+    "output current",
+    "output-current",
+    "current limit",
     "finite bandwidth",
     "bandwidth",
     "supply node",
@@ -208,7 +224,8 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
             errors.append(
                 f"Unsupported component type {component.type!r} on {component.id}. "
                 "Supported types are resistor, voltage_source, current_source, "
-                "capacitor, inductor, op_amp_ideal, and ideal_op_amp."
+                "capacitor, inductor, op_amp_ideal, ideal_op_amp, "
+                "op_amp_nonideal, and nonideal_op_amp."
             )
             component_types_supported = False
             component_nodes_valid = False
@@ -235,27 +252,57 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
                     f"Unsupported component type {component.type!r} for RC transient template on {component.id}."
                 )
                 component_types_supported = False
-        if is_ideal_op_amp_type(component.type):
+        if is_op_amp_type(component.type):
             if len(component.nodes) != 4:
                 errors.append(
-                    f"{component.id} ideal op-amp must have nodes "
+                    f"{component.id} op-amp must have nodes "
                     "[non_inverting, inverting, output, reference]."
                 )
                 component_nodes_valid = False
-            if component.unit != "ideal":
+            expected_unit = NORMALIZED_UNITS.get(component.type)
+            if component.unit != expected_unit:
                 units_valid = False
-                errors.append(f"{component.id} should use normalized SI unit 'ideal'.")
+                errors.append(
+                    f"{component.id} should use normalized SI unit {expected_unit!r}."
+                )
             label = (component.label or "").lower()
             requested_nonideal = [
                 term for term in NONIDEAL_OP_AMP_FEATURE_TERMS if term in label
             ]
-            if requested_nonideal:
-                errors.append(
-                    f"{component.id} requests unsupported ideal op-amp behavior: "
-                    + ", ".join(sorted(requested_nonideal))
-                    + "."
+            if requested_nonideal and is_ideal_op_amp_type(component.type):
+                warnings.append(
+                    f"{component.id} label mentions nonideal op-amp behavior "
+                    f"({', '.join(sorted(requested_nonideal))}); use nonideal_op_amp "
+                    "to model those effects."
                 )
-                component_types_supported = False
+            if is_nonideal_op_amp_type(component.type):
+                if (
+                    component.supply_positive_v is not None
+                    and component.supply_negative_v is not None
+                    and component.supply_positive_v <= component.supply_negative_v
+                ):
+                    errors.append(
+                        f"{component.id} nonideal op-amp supply_positive_v must be greater "
+                        "than supply_negative_v."
+                    )
+                    values_valid = False
+                if component.output_swing_margin_v is not None:
+                    if (
+                        component.supply_positive_v is None
+                        or component.supply_negative_v is None
+                    ):
+                        warnings.append(
+                            f"{component.id} output_swing_margin_v is ignored without both "
+                            "supply rails."
+                        )
+                    elif (
+                        component.output_swing_margin_v * 2
+                        >= component.supply_positive_v - component.supply_negative_v
+                    ):
+                        errors.append(
+                            f"{component.id} output_swing_margin_v leaves no usable rail window."
+                        )
+                        values_valid = False
         elif len(component.nodes) != 2:
             errors.append(f"{component.id} must connect exactly two nodes.")
             component_nodes_valid = False

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from app.models.circuit_ir import CircuitProblem, Component, is_ideal_op_amp_type
+from app.models.circuit_ir import (
+    CircuitProblem,
+    Component,
+    is_ideal_op_amp_type,
+    is_nonideal_op_amp_type,
+)
 
 
 def _fmt(value: float) -> str:
@@ -35,6 +40,25 @@ def _line_for_component(component: Component) -> str:
                 f"* implemented internally as MNA constraint V({vp})=V({vm})",
             ]
         )
+    if is_nonideal_op_amp_type(component.type):
+        vp, vm, out, ref = component.nodes
+        details = [
+            f"* {component.id} nonideal op-amp: nodes {vp} {vm} {out} {ref}",
+            "* implemented internally as finite-gain VCVS plus optional rail clamp",
+        ]
+        if component.open_loop_gain is not None:
+            details.append(f"* open_loop_gain={_fmt(component.open_loop_gain)}")
+        if component.gain_bandwidth_hz is not None:
+            details.append(f"* gain_bandwidth_hz={_fmt(component.gain_bandwidth_hz)}")
+        if component.bandwidth_hz is not None:
+            details.append(f"* bandwidth_hz={_fmt(component.bandwidth_hz)}")
+        if component.supply_positive_v is not None and component.supply_negative_v is not None:
+            details.append(
+                f"* rails={_fmt(component.supply_negative_v)}..{_fmt(component.supply_positive_v)} V"
+            )
+        if component.output_current_limit_a is not None:
+            details.append(f"* output_current_limit_a={_fmt(component.output_current_limit_a)}")
+        return "\n".join(details)
     raise ValueError(f"Unsupported component type: {component.type}")
 
 
