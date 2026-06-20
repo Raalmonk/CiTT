@@ -1,74 +1,167 @@
-function matchedEntry = highlightFocus(modelName, focusMap, focusId)
-%HIGHLIGHTFOCUS Highlight a focus-map target in Simulink/Simscape when possible.
-% Missing models or targets produce warnings instead of crashing the tutor.
-% Demo focus IDs include rc_filter and feedback_loop.
+function result = highlightFocus(modelPath, focusMapInput, focusId)
+%HIGHLIGHTFOCUS Highlight blocks from an agent-generated focus map.
 
-if nargin < 3
-    error("CiTT:HighlightFocus", "Usage: citt.highlightFocus(modelName, focusMap, focusId)");
+config = feval('citt.loadConfig');
+if nargin < 1 || isempty(modelPath)
+    modelPath = config.GeneratedModelPath;
+end
+if nargin < 2 || isempty(focusMapInput)
+    focusMapInput = config.FocusMapPath;
+end
+if nargin < 3 || isempty(focusId)
+    focusId = "";
 end
 
-matchedEntry = [];
-focusId = string(focusId);
+result = struct();
+result.success = false;
+result.focus_id = string(focusId);
+result.highlighted_paths = strings(0, 1);
+result.warnings = strings(0, 1);
+result.focus = [];
 
-try
-    if strlength(string(modelName)) > 0
-        open_system(modelName);
-        try
-            hilite_system(modelName, "none");
-        catch
-        end
-    end
-catch modelError
-    warning("CiTT:ModelOpen", "Could not open model %s: %s", string(modelName), modelError.message);
+focusMap = readFocusMap(focusMapInput);
+focus = findFocus(focusMap, focusId);
+if isempty(focus)
+    error("CiTT:MissingFocus", "Focus id was not found in the SATK-generated focus map: %s", string(focusId));
 end
+result.focus = focus;
 
-entries = focusMap;
-if isstruct(entries) && isfield(entries, "id")
-    for index = 1:numel(entries)
-        if string(entries(index).id) == focusId
-            matchedEntry = entries(index);
-            break
-        end
-    end
-elseif iscell(entries)
-    for index = 1:numel(entries)
-        candidate = entries{index};
-        if isstruct(candidate) && isfield(candidate, "id") && string(candidate.id) == focusId
-            matchedEntry = candidate;
-            break
-        end
-    end
-end
+tryOpenModel(modelPath, result.focus);
+tryClearHighlights(modelPath);
 
-if isempty(matchedEntry)
-    warning("CiTT:MissingFocus", "Focus id %s was not found.", focusId);
-    return
-end
-
-targets = matchedEntry.targets;
-for targetIndex = 1:numel(targets)
-    target = targets(targetIndex);
-    targetPath = "";
-    if isfield(target, "model_path") && strlength(string(target.model_path)) > 0
-        targetPath = string(target.model_path);
-    elseif isfield(target, "id")
-        targetPath = string(target.id);
-    end
-
+paths = focusPaths(focus);
+for i = 1:numel(paths)
+    targetPath = paths(i);
     if strlength(targetPath) == 0
-        warning("CiTT:MissingTargetPath", "Focus %s has a target without a model path.", focusId);
         continue
     end
-
     try
-        style = "find";
-        if isfield(target, "style") && any(string(target.style) == ["find", "default", "lineTrace", "fade"])
-            style = string(target.style);
-        end
-        hilite_system(targetPath, style);
+        hilite_system(char(targetPath), "find");
+        result.highlighted_paths(end + 1) = targetPath; %#ok<AGROW>
     catch highlightError
-        warning("CiTT:HighlightUnavailable", ...
-            "Could not highlight %s for focus %s: %s", targetPath, focusId, highlightError.message);
+        error("CiTT:HighlightUnavailable", ...
+            "Could not highlight %s for focus %s: %s", targetPath, string(focusId), highlightError.message);
     end
+end
+
+result.success = ~isempty(result.highlighted_paths);
+if ~result.success
+    error("CiTT:FocusPathMissing", "Focus map entry has no highlightable block/model paths: %s", string(focusId));
+end
+end
+
+function focusMap = readFocusMap(inputValue)
+if isstruct(inputValue)
+    focusMap = inputValue;
+    return
+end
+if iscell(inputValue)
+    focusMap = inputValue;
+    return
+end
+path = string(inputValue);
+if exist(path, "file") ~= 2
+    error("CiTT:FocusMapMissing", "Focus map file does not exist: %s", path);
+end
+focusMap = jsondecode(fileread(path));
+end
+
+function focus = findFocus(focusMap, focusId)
+focus = [];
+items = unwrapItems(focusMap);
+focusId = string(focusId);
+if strlength(focusId) == 0 && ~isempty(items)
+    focus = items(1);
+    return
+end
+for i = 1:numel(items)
+    candidateId = entryId(items(i));
+    if candidateId == focusId
+        focus = items(i);
+        return
+    end
+end
+end
+
+function items = unwrapItems(focusMap)
+if isstruct(focusMap) && isfield(focusMap, "focus_map")
+    items = focusMap.focus_map;
+elseif isstruct(focusMap) && isfield(focusMap, "items")
+    items = focusMap.items;
+elseif isstruct(focusMap)
+    items = focusMap;
+elseif iscell(focusMap)
+    items = [focusMap{:}];
+else
+    items = struct([]);
+end
+end
+
+function id = entryId(entry)
+if isfield(entry, "focus_id")
+    id = string(entry.focus_id);
+elseif isfield(entry, "id")
+    id = string(entry.id);
+else
+    id = "";
+end
+end
+
+function paths = focusPaths(focus)
+paths = strings(0, 1);
+paths = appendFieldPaths(paths, focus, "block_paths");
+paths = appendFieldPaths(paths, focus, "model_paths");
+if isfield(focus, "targets")
+    targets = focus.targets;
+    for i = 1:numel(targets)
+        if isfield(targets(i), "model_path")
+            paths(end + 1) = string(targets(i).model_path); %#ok<AGROW>
+        elseif isfield(targets(i), "id")
+            paths(end + 1) = string(targets(i).id); %#ok<AGROW>
+        end
+    end
+end
+paths = unique(paths);
+end
+
+function paths = appendFieldPaths(paths, entry, fieldName)
+if ~isfield(entry, fieldName)
+    return
+end
+value = entry.(fieldName);
+if iscell(value)
+    for i = 1:numel(value)
+        paths(end + 1) = string(value{i}); %#ok<AGROW>
+    end
+elseif isstring(value) || ischar(value)
+    paths = [paths; string(value(:))]; %#ok<AGROW>
+else
+    paths = [paths; string(value(:))]; %#ok<AGROW>
+end
+end
+
+function tryOpenModel(modelPath, focus)
+try
+    if strlength(string(modelPath)) > 0 && exist(modelPath, "file") == 2
+        load_system(char(modelPath));
+        [~, modelName, ~] = fileparts(modelPath);
+        open_system(char(modelName));
+        return
+    end
+    paths = focusPaths(focus);
+    if ~isempty(paths)
+        open_system(char(paths(1)));
+    end
+catch
+end
+end
+
+function tryClearHighlights(modelPath)
+try
+    if strlength(string(modelPath)) > 0 && exist(modelPath, "file") == 2
+        [~, modelName, ~] = fileparts(modelPath);
+        hilite_system(char(modelName), "none");
+    end
+catch
 end
 end

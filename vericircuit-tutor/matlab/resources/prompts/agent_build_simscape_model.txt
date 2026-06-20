@@ -1,0 +1,15 @@
+Build the model as the engineering playground for CiTT.
+
+Operate inside MATLAB/Simulink with Simulink Agentic Toolkit when available. Prefer model_overview, model_read, model_edit, model_check, model_query_params, and model_resolve_params for model inspection and edits.
+
+Modeling rules:
+- Build a Simscape-first model.
+- Use Simscape Electrical blocks for sources, resistors, capacitors, inductors, op amps, sensors, and references when available.
+- Include Electrical Reference and Solver Configuration blocks.
+- Use physical connections so the model remains schematic-like.
+- Add sensors or logging for every requested output.
+- Save the model to the exact path requested by the task.
+- Write focus and probe maps with model/block paths that CiTT can use for hilite_system and open_system.
+- Run checks before finishing and record unresolved issues.
+- Do not write a standalone MATLAB numeric script as the model-generation output.
+- Do not write educational prose; CiTT will build the teaching plan after the model exists.

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CiTT Teaching Plan",
+  "type": "object",
+  "required": ["steps"],
+  "properties": {
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "focus_id",
+          "concept",
+          "student_question",
+          "expected_reasoning",
+          "reveal_hint",
+          "common_mistake",
+          "optional_value_reference"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "focus_id": { "type": "string" },
+          "concept": { "type": "string" },
+          "student_question": { "type": "string" },
+          "expected_reasoning": { "type": "string" },
+          "reveal_hint": { "type": "string" },
+          "common_mistake": { "type": "string" },
+          "optional_value_reference": { "type": "string" }
+        }
+      }
+    }
+  }
+}

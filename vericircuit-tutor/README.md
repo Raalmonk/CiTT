@@ -1,14 +1,25 @@
 # VeriCircuit Tutor
 
-VeriCircuit Tutor is a graphical tutor layer for supported undergraduate circuit-analysis topics, BME circuits, signal-conditioning labs, MATLAB/Simscape playground artifacts, and reasoning-coach loops. It is not a general-purpose circuit simulator or a biomedical design-verification tool. The central design rule is simple:
+The main demo surface is now the MATLAB-native CiTT plugin:
+
+```matlab
+addpath("vericircuit-tutor/matlab")
+citt
+```
+
+CiTT is a MATLAB plugin shell around Gemini and Simulink Agentic Toolkit. A student selects a circuit image or enters a prompt in MATLAB, Gemini parses it into a structured circuit/model spec, an SATK-enabled agent builds a Simulink/Simscape model, and CiTT teaches with Socratic focus steps, highlight/zoom, probes, and Lab Delta comparison. See [docs/matlab_agentic_plugin_demo.md](docs/matlab_agentic_plugin_demo.md).
+
+The existing backend, web UI, and internal solver remain legacy/supporting demo paths. The new product flow requires Gemini, MATLAB, Simulink, Simscape, SATK, MATLAB MCP, and a configured local agent CLI for model generation.
+
+VeriCircuit Tutor is a graphical tutor layer for supported undergraduate circuit-analysis topics, BME circuits, signal-conditioning labs, MATLAB/Simscape model artifacts, and reasoning-coach loops. It is not a general-purpose circuit simulator or a biomedical design-verification tool. The central design rule is simple:
 
 **The LLM is not the numerical authority. CiTT grounds tutoring in explicit models, generated artifacts, hand checks, solver/verifier evidence, and student-visible reasoning steps.**
 
-The LLM or deterministic parser may help translate a problem into a structured circuit representation, and a tutor layer may explain the result, but final numerical answers for supported circuit-answer workflows come only from verified solver output. The MATLAB/Simscape playground path adds generated artifacts, focus maps, probe plans, and Lab Delta comparisons without making students write MATLAB setup code.
+Gemini may help translate a diagram or prompt into a structured circuit/model representation, and a tutor layer may explain the result, but final numerical authority belongs to solver/verifier evidence and the generated MATLAB/Simulink/Simscape model. The MATLAB plugin path adds generated model artifacts, focus maps, probe plans, and Lab Delta comparisons without making students write setup code by hand.
 
 The newer coaching path adds a second rule: students should own the next reasoning move. CiTT can now withhold final values, inspect a student's partial frame, and return one local nudge before revealing the verified solution.
 
-CiTT now includes a MATLAB/Simscape-aware popup tutor direction for BME circuits and signal-conditioning labs. It keeps the guided graphical teaching experience while using MATLAB, Simulink, and Simscape as the engineering playground; see [docs/matlab_simscape_playground.md](docs/matlab_simscape_playground.md). The existing API, web UI, and internal solver pipeline remain part of the product: the solver is the hand-check and fallback verifier, while MATLAB/Simscape is the main lab playground.
+The previous web-first MATLAB playground direction is no longer the center of the project. Keep the API/web code working where needed, but demo CiTT from MATLAB.
 
 ## Why This Exists
 
@@ -27,7 +38,7 @@ The explanation layer is deliberately constrained. It cites values from the Solu
 CiTT is organized around five product capabilities:
 
 1. **Solver-verified circuit answers**
-   - Converts supported prompts into Circuit IR, validates topology and units, solves with deterministic circuit engines, and returns a Solution Packet with requested answers, provenance, and a verification badge.
+   - Converts supported prompts into Circuit IR, validates topology and units, solves with verified circuit engines, and returns a Solution Packet with requested answers, provenance, and a verification badge.
    - Product value: students and instructors can inspect where numbers came from instead of trusting fluent prose.
    - Boundary: only supported circuit families receive verified answers.
 
@@ -94,17 +105,17 @@ Unsupported or ambiguous requests are reported honestly rather than forced throu
 The BME tutor layer adds biomedical context, practice variants, safety notes, nonideal reminders, and differential/common-mode teaching observations on top of internally verified circuit results. Internal verification here means circuit-law consistency inside the supported solver scope; it is not biomedical design verification. These notes are educational guardrails, not safety certification or full nonideal simulation.
 
 - Safety notes can remind students about isolation, leakage-current limits, patient-connected design, optical exposure, and ADC anti-aliasing, but the current implementation does not calculate leakage current, isolation-barrier ratings, IEC-style constraints, or device compliance.
-- CMRR support currently explains differential input, common-mode input, their ratio, and a deterministic 1% resistor-ratio mismatch what-if for named ECG/instrumentation templates. It does not yet solve arbitrary resistor tolerance networks, finite-op-amp CMRR degradation, or frequency-dependent CMRR.
+- CMRR support currently explains differential input, common-mode input, their ratio, and a verified 1% resistor-ratio mismatch what-if for named ECG/instrumentation templates. It does not yet solve arbitrary resistor tolerance networks, finite-op-amp CMRR degradation, or frequency-dependent CMRR.
 - ADC anti-aliasing support currently reports template or dynamically inferred sampling frequency, Nyquist frequency, target cutoff, first-order attenuation at Nyquist, ideal quantization step/noise, and an input-loading warning marker. It does not yet compute alias energy, aperture effects, switched-capacitor acquisition dynamics, ADC datasheet noise, or higher-order filter behavior.
 - Noise budget support gives starter educational estimates and, when BME metadata provides noise sources, injects equivalent current-noise sources through the complex MNA network to integrate output-referred RMS noise over the configured bandwidth. Configured 1/f corner terms are included as teaching estimates. This still does not replace datasheet-level or IC-design noise verification.
-- BME meaning is attached by deterministic templates or limited topology-feature injection for differential front ends and ADC-style RC low-pass stages. Gemini mode may parse explicit circuit connectivity into general Circuit IR, but safe biomedical interpretation still comes from validated metadata rather than guessed physiology.
+- BME meaning is attached by validated templates or limited topology-feature injection for differential front ends and ADC-style RC low-pass stages. Gemini mode may parse explicit circuit connectivity into general Circuit IR, but safe biomedical interpretation still comes from validated metadata rather than guessed physiology.
 - Supply-rail notes are tutor warnings from template metadata fields such as `supply_positive_v`, `supply_negative_v`, and `output_swing_margin_v`. For `nonideal_op_amp` components, the solver uses configured rails and output swing margin to clamp saturated DC output, checks output-current limits, stamps input bias current, input offset, input resistance, finite output resistance, and optional compensation capacitance, and uses gain-bandwidth or open-loop bandwidth for AC frequency response. Slew rate and clipping recovery are exposed as educational dynamic-limit observations, not full waveform simulation.
 
 ## Architecture
 
 1. **Parser service**
    - `demo_parser.py` recognizes bundled examples without external API keys.
-   - `gemini_parser.py` calls Gemini when `GEMINI_API_KEY` or `GOOGLE_API_KEY` is present. If Gemini is unavailable or cannot produce validated Circuit IR, parsing returns controlled ambiguity instead of using bundled parser fallback.
+   - `gemini_parser.py` calls Gemini when `GEMINI_API_KEY` is present. If Gemini is unavailable or cannot produce validated Circuit IR, parsing returns controlled ambiguity.
 
 2. **Circuit IR**
    - Pydantic models define the supported circuit graph, components, goals, assumptions, ambiguities, and unsupported features.
@@ -136,15 +147,15 @@ The BME tutor layer adds biomedical context, practice variants, safety notes, no
    - Explains only values present in the Solution Packet.
 
 7. **Lesson builder**
-   - `guided_steps.py` builds deterministic step focus for the diagram.
+   - `guided_steps.py` builds verified step focus for the diagram.
    - `lesson_builder.py` wraps those steps into a structured `LessonPacket` with objectives, conceptual overview, equation steps, visual cues, common mistakes, checks, practice prompts, verified value references, and limitations.
    - `LessonPacket` is generated only for solved packets with a `PASS` verification badge.
-   - User-visible lesson numbers are formatted from `SolutionPacket` fields or deterministic `TutorObservation` values, not from Gemini prose.
+   - User-visible lesson numbers are formatted from `SolutionPacket` fields or verified `TutorObservation` values, not from Gemini prose.
 
 8. **Reasoning coach**
    - `/reasoning_coach` runs parse and solve internally, but does not expose final values unless reveal is explicitly allowed at Level 5 after a student commitment.
    - It extracts a lightweight `StudentFrame`, detects built-in or dynamic misconception tags, returns a short diagnostic graph, returns one `CoachNudge`, supports diagram/KCL/physical/unit/biomedical representation modes, generates adaptive practice prompts, and updates a portable `StudentProfile` with BKT-style `knowledge_state`.
-   - In `gemini` or `gemini_strict` mode, Gemini may also classify the student's partial reasoning into a `StudentFrame`. If that call fails, the coach falls back to deterministic heuristics and records a warning.
+   - In `gemini` or `gemini_strict` mode, Gemini may also classify the student's partial reasoning into a `StudentFrame`. If that call fails, the coach records a warning.
    - `/instructor_dashboard` aggregates submitted student profiles into class-level misconception percentages and suggested interventions. It is a stateless endpoint, not persistent analytics storage.
    - Student-frame extraction is never allowed to compute or reveal numerical answers; numerical authority remains solver/verifier-grounded.
 
@@ -154,17 +165,17 @@ The BME tutor layer adds biomedical context, practice variants, safety notes, no
    - `/schematic` is backed by `optcpv_bridge.py`, converts Circuit IR into OptCPV native IR, and returns OptCPV SVG with `data-component-id`, net, pin, renderer, and circuit metadata.
 
 10. **OptCPV schematic integration**
-   - CiTT no longer ships its own SVG schematic renderer or fallback HTML renderer.
+   - CiTT no longer ships its own SVG schematic renderer or alternate HTML renderer.
    - OptCPV is the drawing source of truth for `/schematic`; unsupported OptCPV failures are returned as explicit API errors instead of silently falling back to CiTT drawings.
    - The CiTT -> OptCPV adapter canonicalizes known motif naming quirks, including two-electrode voltage clamp nets (`Vc`, `Vm`, `Vo`, `0`) so OptCPV motif routes are used instead of generic routes.
 
 ## Gemini Boundary
 
-Gemini mode is optional. The backend reads `GEMINI_API_KEY` or `GOOGLE_API_KEY`; keys are never sent to the frontend. `GEMINI_MODEL` defaults to `gemini-flash-latest` and can be overridden per server environment.
+Gemini is required for the MATLAB plugin flow. The backend reads `GEMINI_API_KEY`; keys are never sent to the frontend.
 
-`gemini_client.py` owns Google GenAI client creation and structured JSON calls. `gemini_parser.py` owns the Circuit IR schema and prompt. Gemini may parse natural language into Circuit IR, but final node voltages, currents, powers, phasors, transient values, requested answers, explanations, and lesson numbers come from deterministic solver/verifier outputs.
+`gemini_client.py` owns Google GenAI client creation and structured JSON calls. `gemini_parser.py` owns the Circuit IR schema and prompt. Gemini may parse natural language into Circuit IR, but final node voltages, currents, powers, phasors, transient values, requested answers, explanations, and lesson numbers come from solver/verifier outputs.
 
-The reasoning coach can also use Gemini to classify a student's freeform partial attempt into `StudentFrame` fields such as suspected method, confusion, confidence, likely misconception, and a short causal diagnostic graph. That prompt explicitly forbids solving or revealing final values, and the deterministic coach falls back if Gemini is unavailable.
+The reasoning coach can also use Gemini to classify a student's freeform partial attempt into `StudentFrame` fields such as suspected method, confusion, confidence, likely misconception, and a short causal diagnostic graph. That prompt explicitly forbids solving or revealing final values.
 
 ## Running Tests And Evaluation
 
@@ -258,7 +269,7 @@ cd vericircuit-tutor\backend
 
 ## Demo Examples
 
-The deterministic parser recognizes:
+The legacy parser recognizes:
 
 - Voltage divider: 10 V source with R1 = 2 kOhm and R2 = 3 kOhm
 - Current source with parallel resistors: 3 mA into 2 kOhm and 1 kOhm to ground
@@ -286,6 +297,8 @@ backend/app/examples/
 
 ## API Endpoints
 
+These endpoints are legacy/supporting surfaces for solver and web demos. The current CiTT product demo is the MATLAB plugin launched with `citt`.
+
 - `GET /health`
 - `GET /scope`
 - `GET /examples`
@@ -297,13 +310,6 @@ backend/app/examples/
 - `POST /reasoning_coach`
 - `POST /instructor_dashboard`
 - `POST /incremental_resistor_update`
-- `GET /matlab_playground/manifest`
-- `GET /matlab_playground/labs`
-- `GET /matlab_playground/labs/{lab_id}`
-- `POST /matlab_playground/labs/{lab_id}/artifacts`
-- `GET /matlab_playground/labs/{lab_id}/focus_map`
-- `GET /matlab_playground/labs/{lab_id}/probe_plans`
-- `POST /matlab_playground/labs/{lab_id}/lab_delta`
 - `GET /matlab_plugin/manifest`
 - `GET /matlab_plugin/labs`
 - `POST /matlab_plugin/labs/{lab_id}/artifact`
@@ -317,7 +323,7 @@ backend/app/examples/
 - `POST /full_pipeline`
 - `POST /full_pipeline_image`
 
-The preferred `/matlab_playground` endpoints expose generated MATLAB/Simulink/Simscape artifacts, included lab definitions, focus maps, probe plans, and Lab Delta comparisons for the graphical popup tutor. The older `/matlab_plugin` endpoints remain as compatibility aliases for previous generated bundles and tests. See [docs/matlab_simscape_playground.md](docs/matlab_simscape_playground.md).
+The MATLAB plugin does not require new web endpoints. It writes local files under `vericircuit-tutor/matlab/work` and hands a Simscape-first task to a SATK-enabled local agent.
 
 `/full_pipeline` accepts:
 

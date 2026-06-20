@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CiTT Agent Task Output Contract",
+  "type": "object",
+  "required": ["model_path", "focus_map_path", "probe_map_path", "agent_report_path"],
+  "properties": {
+    "model_path": { "type": "string" },
+    "focus_map_path": { "type": "string" },
+    "probe_map_path": { "type": "string" },
+    "agent_report_path": { "type": "string" },
+    "simscape_first": { "type": "boolean" },
+    "tools_used": { "type": "array", "items": { "type": "string" } },
+    "unresolved_issues": { "type": "array", "items": { "type": "string" } }
+  }
+}

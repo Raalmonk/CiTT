@@ -1,9 +1,5 @@
-function app = openTutor(labId)
-%OPENTUTOR Open the CiTT MATLAB/Simscape tutor popup.
+function app = openTutor()
+%OPENTUTOR Compatibility wrapper for the MATLAB-native CiTT plugin.
 
-if nargin < 1 || strlength(string(labId)) == 0
-    labId = "rc_antialias_adc";
-end
-
-app = citt(labId);
+app = feval('citt.openApp');
 end

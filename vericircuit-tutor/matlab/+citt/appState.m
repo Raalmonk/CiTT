@@ -1,0 +1,25 @@
+function state = appState()
+%APPSTATE Build the mutable state struct used by the CiTT UI callbacks.
+
+config = feval('citt.loadConfig');
+state = struct();
+state.Config = config;
+state.ImagePath = "";
+state.PromptText = "";
+state.Spec = [];
+state.SpecPath = config.LastSpecPath;
+state.AgentTaskPath = config.AgentTaskPath;
+state.AgentRun = [];
+state.ModelPath = config.GeneratedModelPath;
+state.FocusMapPath = config.FocusMapPath;
+state.ProbeMapPath = config.ProbeMapPath;
+state.TeachingPlan = [];
+state.TeachingStepIndex = 1;
+state.HintLevel = 0;
+state.LastSetupReport = [];
+state.LastModelCheck = [];
+state.LastSimulation = [];
+state.LastProbe = [];
+state.LabCsvPath = "";
+state.LastLabDelta = [];
+end
