@@ -27,7 +27,7 @@ try
     set_param(char(modelName), "SimulationCommand", "update");
     result.messages(end + 1) = "Diagram update completed.";
     checksum = Simulink.BlockDiagram.getChecksum(char(modelName));
-    result.checksum = checksum.Value;
+    result.checksum = checksumValue(checksum);
     result.messages(end + 1) = "Model checksum captured.";
     if exist("modeladvisor", "file") == 2
         result.messages(end + 1) = "Model Advisor is available.";
@@ -43,6 +43,14 @@ catch checkError
 end
 
 writeReport(reportPath, result);
+end
+
+function value = checksumValue(checksum)
+if isstruct(checksum) && isfield(checksum, "Value")
+    value = checksum.Value;
+else
+    value = checksum;
+end
 end
 
 function writeReport(path, result)

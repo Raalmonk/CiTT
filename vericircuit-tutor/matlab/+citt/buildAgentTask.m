@@ -26,8 +26,21 @@ taskText = strjoin([
     "# CiTT Simscape Model Build Task"
     ""
     "You are operating inside MATLAB/Simulink with Simulink Agentic Toolkit."
-    "Use the available MCP tools to inspect, build, edit, and check the model."
-    "Required tools to prefer when present: model_overview, model_read, model_edit, model_check, model_query_params, model_resolve_params."
+    "This task is self-contained. Do not read external agent skill files, do not invoke subagents, and do not use shell tools."
+    "Use the available MATLAB MCP tools to inspect, build, edit, and check the model."
+    "When running in Gemini CLI, use the actual registered tool names: mcp_matlab_model_overview, mcp_matlab_model_read, mcp_matlab_model_edit, mcp_matlab_model_check, mcp_matlab_model_query_params, and mcp_matlab_model_resolve_params."
+    "Use mcp_matlab_evaluate_matlab_code only for required artifact file writes or MATLAB checks that have no dedicated MCP tool; do not use it to bypass mcp_matlab_model_edit for structural model construction."
+    "If your runtime exposes unprefixed aliases, the equivalent aliases are model_overview, model_read, model_edit, model_check, model_query_params, and model_resolve_params."
+    "The structured circuit spec is embedded below; do not read the Source file path."
+    ""
+    "## Gemini CLI Guardrails"
+    "- Do not call read_file for /Users/Raalm/.agents/skills or other external skill paths."
+    "- Do not call run_shell_command; it is not available in this CiTT agent runner."
+    "- Do not call invoke_agent or delegate to another agent."
+    "- If the target model does not exist yet, create it with mcp_matlab_model_edit; do not treat an initial model_overview/model_read failure as permission to use a fallback builder."
+    "- Do not call any CiTT local build helper, including citt.buildLocalSimscapeFallback, buildLocalSimscapeFallback, citt.buildSimscapeModelFromSpec, or buildSimscapeModelFromSpec."
+    "- Do not write or run citt_build_simscape_model.m as the model-generation mechanism."
+    "- If mcp_matlab_model_edit cannot create/edit the model, write an agent report explaining the SATK/MCP failure instead of producing fallback artifacts."
     ""
     "## Product Boundary"
     "Gemini parsed the circuit image/prompt into a structured model specification. Treat that spec as a starting point, not as numerical authority."
@@ -43,6 +56,7 @@ taskText = strjoin([
     "- Values outside the requested/connected teaching path should not block structural model generation."
     "- Do not use a Simulink signal-flow substitute for the circuit."
     "- Do not solve with standalone MATLAB numeric code as the model-generation output."
+    "- Do not bypass SATK/model_edit by calling local deterministic Simscape builder functions."
     "- Treat the supplied spec as build-ready; report an error if a required modeling detail is still missing."
     ""
     "## Required Output Files"
@@ -92,17 +106,13 @@ if strlength(path) == 0 || exist(path, "file") ~= 2
     error("CiTT:SpecMissing", "Circuit spec JSON was not found: %s", path);
 end
 spec = jsondecode(fileread(path));
+spec = feval('citt.demoteNonBlockingUnsupportedRegions', spec);
 source = path;
 end
 
 function rejectBlockingSpec(spec)
-problems = strings(0, 1);
-if isfield(spec, "unsupported_or_unclear_regions") && ~isempty(spec.unsupported_or_unclear_regions)
-    text = valueToText(spec.unsupported_or_unclear_regions);
-    if strlength(strtrim(text)) > 0
-        problems(end + 1) = "unsupported_or_unclear_regions: " + text;
-    end
-end
+readiness = feval('citt.classifyBuildReadiness', spec);
+problems = readiness.blocking_issues;
 if ~isempty(problems)
     error("CiTT:AmbiguousCircuitSpec", ...
         "Circuit spec has unclear or unsupported regions. Clarify before generating SATK task. %s", strjoin(problems, " | "));

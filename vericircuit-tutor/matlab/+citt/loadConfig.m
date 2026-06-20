@@ -9,6 +9,7 @@ end
 
 loadLocalEnv(matlabRoot);
 loadShellEnvIfMissing(["GEMINI_API_KEY", "GEMINI_MODEL", "CITT_AGENT_COMMAND", ...
+    "CITT_AGENT_MAX_ATTEMPTS", "CITT_AGENT_RETRY_DELAY_SECONDS", ...
     "CITT_USE_LOCAL_SIMSCAPE_FALLBACK", "CITT_LOCAL_SIMSCAPE_FALLBACK"]);
 agenticToolkit = discoverAgenticToolkit();
 
@@ -24,8 +25,10 @@ config.MatlabAgenticToolkitPath = agenticToolkit.matlab_path;
 config.MatlabMcpServerPath = agenticToolkit.mcp_server_path;
 config.GeminiApiKey = apiKey;
 config.GeminiApiKeyName = apiKeyName;
-config.GeminiModel = getenvOrDefault("GEMINI_MODEL", "gemini-3.1-pro-preview");
+config.GeminiModel = getenvOrDefault("GEMINI_MODEL", "gemini-3.5-flash");
 config.AgentCommand = string(getenv("CITT_AGENT_COMMAND"));
+config.AgentMaxAttempts = getenvPositiveInteger("CITT_AGENT_MAX_ATTEMPTS", 4);
+config.AgentRetryDelaySeconds = getenvNonnegativeNumber("CITT_AGENT_RETRY_DELAY_SECONDS", 20);
 config.LastSpecPath = string(fullfile(workDir, "citt_last_circuit_spec.json"));
 config.AgentTaskPath = string(fullfile(workDir, "citt_agent_task.md"));
 config.GeneratedBuildScriptPath = string(fullfile(workDir, "citt_build_simscape_model.m"));
@@ -38,6 +41,7 @@ config.ModelCheckReportPath = string(fullfile(workDir, "citt_model_check_report.
 config.SimulationSummaryPath = string(fullfile(workDir, "citt_simulation_summary.json"));
 config.ProbeActionPlanPath = string(fullfile(workDir, "citt_probe_action_plan.json"));
 config.LabDeltaReportPath = string(fullfile(workDir, "citt_lab_delta_report.json"));
+config.LabErrorMarkdownPath = string(fullfile(workDir, "citt_lab_error_report.md"));
 config.EvidencePackPath = string(fullfile(workDir, "citt_evidence_pack.md"));
 config.RequirementReportPath = string(fullfile(workDir, "citt_requirement_report.json"));
 config.RequirementReportMarkdownPath = string(fullfile(workDir, "citt_requirement_report.md"));
@@ -223,5 +227,31 @@ function value = getenvOrDefault(name, defaultValue)
 value = string(getenv(name));
 if strlength(value) == 0
     value = string(defaultValue);
+end
+end
+
+function value = getenvPositiveInteger(name, defaultValue)
+value = defaultValue;
+rawValue = strtrim(string(getenv(name)));
+if strlength(rawValue) == 0
+    return
+end
+
+parsedValue = str2double(rawValue);
+if isfinite(parsedValue) && parsedValue >= 1
+    value = max(1, round(parsedValue));
+end
+end
+
+function value = getenvNonnegativeNumber(name, defaultValue)
+value = defaultValue;
+rawValue = strtrim(string(getenv(name)));
+if strlength(rawValue) == 0
+    return
+end
+
+parsedValue = str2double(rawValue);
+if isfinite(parsedValue) && parsedValue >= 0
+    value = parsedValue;
 end
 end

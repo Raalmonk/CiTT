@@ -1,6 +1,8 @@
 Build the model as the engineering playground for CiTT.
 
-Operate inside MATLAB/Simulink with Simulink Agentic Toolkit when available. Prefer model_overview, model_read, model_edit, model_check, model_query_params, and model_resolve_params for model inspection and edits.
+Operate inside MATLAB/Simulink with Simulink Agentic Toolkit when available. This task is self-contained; do not read external agent skill files, do not invoke subagents, and do not use shell tools.
+
+Prefer MATLAB MCP/SATK tools for model inspection and edits. In Gemini CLI, the registered tool names are usually mcp_matlab_model_overview, mcp_matlab_model_read, mcp_matlab_model_edit, mcp_matlab_model_check, mcp_matlab_model_query_params, and mcp_matlab_model_resolve_params. If your runtime exposes unprefixed aliases, the equivalent aliases are model_overview, model_read, model_edit, model_check, model_query_params, and model_resolve_params. Use mcp_matlab_evaluate_matlab_code only for required artifact file writes or MATLAB checks that have no dedicated MCP tool; do not use it to bypass model_edit for structural model construction.
 
 Modeling rules:
 - Build a Simscape-first model.
@@ -12,4 +14,9 @@ Modeling rules:
 - Write focus and probe maps with model/block paths that CiTT can use for hilite_system and open_system.
 - Run checks before finishing and record unresolved issues.
 - Do not write a standalone MATLAB numeric script as the model-generation output.
+- Do not call any CiTT local build helper, including citt.buildLocalSimscapeFallback, buildLocalSimscapeFallback, citt.buildSimscapeModelFromSpec, or buildSimscapeModelFromSpec.
+- Do not write or run citt_build_simscape_model.m as the model-generation mechanism.
+- If mcp_matlab_model_edit cannot create/edit the model, write an agent report explaining the SATK/MCP failure instead of producing fallback artifacts.
 - Do not write educational prose; CiTT will build the teaching plan after the model exists.
+- Do not call read_file for /Users/Raalm/.agents/skills or other external skill paths.
+- Do not call run_shell_command; it is not available in this CiTT agent runner.

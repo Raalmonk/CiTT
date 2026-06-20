@@ -146,6 +146,8 @@ elseif hasFocus
     spec.focus_points = ensureJsonArray(spec.focus_points);
     spec.teaching_focus_points = spec.focus_points;
 end
+
+spec = feval('citt.demoteNonBlockingUnsupportedRegions', spec);
 end
 
 function values = ensureJsonArray(value)

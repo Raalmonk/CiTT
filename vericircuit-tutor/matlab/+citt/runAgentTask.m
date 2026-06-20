@@ -19,7 +19,11 @@ runner = selectAgentRunner(config, setup, taskPath, options);
 
 switch runner.mode
     case "external_agent"
-        result = runExternalAgent(runner, config);
+        if asyncEnabled(options)
+            result = startExternalAgent(runner, config);
+        else
+            result = runExternalAgent(runner, config);
+        end
     case "manual_agent"
         result = manualAgentResult(taskPath, config);
     case "local_fallback"
@@ -29,9 +33,49 @@ switch runner.mode
 end
 end
 
+function result = startExternalAgent(runner, config)
+artifactSnapshot = expectedArtifactSnapshot(config);
+runtime = agentRuntimePaths(config);
+clearAgentRuntimeFiles(runtime);
+clearExternalGeneratedCode(config);
+writeAgentRunScript(runtime, runner.command, config);
+
+launchCommand = "/bin/zsh " + shellQuote(runtime.script_path) + " >/dev/null 2>&1 & echo $!";
+launchResult = feval('citt.util.safeSystem', launchCommand);
+
+result = baseResult(runner.command, config);
+result.mode = "external_agent_pending";
+result.agent_name = runner.name;
+result.exit_status = [];
+result.agent_attempts = 0;
+result.agent_pid = strtrim(string(launchResult.stdout));
+result.agent_stdout_path = runtime.stdout_path;
+result.agent_stderr_path = runtime.stderr_path;
+result.agent_status_path = runtime.status_path;
+result.agent_exit_status_path = runtime.exit_status_path;
+result.agent_attempt_path = runtime.attempt_path;
+result.agent_script_path = runtime.script_path;
+result.artifact_snapshot = artifactSnapshot;
+result.summary = "External SATK agent started asynchronously. MATLAB is free for MCP/SATK tool calls.";
+result.stdout = strjoin([
+    result.summary
+    "PID: " + emptyString(result.agent_pid, "unknown")
+    "Stdout log: " + runtime.stdout_path
+    "Stderr log: " + runtime.stderr_path
+], newline);
+
+if launchResult.status ~= 0 || strlength(result.agent_pid) == 0
+    result.mode = "external_agent";
+    result.success = false;
+    result.exit_status = launchResult.status;
+    result.stderr = appendLine(launchResult.stderr, "Could not launch external agent asynchronously.");
+end
+end
+
 function result = runExternalAgent(runner, config)
 artifactSnapshot = expectedArtifactSnapshot(config);
-systemResult = feval('citt.util.safeSystem', runner.command);
+clearExternalGeneratedCode(config);
+systemResult = runAgentCommandWithRetries(runner.command, config);
 
 result = baseResult(runner.command, config);
 result.mode = "external_agent";
@@ -39,9 +83,11 @@ result.agent_name = runner.name;
 result.exit_status = systemResult.status;
 result.stdout = systemResult.stdout;
 result.stderr = systemResult.stderr;
+result.agent_attempts = systemResult.attempts;
 
 [result, missingArtifacts] = collectArtifacts(result, config, artifactSnapshot);
-if result.exit_status == 0 && isempty(missingArtifacts)
+bypassedLocalFallback = localFallbackBypassDetected(result, config);
+if result.exit_status == 0 && isempty(missingArtifacts) && ~bypassedLocalFallback
     result.success = true;
     result.summary = "External SATK agent completed and produced CiTT model artifacts.";
     result = openProducedModel(result);
@@ -54,6 +100,162 @@ else
     if ~isempty(missingArtifacts)
         result.stderr = appendLine(result.stderr, "Missing or stale required artifacts: " + strjoin(missingArtifacts, ", ") + ".");
     end
+    if bypassedLocalFallback
+        result.stderr = appendLine(result.stderr, "Agent bypassed SATK/model_edit by invoking or writing the CiTT local Simscape fallback.");
+    end
+end
+end
+
+function runtime = agentRuntimePaths(config)
+runtime = struct();
+runtime.stdout_path = string(fullfile(config.WorkDir, "citt_agent_stdout.log"));
+runtime.stderr_path = string(fullfile(config.WorkDir, "citt_agent_stderr.log"));
+runtime.status_path = string(fullfile(config.WorkDir, "citt_agent_status.txt"));
+runtime.exit_status_path = string(fullfile(config.WorkDir, "citt_agent_exit_status.txt"));
+runtime.attempt_path = string(fullfile(config.WorkDir, "citt_agent_attempt.txt"));
+runtime.script_path = string(fullfile(config.WorkDir, "citt_run_agent.sh"));
+end
+
+function clearAgentRuntimeFiles(runtime)
+fields = ["stdout_path", "stderr_path", "status_path", "exit_status_path", "attempt_path"];
+for i = 1:numel(fields)
+    path = runtime.(fields(i));
+    if exist(path, "file") == 2
+        delete(char(path));
+    end
+end
+end
+
+function clearExternalGeneratedCode(config)
+if exist(config.GeneratedBuildScriptPath, "file") == 2
+    delete(char(config.GeneratedBuildScriptPath));
+end
+end
+
+function writeAgentRunScript(runtime, commandText, config)
+lines = [
+    "#!/bin/zsh"
+    "stdout=" + shellQuote(runtime.stdout_path)
+    "stderr=" + shellQuote(runtime.stderr_path)
+    "status_file=" + shellQuote(runtime.status_path)
+    "exit_file=" + shellQuote(runtime.exit_status_path)
+    "attempt_file=" + shellQuote(runtime.attempt_path)
+    "max_attempts=" + string(max(1, config.AgentMaxAttempts))
+    "delay_seconds=" + string(max(0, config.AgentRetryDelaySeconds))
+    ": > ""$stdout"""
+    ": > ""$stderr"""
+    "rm -f ""$exit_file"" ""$attempt_file"""
+    "echo running > ""$status_file"""
+    "attempt=1"
+    "final_status=1"
+    "while [ ""$attempt"" -le ""$max_attempts"" ]; do"
+    "  echo ""===== External agent attempt ${attempt}/${max_attempts} ====="" >> ""$stdout"""
+    "  " + string(commandText) + " >> ""$stdout"" 2>> ""$stderr"""
+    "  final_status=$?"
+    "  echo ""$attempt"" > ""$attempt_file"""
+    "  if [ ""$final_status"" -eq 0 ]; then"
+    "    break"
+    "  fi"
+    "  combined=$(cat ""$stdout"" ""$stderr"" 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+    "  if printf '%s' ""$combined"" | grep -Eq 'daily quota|terminalquotaerror|generate_requests_per_model_per_day|you have exhausted your daily quota'; then"
+    "    break"
+    "  fi"
+    "  if [ ""$attempt"" -ge ""$max_attempts"" ]; then"
+    "    break"
+    "  fi"
+    "  if printf '%s' ""$combined"" | grep -Eq '503|service unavailable|temporarily unavailable|internal server error|server error|deadline exceeded|connection reset|econnreset|etimedout|socket hang up'; then"
+    "    echo ""CiTT retrying external agent after transient Gemini/API error in ${delay_seconds}s."" >> ""$stderr"""
+    "    sleep ""$delay_seconds"""
+    "    attempt=$((attempt + 1))"
+    "    continue"
+    "  fi"
+    "  break"
+    "done"
+    "echo ""$final_status"" > ""$exit_file"""
+    "if [ ""$final_status"" -eq 0 ]; then"
+    "  echo completed > ""$status_file"""
+    "else"
+    "  echo failed > ""$status_file"""
+    "fi"
+    "exit ""$final_status"""
+];
+writeTextFile(runtime.script_path, strjoin(lines, newline) + newline);
+try
+    fileattrib(char(runtime.script_path), "+x");
+catch
+end
+end
+
+function systemResult = runAgentCommandWithRetries(commandText, config)
+maxAttempts = max(1, config.AgentMaxAttempts);
+delaySeconds = max(0, config.AgentRetryDelaySeconds);
+combinedStdout = strings(0, 1);
+combinedStderr = strings(0, 1);
+
+for attempt = 1:maxAttempts
+    attemptResult = feval('citt.util.safeSystem', commandText);
+    attemptHeader = "===== External agent attempt " + string(attempt) + "/" + string(maxAttempts) + " =====";
+    combinedStdout(end + 1) = appendBlock(attemptHeader, attemptResult.stdout);
+    if strlength(strtrim(string(attemptResult.stderr))) > 0
+        combinedStderr(end + 1) = appendBlock(attemptHeader, attemptResult.stderr);
+    end
+
+    shouldRetry = attemptResult.status ~= 0 && attempt < maxAttempts && isRetryableAgentFailure(attemptResult);
+    if ~shouldRetry
+        systemResult = attemptResult;
+        systemResult.stdout = strjoin(combinedStdout, newline);
+        systemResult.stderr = strjoin(combinedStderr, newline);
+        systemResult.attempts = attempt;
+        return
+    end
+
+    retryNote = "CiTT retrying external agent after transient Gemini/API error in " + ...
+        string(delaySeconds) + "s.";
+    combinedStderr(end + 1) = retryNote;
+    if delaySeconds > 0
+        pause(delaySeconds);
+    end
+end
+
+systemResult = attemptResult;
+systemResult.stdout = strjoin(combinedStdout, newline);
+systemResult.stderr = strjoin(combinedStderr, newline);
+systemResult.attempts = maxAttempts;
+end
+
+function retryable = isRetryableAgentFailure(systemResult)
+text = lower(string(systemResult.stdout) + newline + string(systemResult.stderr));
+
+dailyQuotaFailure = contains(text, "daily quota") || ...
+    contains(text, "terminalquotaerror") || ...
+    contains(text, "generate_requests_per_model_per_day") || ...
+    contains(text, "you have exhausted your daily quota");
+if dailyQuotaFailure
+    retryable = false;
+    return
+end
+
+retryPatterns = [
+    "503"
+    "service unavailable"
+    "temporarily unavailable"
+    "internal server error"
+    "server error"
+    "deadline exceeded"
+    "connection reset"
+    "econnreset"
+    "etimedout"
+    "socket hang up"
+];
+retryable = any(contains(text, retryPatterns));
+end
+
+function text = appendBlock(header, body)
+body = string(body);
+if strlength(strtrim(body)) == 0
+    text = header;
+else
+    text = header + newline + body;
 end
 end
 
@@ -143,7 +345,7 @@ gemini = cliPath(setup, "gemini");
 if strlength(gemini) > 0
     runner.mode = "external_agent";
     runner.name = "gemini";
-    runner.command = shellQuote(gemini) + " --prompt " + taskContentArgument(taskPath);
+    runner.command = geminiCommand(gemini, config, taskPath);
     return
 end
 
@@ -180,6 +382,14 @@ else
 end
 end
 
+function command = geminiCommand(geminiPath, config, taskPath)
+command = shellQuote(geminiPath) + " --approval-mode yolo --allowed-mcp-server-names matlab";
+if strlength(strtrim(config.GeminiModel)) > 0
+    command = command + " --model " + shellQuote(config.GeminiModel);
+end
+command = command + " --prompt " + taskContentArgument(taskPath);
+end
+
 function argument = taskContentArgument(taskPath)
 if ispc
     argument = shellQuote(fileread(char(taskPath)));
@@ -207,6 +417,14 @@ enabled = enabled || envFlag("CITT_USE_LOCAL_SIMSCAPE_FALLBACK") || ...
     envFlag("CITT_LOCAL_SIMSCAPE_FALLBACK");
 end
 
+function enabled = asyncEnabled(options)
+enabled = false;
+if isfield(options, "Async")
+    enabled = logical(options.Async);
+end
+enabled = enabled || envFlag("CITT_AGENT_ASYNC");
+end
+
 function enabled = envFlag(name)
 value = lower(strtrim(string(getenv(char(name)))));
 enabled = any(value == ["1", "true", "yes", "on"]);
@@ -222,6 +440,7 @@ result.command = string(commandText);
 result.exit_status = [];
 result.stdout = "";
 result.stderr = "";
+result.agent_attempts = 0;
 result.produced_model_path = "";
 result.produced_focus_map_path = "";
 result.produced_probe_map_path = "";
@@ -245,6 +464,7 @@ function [result, missingArtifacts] = collectArtifacts(result, config, snapshot)
 result.produced_model_path = existingPath(config.GeneratedModelPath);
 result.produced_focus_map_path = existingPath(config.FocusMapPath);
 result.produced_probe_map_path = existingPath(config.ProbeMapPath);
+result.generated_code_path = existingPath(config.GeneratedBuildScriptPath);
 result.agent_report_path = existingPath(config.AgentReportPath);
 
 missingArtifacts = strings(0, 1);
@@ -299,6 +519,33 @@ else
 end
 end
 
+function detected = localFallbackBypassDetected(result, config)
+text = string(result.stdout) + newline + string(result.stderr);
+if exist(config.GeneratedBuildScriptPath, "file") == 2
+    text = text + newline + readText(config.GeneratedBuildScriptPath);
+end
+if exist(config.AgentReportPath, "file") == 2
+    text = text + newline + readText(config.AgentReportPath);
+end
+
+patterns = [
+    "Generated by CiTT local fallback"
+    "citt.buildLocalSimscapeFallback"
+    "buildLocalSimscapeFallback"
+    "citt.buildSimscapeModelFromSpec"
+    "buildSimscapeModelFromSpec"
+];
+detected = any(contains(text, patterns));
+end
+
+function text = readText(path)
+try
+    text = string(fileread(char(path)));
+catch
+    text = "";
+end
+end
+
 function text = manualInstructions(taskPath, config)
 text = strjoin([
     "No configured Gemini/Codex agent CLI was found."
@@ -327,6 +574,24 @@ if strlength(strtrim(string(text))) == 0
 else
     text = string(text) + newline + line;
 end
+end
+
+function text = emptyString(value, defaultText)
+if strlength(strtrim(string(value))) == 0
+    text = string(defaultText);
+else
+    text = string(value);
+end
+end
+
+function writeTextFile(path, text)
+fid = fopen(char(path), "w");
+if fid < 0
+    error("CiTT:FileWriteFailed", "Could not write file: %s", path);
+end
+cleanup = onCleanup(@() fclose(fid));
+fprintf(fid, "%s", char(text));
+delete(cleanup);
 end
 
 function quoted = shellQuote(value)

@@ -705,17 +705,13 @@ if strlength(path) == 0 || exist(path, "file") ~= 2
     error("CiTT:SpecMissing", "Circuit spec JSON was not found: %s", path);
 end
 spec = jsondecode(fileread(path));
+spec = feval('citt.demoteNonBlockingUnsupportedRegions', spec);
 source = path;
 end
 
 function rejectBlockingSpec(spec)
-problems = strings(0, 1);
-if isfield(spec, "unsupported_or_unclear_regions") && ~isempty(spec.unsupported_or_unclear_regions)
-    text = valueToText(spec.unsupported_or_unclear_regions);
-    if strlength(strtrim(text)) > 0
-        problems(end + 1) = "unsupported_or_unclear_regions: " + text; %#ok<AGROW>
-    end
-end
+readiness = feval('citt.classifyBuildReadiness', spec);
+problems = readiness.blocking_issues;
 if ~isempty(problems)
     error("CiTT:AmbiguousCircuitSpec", ...
         "Circuit spec has unclear or unsupported regions, so CiTT will not draw a misleading Simscape model. Clarify first: %s", ...

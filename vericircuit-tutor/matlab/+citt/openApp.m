@@ -9,6 +9,7 @@ app.Figure = uifigure( ...
     "Name", "CiTT Circuit Tutor", ...
     "Position", [80 80 1180 760]);
 app.Figure.Color = [0.965 0.976 0.969];
+app.Figure.CloseRequestFcn = @(src, ~) onCloseApp(src);
 
 main = uigridlayout(app.Figure, [2 1]);
 main.RowHeight = {82, "1x"};
@@ -16,6 +17,7 @@ main.Padding = [18 14 18 16];
 main.RowSpacing = 12;
 
 handles = struct();
+agentPollTimer = [];
 
 header = uigridlayout(main, [2 3]);
 header.ColumnWidth = {"1x", 180, 250};
@@ -183,8 +185,8 @@ refreshAll();
 
     function buildModelTab(parent)
         tab = uitab(parent, "Title", "Model");
-        grid = uigridlayout(tab, [5 4]);
-        grid.RowHeight = {34, 34, 34, "1x", 160};
+        grid = uigridlayout(tab, [6 4]);
+        grid.RowHeight = {34, 34, 34, 34, "1x", 160};
         grid.ColumnWidth = {90, "1x", 150, 150};
         grid.Padding = [12 12 12 12];
         grid.RowSpacing = 8;
@@ -212,21 +214,31 @@ refreshAll();
         handles.runSimulationButton.Layout.Row = 2;
         handles.runSimulationButton.Layout.Column = 4;
 
+        uilabel(grid, "Text", "Command");
+        handles.commandField = uieditfield(grid, "text");
+        handles.commandField.Tooltip = "Examples: open Data Inspector, clear highlights, highlight feedback loop, probe clamp current.";
+        handles.commandField.Layout.Row = 3;
+        handles.commandField.Layout.Column = [2 3];
+        handles.runCommandButton = uibutton(grid, "Text", "Run Command", ...
+            "ButtonPushedFcn", @(~, ~) onRunCommand());
+        handles.runCommandButton.Layout.Row = 3;
+        handles.runCommandButton.Layout.Column = 4;
+
         handles.modelStatus = uilabel(grid);
         handles.modelStatus.FontName = "Helvetica";
-        handles.modelStatus.Layout.Row = 3;
+        handles.modelStatus.Layout.Row = 4;
         handles.modelStatus.Layout.Column = [1 4];
 
         handles.modelOutput = uitextarea(grid);
         handles.modelOutput.Editable = "off";
         handles.modelOutput.FontName = "Menlo";
-        handles.modelOutput.Layout.Row = 4;
+        handles.modelOutput.Layout.Row = 5;
         handles.modelOutput.Layout.Column = [1 4];
 
         handles.modelPathsDisplay = uitextarea(grid);
         handles.modelPathsDisplay.Editable = "off";
         handles.modelPathsDisplay.FontName = "Menlo";
-        handles.modelPathsDisplay.Layout.Row = 5;
+        handles.modelPathsDisplay.Layout.Row = 6;
         handles.modelPathsDisplay.Layout.Column = [1 4];
     end
 
@@ -304,6 +316,11 @@ refreshAll();
             "ButtonPushedFcn", @(~, ~) onAddProbe());
         handles.addProbeButton.Layout.Row = 1;
         handles.addProbeButton.Layout.Column = 3;
+        handles.analyzeLabErrorButton = uibutton(grid, "Text", "Analyze Error", ...
+            "ButtonPushedFcn", @(~, ~) onAnalyzeLabError());
+        handles.analyzeLabErrorButton.Tooltip = "Diagnose lab-vs-simulation error using the CSV, probe map, spec assumptions, model check, and simulation status.";
+        handles.analyzeLabErrorButton.Layout.Row = 1;
+        handles.analyzeLabErrorButton.Layout.Column = 4;
 
         uilabel(grid, "Text", "Lab CSV");
         handles.labCsvField = uieditfield(grid, "text");
@@ -645,30 +662,21 @@ refreshAll();
 
     function onRunAgent()
         try
-            setBusy("Running SATK agent...", 68);
-            progress = startProgress("Building Model", "An SATK-enabled external agent is building and checking the Simscape model. This can take a while.");
-            cleanup = onCleanup(@() finishProgress(progress));
-            runResult = feval('citt.runAgentTask', state.AgentTaskPath, struct("SpecPath", state.SpecPath));
-            state.AgentRun = runResult;
-            if strlength(runResult.produced_model_path) > 0
-                state.ModelPath = runResult.produced_model_path;
+            if ~isempty(state.AgentRun) && fieldText(state.AgentRun, "mode") == "external_agent_pending"
+                onAgentPollTick();
+                return
             end
-            refreshAll();
-            setArea(handles.agentOutput, agentRunSummary(runResult));
-            if runResult.success
-                if fieldText(runResult, "mode") == "local_fallback"
-                    handles.agentStatus.Text = "Fallback model built";
-                    setPipeline("Fallback model built. Next: Check or Simulate.", 78);
-                else
-                    handles.agentStatus.Text = "Model built by SATK agent";
-                    setPipeline("Model built by agent. Next: Check or Simulate.", 78);
-                end
-            elseif fieldText(runResult, "mode") == "manual_agent"
-                handles.agentStatus.Text = "Manual agent required";
-                setPipeline("Manual agent task opened. Run it in an SATK-configured agent.", 58);
+
+            setBusy("Starting SATK agent...", 68);
+            progress = startProgress("Starting Agent", "CiTT is launching an SATK-enabled external agent, then freeing MATLAB for MCP tool calls.");
+            cleanup = onCleanup(@() finishProgress(progress));
+            runResult = feval('citt.runAgentTask', state.AgentTaskPath, struct("SpecPath", state.SpecPath, "Async", true));
+            state.AgentRun = runResult;
+            applyAgentRunState(runResult);
+            if fieldText(runResult, "mode") == "external_agent_pending"
+                startAgentPollTimer();
             else
-                handles.agentStatus.Text = "Build incomplete";
-                setPipeline("Build incomplete. See Build Model output.", 58);
+                stopAgentPollTimer();
             end
         catch runError
             handles.agentStatus.Text = "Build failed";
@@ -676,6 +684,78 @@ refreshAll();
             setPipeline("Build failed. See Build Model output.", 55);
         end
         setIdle();
+    end
+
+    function startAgentPollTimer()
+        stopAgentPollTimer();
+        agentPollTimer = timer( ...
+            "ExecutionMode", "fixedSpacing", ...
+            "Period", 5, ...
+            "BusyMode", "drop", ...
+            "TimerFcn", @(~, ~) onAgentPollTick());
+        start(agentPollTimer);
+    end
+
+    function stopAgentPollTimer()
+        try
+            if ~isempty(agentPollTimer) && isvalid(agentPollTimer)
+                stop(agentPollTimer);
+                delete(agentPollTimer);
+            end
+        catch
+        end
+        agentPollTimer = [];
+    end
+
+    function onAgentPollTick()
+        if isempty(state.AgentRun) || fieldText(state.AgentRun, "mode") ~= "external_agent_pending"
+            stopAgentPollTimer();
+            return
+        end
+
+        try
+            polled = feval('citt.pollAgentTask', state.AgentRun);
+            state.AgentRun = polled;
+            applyAgentRunState(polled);
+            if fieldText(polled, "mode") ~= "external_agent_pending"
+                stopAgentPollTimer();
+                setIdle();
+            end
+        catch pollError
+            stopAgentPollTimer();
+            handles.agentStatus.Text = "Agent status failed";
+            setArea(handles.agentOutput, "Could not poll external agent: " + string(pollError.message));
+            setPipeline("Agent status failed. See Build Model output.", 58);
+            setIdle();
+        end
+    end
+
+    function applyAgentRunState(runResult)
+        if strlength(fieldText(runResult, "produced_model_path")) > 0 && runResult.success
+            state.ModelPath = runResult.produced_model_path;
+        end
+        refreshAll();
+        setArea(handles.agentOutput, agentRunSummary(runResult));
+
+        mode = fieldText(runResult, "mode");
+        if mode == "external_agent_pending"
+            handles.agentStatus.Text = "Agent running";
+            setPipeline("Agent running. MATLAB is free for MCP/SATK tool calls.", 68);
+        elseif runResult.success
+            if mode == "local_fallback"
+                handles.agentStatus.Text = "Fallback model built";
+                setPipeline("Fallback model built. Next: Check or Simulate.", 78);
+            else
+                handles.agentStatus.Text = "Model built by SATK agent";
+                setPipeline("Model built by agent. Next: Check or Simulate.", 78);
+            end
+        elseif mode == "manual_agent"
+            handles.agentStatus.Text = "Manual agent required";
+            setPipeline("Manual agent task opened. Run it in an SATK-configured agent.", 58);
+        else
+            handles.agentStatus.Text = "Build incomplete";
+            setPipeline("Build incomplete. See Build Model output.", 58);
+        end
     end
 
     function onOpenTask()
@@ -747,6 +827,23 @@ refreshAll();
             handles.modelStatus.Text = "Simulation failed";
             setArea(handles.modelOutput, string(simError.message));
             setPipeline("Simulation failed. See Model Lab output.", 90);
+        end
+        setIdle();
+    end
+
+    function onRunCommand()
+        state.ModelPath = string(handles.modelPathField.Value);
+        commandText = string(handles.commandField.Value);
+        try
+            setBusy("Running command...", 86);
+            commandResult = feval('citt.runNaturalCommand', commandText, state);
+            handles.modelStatus.Text = commandResult.message;
+            setArea(handles.modelOutput, feval('citt.util.jsonEncode', commandResult));
+            setPipeline("Command complete: " + commandResult.action, 90);
+        catch commandError
+            handles.modelStatus.Text = "Command failed";
+            setArea(handles.modelOutput, "Command failed: " + string(commandError.message));
+            setPipeline("Command failed. Try a more direct phrase.", 78);
         end
         setIdle();
     end
@@ -834,13 +931,31 @@ refreshAll();
     function onCompareLabDelta()
         state.LabCsvPath = string(handles.labCsvField.Value);
         try
-            delta = feval('citt.compareLabDelta', struct(), struct(), state.LabCsvPath);
+            delta = feval('citt.compareLabDelta', struct(), struct(), state.LabCsvPath, struct("Context", state));
             state.LastLabDelta = delta;
-            handles.deltaStatus.Text = "Lab Delta rows: " + string(numel(delta.rows));
-            setArea(handles.deltaOutput, feval('citt.util.jsonEncode', delta));
+            handles.deltaStatus.Text = "Lab error rows: " + string(numel(delta.rows)) + ...
+                " | causes: " + string(numel(delta.likely_causes));
+            setArea(handles.deltaOutput, labErrorSummary(delta));
         catch deltaError
             setArea(handles.deltaOutput, "Lab Delta failed: " + string(deltaError.message));
         end
+    end
+
+    function onAnalyzeLabError()
+        state.LabCsvPath = string(handles.labCsvField.Value);
+        try
+            setBusy("Analyzing lab error...", 94);
+            analyzed = feval('citt.analyzeLabError', state.LabCsvPath, state);
+            state.LastLabDelta = analyzed;
+            handles.deltaStatus.Text = "Lab error causes: " + string(numel(analyzed.likely_causes));
+            setArea(handles.deltaOutput, labErrorSummary(analyzed));
+            setPipeline("Lab error analysis ready.", 100);
+        catch labError
+            handles.deltaStatus.Text = "Lab error analysis failed";
+            setArea(handles.deltaOutput, "Lab error analysis failed: " + string(labError.message));
+            setPipeline("Lab error analysis failed. Check CSV format.", 90);
+        end
+        setIdle();
     end
 
     function onRunRequirements()
@@ -1035,15 +1150,21 @@ refreshAll();
     end
 
     function updateFocusSelectors()
-        values = focusValues();
-        if isempty(values)
-            values = "";
+        focusItems = focusValues();
+        if isempty(focusItems)
+            focusItems = "";
         end
-        values = values(:)';
-        handles.focusSelector.Items = values;
-        handles.probeSelector.Items = values;
-        handles.focusSelector.Value = values(1);
-        handles.probeSelector.Value = values(1);
+        focusItems = focusItems(:)';
+        handles.focusSelector.Items = focusItems;
+        handles.focusSelector.Value = focusItems(1);
+
+        probeItems = probeValues();
+        if isempty(probeItems)
+            probeItems = "";
+        end
+        probeItems = probeItems(:)';
+        handles.probeSelector.Items = probeItems;
+        handles.probeSelector.Value = probeItems(1);
     end
 
     function updateExplainabilitySelector()
@@ -1078,6 +1199,34 @@ refreshAll();
                 end
             catch
             end
+        end
+        values = unique(values);
+    end
+
+    function values = probeValues()
+        values = strings(0, 1);
+        if exist(state.ProbeMapPath, "file") ~= 2
+            return
+        end
+
+        try
+            data = jsondecode(fileread(state.ProbeMapPath));
+            items = data;
+            if isfield(data, "probe_map")
+                items = data.probe_map;
+            elseif isfield(data, "items")
+                items = data.items;
+            end
+            for i = 1:numel(items)
+                if isfield(items(i), "probe_id")
+                    values(end + 1) = string(items(i).probe_id); %#ok<AGROW>
+                elseif isfield(items(i), "id")
+                    values(end + 1) = string(items(i).id); %#ok<AGROW>
+                elseif isfield(items(i), "focus_id")
+                    values(end + 1) = string(items(i).focus_id); %#ok<AGROW>
+                end
+            end
+        catch
         end
         values = unique(values);
     end
@@ -1384,6 +1533,14 @@ refreshAll();
         end
     end
 
+    function onCloseApp(fig)
+        stopAgentPollTimer();
+        try
+            delete(fig);
+        catch
+        end
+    end
+
     function text = specSummary(spec)
         circuitType = getSpecText(spec, "circuit_type", "unknown circuit");
         nodes = getSpecValue(spec, "nodes");
@@ -1424,14 +1581,8 @@ refreshAll();
     end
 
     function issues = specBlockingIssues(spec)
-        parts = strings(0, 1);
-        if isstruct(spec) && isfield(spec, "unsupported_or_unclear_regions")
-            text = joinValue(spec.unsupported_or_unclear_regions);
-            if strlength(strtrim(text)) > 0
-                parts(end + 1) = "Unclear region: " + text; %#ok<AGROW>
-            end
-        end
-        issues = strjoin(parts, newline);
+        readiness = feval('citt.classifyBuildReadiness', spec);
+        issues = readiness.blocking_text;
     end
 
     function notes = specBuildNotes(spec)
@@ -1441,6 +1592,10 @@ refreshAll();
             if strlength(strtrim(text)) > 0
                 parts(end + 1) = "Ambiguity note: " + text; %#ok<AGROW>
             end
+        end
+        readiness = feval('citt.classifyBuildReadiness', spec);
+        if strlength(strtrim(readiness.nonblocking_text)) > 0
+            parts(end + 1) = readiness.nonblocking_text; %#ok<AGROW>
         end
         notes = strjoin(parts, newline);
     end
@@ -1520,7 +1675,9 @@ refreshAll();
 
     function text = agentRunSummary(runResult)
         mode = fieldText(runResult, "mode");
-        if mode == "manual_agent"
+        if mode == "external_agent_pending"
+            headline = "External SATK agent is running.";
+        elseif mode == "manual_agent"
             headline = "External SATK agent not launched.";
         elseif mode == "local_fallback"
             headline = "Agent build unavailable. Running local Simscape fallback.";
@@ -1539,7 +1696,11 @@ refreshAll();
             "Focus map: " + emptyText(runResult.produced_focus_map_path, "not found")
             "Probe map: " + emptyText(runResult.produced_probe_map_path, "not found")
             "Report: " + emptyText(fieldText(runResult, "agent_report_path"), "not written")
-            "Exit status: " + string(runResult.exit_status)
+            "Attempts: " + emptyText(fieldText(runResult, "agent_attempts"), "0")
+            "PID: " + emptyText(fieldText(runResult, "agent_pid"), "not tracked")
+            "Stdout log: " + emptyText(fieldText(runResult, "agent_stdout_path"), "not written")
+            "Stderr log: " + emptyText(fieldText(runResult, "agent_stderr_path"), "not written")
+            "Exit status: " + emptyText(fieldText(runResult, "exit_status"), "running")
             ""
             "Command"
             string(runResult.command)
@@ -1573,6 +1734,27 @@ refreshAll();
             ""
             "Output variables"
             listValue(simulated.output_variables)
+        ], newline);
+    end
+
+    function text = labErrorSummary(report)
+        text = strjoin([
+            "Lab error analysis complete."
+            "CSV: " + fieldText(report, "csv_path")
+            "JSON: " + fieldText(report, "report_path")
+            "Markdown: " + fieldText(report, "markdown_report_path")
+            ""
+            "Rows"
+            reportRowsText(report.rows, ["quantity", "unit", "measured_value", "simulation_value", "percent_difference", "status", "probe_id"], 12)
+            ""
+            "Likely causes"
+            reportRowsText(report.likely_causes, ["severity", "label", "evidence", "next_action"], 10)
+            ""
+            "Next actions"
+            listValue(report.prioritized_next_actions)
+            ""
+            "Probe suggestion"
+            fieldText(report, "next_probe_suggestion")
         ], newline);
     end
 
@@ -1732,17 +1914,16 @@ refreshAll();
     end
 
     function text = emptyText(value, defaultText)
-        value = string(value);
-        if strlength(value) == 0
+        if isempty(value) || strlength(strtrim(string(value))) == 0
             text = string(defaultText);
         else
-            text = value;
+            text = string(value);
         end
     end
 
     function text = fieldText(data, fieldName)
         if isstruct(data) && isfield(data, fieldName)
-            text = string(data.(fieldName));
+            text = joinValue(data.(fieldName));
         else
             text = "";
         end

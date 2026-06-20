@@ -40,6 +40,8 @@ end
 
 paths = string(action.target_paths);
 tryOpenModel(modelPath);
+clearResult = feval('citt.clearHighlights', modelPath);
+result.cleared_highlights = clearResult.cleared_paths;
 for i = 1:numel(paths)
     path = paths(i);
     if strlength(path) == 0

@@ -27,7 +27,8 @@ end
 result.focus = focus;
 
 tryOpenModel(modelPath, result.focus);
-tryClearHighlights(modelPath);
+clearResult = feval('citt.clearHighlights', modelPath);
+result.cleared_highlights = clearResult.cleared_paths;
 
 paths = focusPaths(focus);
 for i = 1:numel(paths)
@@ -151,16 +152,6 @@ try
     paths = focusPaths(focus);
     if ~isempty(paths)
         open_system(char(paths(1)));
-    end
-catch
-end
-end
-
-function tryClearHighlights(modelPath)
-try
-    if strlength(string(modelPath)) > 0 && exist(modelPath, "file") == 2
-        [~, modelName, ~] = fileparts(modelPath);
-        hilite_system(char(modelName), "none");
     end
 catch
 end

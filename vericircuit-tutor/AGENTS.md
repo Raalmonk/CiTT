@@ -12,7 +12,7 @@
 - Student input starts inside MATLAB: circuit image and/or short prompt.
 - Gemini is required for real image/prompt to structured circuit parsing.
 - `GEMINI_API_KEY` may come from the MATLAB process environment or local untracked `.env` files.
-- Default Gemini model is `gemini-3.1-pro-preview`.
+- Default Gemini model is `gemini-3.5-flash`.
 - Never commit real API keys. `vericircuit-tutor/matlab/.env` is local-only; use `.env.example` for placeholders.
 - Gemini parses the circuit spec only. It is not the numerical or engineering authority.
 - The generated SATK agent task must be Simscape-first and should request Simulink Agentic Toolkit tools such as `model_overview`, `model_read`, `model_edit`, `model_check`, `model_query_params`, and `model_resolve_params`.

@@ -36,7 +36,8 @@ probeMap = readJsonOrStruct(probeMapInput);
 probe = findProbe(probeMap, targetId);
 if isempty(probe)
     error("CiTT:ProbeMissing", ...
-        "Probe target %s was not found in the SATK-generated probe map: %s", string(targetId), string(probeMapInput));
+        "Probe target %s was not found in the SATK-generated probe map: %s. Available probes: %s", ...
+        string(targetId), string(probeMapInput), strjoin(availableProbeIds(probeMap), ", "));
 end
 validateProbeEntry(probe, targetId);
 result.used_probe_map = true;
@@ -52,8 +53,19 @@ load_system(char(modelPath));
 open_system(char(modelName));
 paths = getPathList(probe, "block_paths");
 if ~isempty(paths)
-    hilite_system(char(paths(1)), "find");
-    result.automated_actions(end + 1) = "Highlighted target block: " + paths(1);
+    targetPath = firstExistingPath(paths);
+    if strlength(targetPath) == 0
+        error("CiTT:ProbePathMissing", "None of the probe block_paths exist in the model for target: %s", string(targetId));
+    end
+    clearResult = feval('citt.clearHighlights', modelPath);
+    result.automated_actions(end + 1) = "Cleared previous highlights for model: " + clearResult.model_name;
+    hilite_system(char(targetPath), "find");
+    result.automated_actions(end + 1) = "Highlighted target block: " + targetPath;
+    [result, modelChanged] = ensureProbeLogging(modelName, probe, targetPath, result);
+    if modelChanged
+        save_system(char(modelName), char(modelPath));
+        result.automated_actions(end + 1) = "Saved model after adding probe logging.";
+    end
 else
     modelPaths = getPathList(probe, "model_paths");
     if isempty(modelPaths)
@@ -66,6 +78,139 @@ end
 
 result.success = true;
 writeJson(outputPath, result);
+end
+
+function path = firstExistingPath(paths)
+path = "";
+for i = 1:numel(paths)
+    candidate = string(paths(i));
+    try
+        get_param(char(candidate), "Handle");
+        path = candidate;
+        return
+    catch
+    end
+end
+end
+
+function [result, changed] = ensureProbeLogging(modelName, probe, targetPath, result)
+changed = false;
+if ~isSimscapeSensor(targetPath, probe)
+    result.warnings(end + 1) = "Automatic probe insertion currently supports existing Simscape Voltage Sensor or Current Sensor blocks.";
+    return
+end
+
+try
+    handles = get_param(char(targetPath), "PortHandles");
+    signalPort = sensorSignalPort(handles);
+catch portError
+    result.warnings(end + 1) = "Could not inspect probe target ports: " + string(portError.message);
+    return
+end
+
+if isempty(signalPort)
+    result.warnings(end + 1) = "Probe target has no detectable physical signal output port.";
+    return
+end
+
+if portHasLine(signalPort)
+    result.automated_actions(end + 1) = "Probe signal output is already connected: " + targetPath + " RConn(1).";
+    return
+end
+
+suffix = probeBlockSuffix(probe);
+converterPath = uniqueBlockPath(modelName, "PS2SL_" + suffix);
+scopePath = uniqueBlockPath(modelName, "Scope_" + suffix);
+position = shiftedPosition(targetPath);
+
+try
+    add_block("nesl_utility/PS-Simulink Converter", char(converterPath), ...
+        "Position", position.converter);
+    add_block("simulink/Sinks/Scope", char(scopePath), ...
+        "Position", position.scope);
+
+    converterHandles = get_param(char(converterPath), "PortHandles");
+    scopeHandles = get_param(char(scopePath), "PortHandles");
+    add_line(char(modelName), signalPort, converterHandles.LConn(1), "autorouting", "on");
+    add_line(char(modelName), converterHandles.Outport(1), scopeHandles.Inport(1), "autorouting", "on");
+
+    result.automated_actions(end + 1) = "Added probe logging chain: " + ...
+        targetPath + " -> " + converterPath + " -> " + scopePath;
+    changed = true;
+catch addError
+    result.warnings(end + 1) = "Could not add probe logging chain: " + string(addError.message);
+end
+end
+
+function supported = isSimscapeSensor(targetPath, probe)
+referenceBlock = "";
+try
+    referenceBlock = string(get_param(char(targetPath), "ReferenceBlock"));
+catch
+end
+quantityText = lower(getField(probe, "quantity") + " " + getField(probe, "target_type") + " " + referenceBlock);
+supported = contains(quantityText, "voltage sensor") || contains(quantityText, "current sensor") || ...
+    contains(quantityText, "voltage") || contains(quantityText, "current");
+supported = supported && contains(lower(referenceBlock), "sensor");
+end
+
+function signalPort = sensorSignalPort(handles)
+signalPort = [];
+if isfield(handles, "RConn") && numel(handles.RConn) >= 1
+    signalPort = handles.RConn(1);
+end
+end
+
+function connected = portHasLine(portHandle)
+connected = false;
+try
+    lineHandle = get_param(portHandle, "Line");
+    connected = isnumeric(lineHandle) && isscalar(lineHandle) && lineHandle > 0;
+catch
+end
+end
+
+function suffix = probeBlockSuffix(probe)
+raw = getField(probe, "probe_id");
+if strlength(raw) == 0
+    raw = getField(probe, "focus_id");
+end
+if strlength(raw) == 0
+    raw = getField(probe, "quantity");
+end
+suffix = string(matlab.lang.makeValidName(char(raw)));
+end
+
+function path = uniqueBlockPath(modelName, baseName)
+baseName = string(matlab.lang.makeValidName(char(baseName)));
+path = string(modelName) + "/" + baseName;
+index = 2;
+while blockExists(path)
+    path = string(modelName) + "/" + baseName + "_" + string(index);
+    index = index + 1;
+end
+end
+
+function exists = blockExists(path)
+try
+    get_param(char(path), "Handle");
+    exists = true;
+catch
+    exists = false;
+end
+end
+
+function position = shiftedPosition(targetPath)
+try
+    targetPosition = get_param(char(targetPath), "Position");
+catch
+    targetPosition = [500 300 580 360];
+end
+x = targetPosition(3) + 120;
+y = targetPosition(2);
+position = struct();
+position.converter = [x y x + 110 y + 55];
+position.scope = [x + 160 y x + 240 y + 55];
 end
 
 function validateProbeEntry(probe, targetId)
@@ -131,6 +276,25 @@ elseif isstruct(value)
     items = value;
 else
     items = struct([]);
+end
+end
+
+function ids = availableProbeIds(probeMap)
+items = unwrapItems(probeMap);
+ids = strings(0, 1);
+for i = 1:numel(items)
+    probeId = getField(items(i), "probe_id");
+    focusId = getField(items(i), "focus_id");
+    if strlength(probeId) > 0
+        ids(end + 1) = probeId; %#ok<AGROW>
+    end
+    if strlength(focusId) > 0
+        ids(end + 1) = focusId; %#ok<AGROW>
+    end
+end
+ids = unique(ids);
+if isempty(ids)
+    ids = "none";
 end
 end
 
