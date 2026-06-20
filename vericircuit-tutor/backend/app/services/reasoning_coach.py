@@ -10,8 +10,11 @@ from app.models.coaching import (
     CoachLocalCheck,
     CoachMetrics,
     CoachNudge,
+    DiagnosticEdge,
+    DiagnosticNode,
     InstructorDashboardRequest,
     InstructorDashboardResponse,
+    KnowledgeState,
     MisconceptionCohortSummary,
     ReasoningCoachRequest,
     ReasoningCoachResponse,
@@ -48,31 +51,56 @@ MISCONCEPTION_INTERVENTIONS = {
     "aliasing_nyquist_misread": "Compare sampling frequency, Nyquist frequency, and cutoff on one annotated axis.",
 }
 
+MISCONCEPTION_ALIASES = {
+    "common_mode_gain_misconception": "common_mode_as_differential",
+    "confusing_differential_and_common_mode": "common_mode_as_differential",
+    "common_mode_differential_confusion": "common_mode_as_differential",
+    "common_mode_as_signal": "common_mode_as_differential",
+    "confuses_common_mode_with_differential_signal": "common_mode_as_differential",
+    "misunderstands_common_mode_rejection": "common_mode_as_differential",
+    "common_mode_vs_differential_signal_confusion": "common_mode_as_differential",
+    "misunderstanding_differential_amplifier_operation": "common_mode_as_differential",
+    "node_voltage_is_absolute": "reference_node_dependency",
+    "node_voltage_absolute": "reference_node_dependency",
+    "absolute_node_voltage": "reference_node_dependency",
+    "voltage_is_absolute": "reference_node_dependency",
+    "voltage_absolute": "reference_node_dependency",
+    "ground_reference_irrelevant": "reference_node_dependency",
+    "reference_node_ignored": "reference_node_dependency",
+    "misunderstands_ground_reference": "reference_node_dependency",
+    "ground_reference_misconception": "reference_node_dependency",
+    "ignores_ground_reference": "reference_node_dependency",
+    "misunderstanding_of_ground": "reference_node_dependency",
+}
+
 
 class GeminiStudentFrame(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     suspected_method: str | None = None
     confusion: str | None = None
-    likely_misconceptions: list[
-        Literal[
-            "common_mode_as_differential",
-            "inappropriate_divider_shortcut",
-            "sign_convention",
-            "capacitor_dc_behavior",
-            "ideal_op_amp_input_current",
-            "unit_prefix",
-            "aliasing_nyquist_misread",
-        ]
-    ] = Field(default_factory=list)
+    likely_misconceptions: list[str] = Field(default_factory=list)
+    diagnostic_graph: list[DiagnosticNode] = Field(default_factory=list)
     confidence: Literal["unknown", "low", "medium", "high"] = "unknown"
     evidence: list[str] = Field(default_factory=list)
 
 
 def coach_student_attempt(request: ReasoningCoachRequest) -> ReasoningCoachResponse:
-    parsed = parse_problem(request.problem_text, request.mode)
-    packet = solve_circuit(parsed.circuit, parser_used=parsed.parser_used)
-    warnings = [*parsed.warnings, *packet.warnings]
+    if request.circuit_ir is not None:
+        circuit = request.circuit_ir
+        parser_used = request.parser_used or "current_packet"
+        packet = (
+            request.solution_packet
+            if request.solution_packet is not None
+            else solve_circuit(circuit, parser_used=parser_used)
+        )
+        warnings = [*packet.warnings]
+    else:
+        parsed = parse_problem(request.problem_text, request.mode)
+        circuit = parsed.circuit
+        parser_used = parsed.parser_used
+        packet = solve_circuit(circuit, parser_used=parser_used)
+        warnings = [*parsed.warnings, *packet.warnings]
 
     profile = (
         request.student_profile.model_copy(deep=True)
@@ -81,7 +109,7 @@ def coach_student_attempt(request: ReasoningCoachRequest) -> ReasoningCoachRespo
     )
     frame, frame_warnings = _extract_student_frame_for_request(
         request,
-        parsed.circuit,
+        circuit,
         packet,
     )
     warnings.extend(frame_warnings)
@@ -89,7 +117,7 @@ def coach_student_attempt(request: ReasoningCoachRequest) -> ReasoningCoachRespo
     focus_issue = _select_focus_issue(
         request.student_commitment,
         frame,
-        parsed.circuit,
+        circuit,
         packet,
         profile,
         has_commitment,
@@ -103,22 +131,22 @@ def coach_student_attempt(request: ReasoningCoachRequest) -> ReasoningCoachRespo
     )
     local_check = _build_local_check(
         focus_issue,
-        parsed.circuit,
+        circuit,
         packet,
         answer_revealed,
     )
     nudge = _build_nudge(
         focus_issue,
         hint_level,
-        parsed.circuit,
+        circuit,
         packet,
         answer_revealed,
-        _select_representation_mode(request, profile, parsed.circuit),
+        _select_representation_mode(request, profile, circuit),
     )
     profile_update = _update_profile(
         profile,
         frame,
-        parsed.circuit,
+        circuit,
         hint_level,
         answer_revealed,
     )
@@ -137,8 +165,8 @@ def coach_student_attempt(request: ReasoningCoachRequest) -> ReasoningCoachRespo
     )
 
     return ReasoningCoachResponse(
-        circuit_id=parsed.circuit.id,
-        parser_used=parsed.parser_used,
+        circuit_id=circuit.id,
+        parser_used=parser_used,
         warnings=warnings,
         verification_badge=packet.verification_badge,
         student_frame=frame,
@@ -149,8 +177,8 @@ def coach_student_attempt(request: ReasoningCoachRequest) -> ReasoningCoachRespo
         reflection=reflection,
         adaptive_practice=_build_adaptive_practice(
             focus_issue,
-            parsed.circuit,
-            _select_representation_mode(request, profile, parsed.circuit),
+            circuit,
+            _select_representation_mode(request, profile, circuit),
         ),
         guardrails=[
             "Solver and verifier are the source of truth for numerical answers.",
@@ -235,6 +263,8 @@ def _extract_student_frame_for_request(
     packet: SolutionPacket,
 ) -> tuple[StudentFrame, list[str]]:
     heuristic = _extract_student_frame(request.student_commitment, circuit, packet)
+    if request.student_frame_mode == "heuristic":
+        return heuristic, []
     if request.mode not in {"gemini", "gemini_strict"} or not _has_commitment(request.student_commitment):
         return heuristic, []
 
@@ -265,7 +295,8 @@ def _extract_student_frame_with_gemini(
     return StudentFrame(
         suspected_method=parsed.suspected_method,
         confusion=parsed.confusion,
-        likely_misconceptions=list(parsed.likely_misconceptions),
+        likely_misconceptions=_normalize_issue_ids(list(parsed.likely_misconceptions)),
+        diagnostic_graph=parsed.diagnostic_graph,
         confidence=parsed.confidence,
         evidence=[*parsed.evidence, "gemini_student_frame"],
         source="gemini",
@@ -287,8 +318,10 @@ Rules:
 - Do not reveal a solution path.
 - Only classify the student's current thinking, confusion, and likely misconception.
 - Prefer one or two local misconception tags. Do not list every possible issue.
-- Use likely_misconceptions only from the schema enum.
+- likely_misconceptions may include established tags or a concise new snake_case tag when the student's error does not fit an existing category.
+- diagnostic_graph should describe the local causal chain: observed error -> missing concept -> likely root cause -> next check.
 - If the student appears broadly correct, leave likely_misconceptions empty.
+- Keep diagnostic_graph short: 1 to 4 nodes, no numeric solving, no final answers.
 
 Circuit context:
 - id: {circuit.id}
@@ -308,14 +341,19 @@ def _merge_student_frames(
     heuristic: StudentFrame,
     gemini_frame: StudentFrame,
 ) -> StudentFrame:
+    likely_misconceptions = _unique(
+        [
+            *gemini_frame.likely_misconceptions,
+            *heuristic.likely_misconceptions,
+        ]
+    )
     return StudentFrame(
         suspected_method=gemini_frame.suspected_method or heuristic.suspected_method,
         confusion=gemini_frame.confusion or heuristic.confusion,
-        likely_misconceptions=_unique(
-            [
-                *gemini_frame.likely_misconceptions,
-                *heuristic.likely_misconceptions,
-            ]
+        likely_misconceptions=likely_misconceptions,
+        diagnostic_graph=_merge_diagnostic_graphs(
+            [*gemini_frame.diagnostic_graph, *heuristic.diagnostic_graph],
+            likely_misconceptions,
         ),
         confidence=(
             gemini_frame.confidence
@@ -381,6 +419,14 @@ def _extract_student_frame(
         misconceptions.append("unit_prefix")
         evidence.append("unit_prefix_language")
 
+    if _looks_like_reference_node_gap(normalized):
+        misconceptions.append("reference_node_dependency")
+        evidence.append("reference_node_gap_language")
+
+    if _looks_like_mesh_direction_error(normalized):
+        misconceptions.append("mesh_current_direction_dependency")
+        evidence.append("mesh_direction_language")
+
     if (
         circuit.bme_metadata is not None
         and circuit.bme_metadata.adc_sampling_frequency_hz is not None
@@ -393,7 +439,11 @@ def _extract_student_frame(
     return StudentFrame(
         suspected_method=suspected_method,
         confusion=confusion,
-        likely_misconceptions=_unique(misconceptions),
+        likely_misconceptions=_normalize_issue_ids(_unique(misconceptions)),
+        diagnostic_graph=_diagnostic_graph_for_issues(
+            _normalize_issue_ids(_unique(misconceptions)),
+            evidence,
+        ),
         confidence=_confidence(commitment, normalized),
         evidence=_unique(evidence),
     )
@@ -465,6 +515,10 @@ def _select_focus_issue(
     ]
     for issue in priority:
         if issue in frame.likely_misconceptions:
+            return issue
+
+    for issue in frame.likely_misconceptions:
+        if issue not in priority:
             return issue
 
     recurrent_issue = _recurrent_issue(commitment, circuit, packet, profile)
@@ -575,7 +629,10 @@ def _build_local_check(
     return CoachLocalCheck(
         status="productive",
         focus_issue=focus_issue,
-        verified_context=f"The hidden verified packet suggests a local issue: {MISCONCEPTION_LABELS[focus_issue]}.",
+        verified_context=(
+            "The hidden verified packet suggests a local issue: "
+            f"{_issue_label(focus_issue)}."
+        ),
         blocks_next_step=True,
     )
 
@@ -826,6 +883,32 @@ def _issue_prompt(
         }
         return prompts[hint_level]
 
+    if focus_issue not in {"generic_next_step", "no_commitment", "problem_not_verified"}:
+        label = _issue_label(focus_issue)
+        prompts = {
+            0: (
+                f"Pause on the local concept: {label}.",
+                "What assumption should be checked before algebra?",
+            ),
+            1: (
+                f"Your attempt points to a local dependency around {label}.",
+                "What earlier concept would make this step valid?",
+            ),
+            2: (
+                f"Choose a diagnostic branch for {label}: equation setup, reference choice, or physical meaning.",
+                "Which branch best explains the mistake in your current line?",
+            ),
+            3: (
+                f"Write the missing intermediate step for {label} before substituting numbers.",
+                "What symbolic relationship should come immediately before this equation?",
+            ),
+            4: (
+                f"Use {label} as the checkpoint before reveal.",
+                "What evidence would prove this step follows from the circuit, not from a memorized formula?",
+            ),
+        }
+        return prompts[hint_level]
+
     return _generic_prompt(hint_level, circuit, packet)
 
 
@@ -877,6 +960,12 @@ def _choices_for(circuit: CircuitProblem, focus_issue: str) -> list[str]:
         return ["Convert to SI", "Estimate magnitude", "Check requested unit"]
     if focus_issue == "aliasing_nyquist_misread":
         return ["Find Nyquist", "Compare cutoff", "Ask for attenuation check"]
+    if focus_issue == "reference_node_dependency":
+        return ["Choose reference node", "Rewrite node voltages", "Check equation polarity"]
+    if focus_issue == "mesh_current_direction_dependency":
+        return ["Declare loop direction", "Keep signs symbolic", "Check shared branch polarity"]
+    if focus_issue not in {"generic_next_step", "no_commitment", "problem_not_verified"}:
+        return ["Name missing concept", "Trace prerequisite", "Write next check"]
     if circuit.analysis_type in {"ac_steady_state", "ac_single_frequency", "ac_sweep"}:
         return ["Convert impedance", "Predict magnitude trend", "Predict phase trend"]
     if circuit.analysis_type == "rc_transient":
@@ -950,7 +1039,21 @@ def _build_adaptive_practice(
     representation_mode: RepresentationMode,
 ) -> list[AdaptivePracticePrompt]:
     if focus_issue not in MISCONCEPTION_LABELS:
-        return []
+        if focus_issue in {"generic_next_step", "no_commitment", "problem_not_verified"}:
+            return []
+        label = _issue_label(focus_issue)
+        return [
+            AdaptivePracticePrompt(
+                id=f"{focus_issue}_dynamic_1",
+                target_misconception=focus_issue,
+                prompt=(
+                    f"Take a similar circuit step and write the missing prerequisite for {label} "
+                    "before using any formula."
+                ),
+                goal="Practice making the hidden dependency explicit before calculation.",
+                representation_mode=representation_mode,
+            )
+        ]
 
     prompts = {
         "common_mode_as_differential": [
@@ -1062,16 +1165,71 @@ def _update_profile(
         updated.recurring_misconceptions[misconception] = (
             updated.recurring_misconceptions.get(misconception, 0) + 1
         )
+        updated.knowledge_state[misconception] = _bkt_update(
+            updated.knowledge_state.get(misconception),
+            observed_correct=False,
+            evidence="diagnostic_misconception",
+        )
 
     for strength in _strengths_from_frame(frame, circuit):
         if strength not in updated.strengths:
             updated.strengths.append(strength)
+
+    if not frame.likely_misconceptions and answer_revealed:
+        skill_id = _skill_id_for_circuit(circuit)
+        updated.knowledge_state[skill_id] = _bkt_update(
+            updated.knowledge_state.get(skill_id),
+            observed_correct=True,
+            evidence="verified_reveal_without_local_issue",
+        )
 
     updated.hint_budget_used += hint_level
     if answer_revealed:
         updated.completed_attempts += 1
     updated.independence_level = _independence_score(updated.hint_budget_used, answer_revealed)
     return updated
+
+
+def _bkt_update(
+    state: KnowledgeState | None,
+    *,
+    observed_correct: bool,
+    evidence: str,
+) -> KnowledgeState:
+    current = state or KnowledgeState()
+    prior = current.mastery
+    learn = 0.12
+    slip = 0.1
+    guess = 0.2
+    if observed_correct:
+        likelihood_mastered = 1.0 - slip
+        likelihood_unmastered = guess
+    else:
+        likelihood_mastered = slip
+        likelihood_unmastered = 1.0 - guess
+    denominator = likelihood_mastered * prior + likelihood_unmastered * (1.0 - prior)
+    posterior = prior if denominator <= 0 else (likelihood_mastered * prior) / denominator
+    if observed_correct:
+        posterior = posterior + (1.0 - posterior) * learn
+    else:
+        posterior = posterior * (1.0 - learn / 2.0)
+    return KnowledgeState(
+        mastery=max(0.0, min(1.0, posterior)),
+        opportunities=current.opportunities + 1,
+        last_evidence=evidence,
+    )
+
+
+def _skill_id_for_circuit(circuit: CircuitProblem) -> str:
+    if circuit.analysis_type in {"ac_steady_state", "ac_single_frequency", "ac_sweep"}:
+        return "ac_phasor_reasoning"
+    if circuit.analysis_type == "rc_transient":
+        return "transient_reasoning"
+    if _is_bridge_like(circuit):
+        return "coupled_node_kcl"
+    if _is_differential_circuit(circuit):
+        return "differential_signal_reasoning"
+    return "dc_operating_point_reasoning"
 
 
 def _strengths_from_frame(frame: StudentFrame, circuit: CircuitProblem) -> list[str]:
@@ -1236,8 +1394,161 @@ def _looks_like_common_mode_gain_error(normalized_text: str) -> bool:
     )
 
 
+def _looks_like_reference_node_gap(normalized_text: str) -> bool:
+    return _contains_any(
+        normalized_text,
+        [
+            "reference node",
+            "ground doesn't matter",
+            "ground does not matter",
+            "reference does not matter",
+            "reference doesn't matter",
+            "node is absolute",
+            "voltage is absolute",
+        ],
+    ) or (
+        _contains_any(normalized_text, ["node voltage", "voltage at node"])
+        and not _contains_any(normalized_text, ["ground", "reference", "relative"])
+    )
+
+
+def _looks_like_mesh_direction_error(normalized_text: str) -> bool:
+    return _contains_any(normalized_text, ["mesh", "loop current", "kvl"]) and _contains_any(
+        normalized_text,
+        ["direction", "opposite", "shared branch", "same direction", "sign"],
+    )
+
+
 def _has_ideal_op_amp(circuit: CircuitProblem) -> bool:
     return any(component.type in {"ideal_op_amp", "op_amp_ideal"} for component in circuit.components)
+
+
+def _issue_label(issue: str) -> str:
+    return MISCONCEPTION_LABELS.get(issue, issue.replace("_", " "))
+
+
+def _normalize_issue_ids(issues: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for issue in issues:
+        cleaned = "".join(
+            char.lower() if char.isalnum() else "_" for char in issue.strip()
+        ).strip("_")
+        while "__" in cleaned:
+            cleaned = cleaned.replace("__", "_")
+        if cleaned:
+            normalized.append(_canonical_issue_id(cleaned))
+    return _unique(normalized)
+
+
+def _canonical_issue_id(cleaned: str) -> str:
+    if cleaned in MISCONCEPTION_ALIASES:
+        return MISCONCEPTION_ALIASES[cleaned]
+    if "common_mode" in cleaned and (
+        "differential" in cleaned
+        or "gain" in cleaned
+        or "rejection" in cleaned
+        or "amplif" in cleaned
+    ):
+        return "common_mode_as_differential"
+    if (
+        ("ground" in cleaned or "reference" in cleaned)
+        and ("node" in cleaned or "voltage" in cleaned or "absolute" in cleaned)
+    ):
+        return "reference_node_dependency"
+    return cleaned
+
+
+def _diagnostic_graph_for_issues(
+    issues: list[str],
+    evidence: list[str],
+) -> list[DiagnosticNode]:
+    graph: list[DiagnosticNode] = []
+    for issue in issues:
+        label = _issue_label(issue)
+        root_id = f"{issue}:root"
+        missing_id = f"{issue}:missing_concept"
+        observed_id = f"{issue}:observed"
+        next_id = f"{issue}:next_check"
+        graph.extend(
+            [
+                DiagnosticNode(
+                    id=observed_id,
+                    label=f"Observed reasoning issue: {label}",
+                    kind="observed_error",
+                    evidence=list(evidence),
+                    confidence=0.7,
+                    edges=[DiagnosticEdge(target_id=missing_id, relation="evidence_for")],
+                ),
+                DiagnosticNode(
+                    id=missing_id,
+                    label=_missing_concept_label(issue),
+                    kind="missing_concept",
+                    evidence=[],
+                    confidence=0.6,
+                    edges=[DiagnosticEdge(target_id=root_id, relation="depends_on")],
+                ),
+                DiagnosticNode(
+                    id=root_id,
+                    label=_root_cause_label(issue),
+                    kind="root_cause",
+                    evidence=[],
+                    confidence=0.55,
+                    edges=[DiagnosticEdge(target_id=next_id, relation="next_check")],
+                ),
+                DiagnosticNode(
+                    id=next_id,
+                    label=_next_check_label(issue),
+                    kind="next_step",
+                    evidence=[],
+                    confidence=0.8,
+                ),
+            ]
+        )
+    return graph
+
+
+def _merge_diagnostic_graphs(
+    nodes: list[DiagnosticNode],
+    issues: list[str],
+) -> list[DiagnosticNode]:
+    merged: dict[str, DiagnosticNode] = {}
+    for node in [*nodes, *_diagnostic_graph_for_issues(issues, [])]:
+        if node.id not in merged:
+            merged[node.id] = node
+    return list(merged.values())
+
+
+def _missing_concept_label(issue: str) -> str:
+    labels = {
+        "reference_node_dependency": "Missing concept: node voltages are relative to the chosen reference.",
+        "mesh_current_direction_dependency": "Missing concept: loop-current direction is a reference choice, not a physical claim.",
+        "sign_convention": "Missing concept: current arrows define the sign of every KCL term.",
+        "unit_prefix": "Missing concept: prefixes must be converted before substitution.",
+        "common_mode_as_differential": "Missing concept: differential gain applies to the input difference, not the shared level.",
+    }
+    return labels.get(issue, f"Missing concept behind {_issue_label(issue)}.")
+
+
+def _root_cause_label(issue: str) -> str:
+    labels = {
+        "reference_node_dependency": "Likely root cause: treating voltage as absolute instead of reference-based.",
+        "mesh_current_direction_dependency": "Likely root cause: interpreting a negative loop current as an invalid setup.",
+        "sign_convention": "Likely root cause: changing current direction mid-equation.",
+        "unit_prefix": "Likely root cause: substituting display units instead of SI units.",
+        "common_mode_as_differential": "Likely root cause: mixing sensor offset with desired biosignal.",
+    }
+    return labels.get(issue, f"Likely root cause for {_issue_label(issue)}.")
+
+
+def _next_check_label(issue: str) -> str:
+    labels = {
+        "reference_node_dependency": "Next check: name the reference node and rewrite the voltage as a difference.",
+        "mesh_current_direction_dependency": "Next check: choose loop directions once and let signs emerge.",
+        "sign_convention": "Next check: redraw current arrows before the next equation.",
+        "unit_prefix": "Next check: rewrite known values in base SI units.",
+        "common_mode_as_differential": "Next check: compute Vdiff and Vcm as separate symbols.",
+    }
+    return labels.get(issue, f"Next check for {_issue_label(issue)}.")
 
 
 def _contains_any(text: str, needles: list[str]) -> bool:

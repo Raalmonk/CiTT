@@ -81,6 +81,24 @@ def _phasor(magnitude: float | None, phase_deg: float | None) -> complex:
     return magnitude * complex(math.cos(phase_rad), math.sin(phase_rad))
 
 
+def _stamp_admittance(
+    matrix: np.ndarray,
+    node_index: dict[str, int],
+    node_a: str,
+    node_b: str,
+    admittance: complex,
+) -> None:
+    idx_a = node_index.get(node_a)
+    idx_b = node_index.get(node_b)
+    if idx_a is not None:
+        matrix[idx_a, idx_a] += admittance
+    if idx_b is not None:
+        matrix[idx_b, idx_b] += admittance
+    if idx_a is not None and idx_b is not None:
+        matrix[idx_a, idx_b] -= admittance
+        matrix[idx_b, idx_a] -= admittance
+
+
 def nonideal_frequency_gain(component: Component, frequency_hz: float) -> complex:
     dc_gain = nonideal_open_loop_gain(component)
     if component.gain_bandwidth_hz is not None:
@@ -209,31 +227,13 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
 
         if component.type == "resistor":
             admittance = 1.0 / component.value
-            if idx_a is not None:
-                matrix[idx_a, idx_a] += admittance
-            if idx_b is not None:
-                matrix[idx_b, idx_b] += admittance
-            if idx_a is not None and idx_b is not None:
-                matrix[idx_a, idx_b] -= admittance
-                matrix[idx_b, idx_a] -= admittance
+            _stamp_admittance(matrix, node_index, component.nodes[0], component.nodes[1], admittance)
         elif component.type == "capacitor":
             admittance = 1j * omega * component.value
-            if idx_a is not None:
-                matrix[idx_a, idx_a] += admittance
-            if idx_b is not None:
-                matrix[idx_b, idx_b] += admittance
-            if idx_a is not None and idx_b is not None:
-                matrix[idx_a, idx_b] -= admittance
-                matrix[idx_b, idx_a] -= admittance
+            _stamp_admittance(matrix, node_index, component.nodes[0], component.nodes[1], admittance)
         elif component.type == "inductor":
             admittance = 1.0 / (1j * omega * component.value)
-            if idx_a is not None:
-                matrix[idx_a, idx_a] += admittance
-            if idx_b is not None:
-                matrix[idx_b, idx_b] += admittance
-            if idx_a is not None and idx_b is not None:
-                matrix[idx_a, idx_b] -= admittance
-                matrix[idx_b, idx_a] -= admittance
+            _stamp_admittance(matrix, node_index, component.nodes[0], component.nodes[1], admittance)
         elif component.type == "current_source":
             current = _phasor(component.ac_magnitude, component.ac_phase_deg)
             if idx_a is not None:
@@ -267,20 +267,50 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
             idx_out = node_index.get(out)
             idx_ref = node_index.get(ref)
 
+            if component.input_resistance_ohm is not None:
+                _stamp_admittance(
+                    matrix,
+                    node_index,
+                    vp,
+                    vm,
+                    1.0 / component.input_resistance_ohm,
+                )
+            if component.compensation_capacitance_f is not None:
+                _stamp_admittance(
+                    matrix,
+                    node_index,
+                    out,
+                    ref,
+                    1j * omega * component.compensation_capacitance_f,
+                )
+
             if idx_out is not None:
                 matrix[idx_out, op_idx] += 1.0
             if idx_ref is not None:
                 matrix[idx_ref, op_idx] -= 1.0
             if is_nonideal_op_amp_type(component.type):
                 gain = nonideal_frequency_gain(component, frequency)
-                if idx_out is not None:
-                    matrix[op_idx, idx_out] += 1.0
-                if idx_ref is not None:
-                    matrix[op_idx, idx_ref] -= 1.0
-                if idx_vp is not None:
-                    matrix[op_idx, idx_vp] -= gain
-                if idx_vm is not None:
-                    matrix[op_idx, idx_vm] += gain
+                if component.output_resistance_ohm is not None:
+                    output_conductance = 1.0 / component.output_resistance_ohm
+                    gm = gain * output_conductance
+                    if idx_out is not None:
+                        matrix[op_idx, idx_out] -= output_conductance
+                    if idx_ref is not None:
+                        matrix[op_idx, idx_ref] += output_conductance
+                    if idx_vp is not None:
+                        matrix[op_idx, idx_vp] += gm
+                    if idx_vm is not None:
+                        matrix[op_idx, idx_vm] -= gm
+                    matrix[op_idx, op_idx] += 1.0
+                else:
+                    if idx_out is not None:
+                        matrix[op_idx, idx_out] += 1.0
+                    if idx_ref is not None:
+                        matrix[op_idx, idx_ref] -= 1.0
+                    if idx_vp is not None:
+                        matrix[op_idx, idx_vp] -= gain
+                    if idx_vm is not None:
+                        matrix[op_idx, idx_vm] += gain
             else:
                 if idx_vp is not None:
                     matrix[op_idx, idx_vp] += 1.0
@@ -364,6 +394,11 @@ def solve_ac(problem: CircuitProblem, frequency_hz: float | None = None) -> ACSo
         component_results[component.id] = ACComponentResult(
             voltage=complex_quantity(voltage, "V", reference=reference),
             current=complex_quantity(current, "A", reference=current_reference),
+            complex_power=complex_quantity(
+                voltage * current.conjugate(),
+                "VA",
+                reference={"component": component.id},
+            ),
         )
 
     node_voltages = {

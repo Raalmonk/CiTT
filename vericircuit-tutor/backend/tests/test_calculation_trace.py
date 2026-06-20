@@ -1,17 +1,16 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services.demo_parser import VOLTAGE_DIVIDER_TEXT
-from app.services.parser_service import parse_problem
+from app.services.demo_parser import voltage_divider_problem
 from app.services.pipeline import solve_circuit
 
 
 def test_calculation_trace_exists_on_solved_packet():
-    parsed = parse_problem(VOLTAGE_DIVIDER_TEXT)
-    packet = solve_circuit(parsed.circuit, parser_used=parsed.parser_used)
+    circuit = voltage_divider_problem()
+    packet = solve_circuit(circuit, parser_used="gemini")
 
     trace = packet.calculation_trace
-    assert trace.parser_used == "demo"
+    assert trace.parser_used == "gemini"
     assert trace.solver_name == "internal_mna_v1"
     assert trace.solver_method == "Modified Nodal Analysis"
     assert trace.solver_backend == "numpy.linalg.solve"
@@ -24,19 +23,18 @@ def test_calculation_trace_exists_on_solved_packet():
 
 
 def test_llm_used_for_numerical_answer_is_always_false_for_pipeline():
-    parsed = parse_problem(VOLTAGE_DIVIDER_TEXT, mode="demo")
-    packet = solve_circuit(parsed.circuit, parser_used=parsed.parser_used)
+    packet = solve_circuit(voltage_divider_problem(), parser_used="gemini")
 
     assert packet.calculation_trace.llm_used_for_numerical_answer is False
 
 
 def test_solve_endpoint_preserves_parser_used():
-    parsed = parse_problem(VOLTAGE_DIVIDER_TEXT, mode="demo")
+    circuit = voltage_divider_problem()
 
     response = TestClient(app).post(
         "/solve",
         json={
-            "circuit_ir": parsed.circuit.model_dump(),
+            "circuit_ir": circuit.model_dump(),
             "parser_used": "gemini",
         },
     )

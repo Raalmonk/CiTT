@@ -1,6 +1,6 @@
 # Gemini API Setup
 
-VeriCircuit Tutor works without external API keys. In that mode, the deterministic demo parser handles the bundled examples. Gemini mode is optional and is only used to produce CircuitProblem JSON. It must not produce final numerical answers.
+VeriCircuit Tutor requires Gemini credentials for natural-language parsing. Gemini is only used to produce CircuitProblem JSON and must not produce final numerical answers. If Gemini is unavailable or cannot produce validated Circuit IR, the API returns controlled ambiguity.
 
 ## Get A Key
 
@@ -115,9 +115,8 @@ Gemini may only return CircuitProblem JSON, including when `/parse_image` asks i
 
 Parser modes:
 
-- `demo`: deterministic offline parser for bundled examples.
-- `gemini`: Gemini parser with deterministic demo fallback if Gemini is unavailable.
-- `gemini_strict`: Gemini parser only. If Gemini is unavailable or returns invalid JSON, the API returns a controlled ambiguous CircuitProblem instead of silently falling back.
+- `gemini`: Gemini parser. If Gemini is unavailable or returns invalid JSON, the API returns a controlled ambiguous CircuitProblem.
+- `gemini_strict`: Gemini parser with the same no-fallback behavior, retained for clients that already send strict mode.
 - `gemini_image`: image parser used by `/parse_image`; unreadable or ambiguous images return Circuit IR ambiguities instead of guessed values.
 
 Structured lessons are still deterministic. Gemini does not write final numerical lesson values; the lesson builder formats values from `SolutionPacket`, `TutorObservation`, and deterministic metadata after verification passes.

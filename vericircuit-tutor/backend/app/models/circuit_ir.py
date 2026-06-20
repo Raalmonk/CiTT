@@ -51,6 +51,7 @@ class Component(BaseModel):
                 "current_source",
                 "capacitor",
                 "inductor",
+                "diode",
                 "op_amp_ideal",
                 "ideal_op_amp",
                 "op_amp_nonideal",
@@ -76,6 +77,14 @@ class Component(BaseModel):
     slew_rate_v_per_s: float | None = Field(default=None, gt=0.0)
     clipping_recovery_s: float | None = Field(default=None, ge=0.0)
     output_current_limit_a: float | None = Field(default=None, gt=0.0)
+    input_offset_voltage_v: float | None = None
+    input_resistance_ohm: float | None = Field(default=None, gt=0.0)
+    output_resistance_ohm: float | None = Field(default=None, gt=0.0)
+    compensation_capacitance_f: float | None = Field(default=None, gt=0.0)
+    clamp_diode_saturation_current_a: float | None = Field(default=None, gt=0.0)
+    saturation_current_a: float | None = Field(default=None, gt=0.0)
+    emission_coefficient: float | None = Field(default=None, gt=0.0)
+    thermal_voltage_v: float | None = Field(default=None, gt=0.0)
 
     @field_validator("nodes")
     @classmethod
@@ -116,6 +125,14 @@ class Component(BaseModel):
         "slew_rate_v_per_s",
         "clipping_recovery_s",
         "output_current_limit_a",
+        "input_offset_voltage_v",
+        "input_resistance_ohm",
+        "output_resistance_ohm",
+        "compensation_capacitance_f",
+        "clamp_diode_saturation_current_a",
+        "saturation_current_a",
+        "emission_coefficient",
+        "thermal_voltage_v",
     )
     @classmethod
     def nonideal_op_amp_values_must_be_finite(
@@ -188,6 +205,16 @@ class Goal(BaseModel):
     target: str = Field(min_length=1)
     reference: dict[str, Any] | None = None
 
+    @model_validator(mode="after")
+    def drop_null_reference_entries(self) -> "Goal":
+        if self.reference is None:
+            return self
+        compact_reference = {
+            key: value for key, value in self.reference.items() if value is not None
+        }
+        self.reference = compact_reference or None
+        return self
+
 
 class BMETemplateMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -216,6 +243,8 @@ class BMETemplateMetadata(BaseModel):
     thermal_noise_resistor_ids: list[str] = Field(default_factory=list)
     photodiode_shot_noise_current_id: str | None = None
     op_amp_input_noise_nv_per_sqrt_hz: float | None = Field(default=None, gt=0.0)
+    flicker_noise_corner_hz: float | None = Field(default=None, gt=0.0)
+    flicker_noise_component_ids: list[str] = Field(default_factory=list)
     cmrr_mismatch_percent: float | None = Field(default=None, gt=0.0)
     cmrr_mismatch_component_id: str | None = None
 
@@ -237,6 +266,7 @@ class CircuitProblem(BaseModel):
     goals: list[Goal] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     bme_metadata: BMETemplateMetadata | None = None
+    nonblocking_ambiguities: list[str] = Field(default_factory=list)
     ambiguities: list[str] = Field(default_factory=list)
     unsupported_features: list[str] = Field(default_factory=list)
 

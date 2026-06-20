@@ -5,7 +5,6 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.services.bme_templates import BME_TEMPLATE_FACTORIES, get_bme_demo_examples
-from app.services.parser_service import parse_problem
 from app.services.pipeline import solve_circuit
 
 
@@ -33,13 +32,13 @@ def test_examples_endpoint_returns_bme_metadata():
     assert anti_aliasing["noise_bandwidth_hz"] == 500.0
 
 
-def test_bme_demo_templates_parse_and_solve():
+def test_bme_demo_examples_have_matching_solvable_template_ir():
     for example in get_bme_demo_examples():
-        parsed = parse_problem(example["problem_text"], mode="demo")
-        packet = solve_circuit(parsed.circuit, parser_used=parsed.parser_used)
+        template = BME_TEMPLATE_FACTORIES[example["id"]]()
+        packet = solve_circuit(template.circuit_problem)
 
-        assert parsed.circuit.id == example["id"]
-        assert parsed.circuit.bme_metadata is not None
+        assert template.circuit_problem.id == example["id"]
+        assert template.circuit_problem.bme_metadata is not None
         assert example["biomedical_context"]
         assert example["signal_chain_role"]
         assert example["what_students_should_learn"]
@@ -83,6 +82,42 @@ def test_bme_templates_are_supported_circuit_ir():
             assert packet.bme_metadata.supply_negative_v == 0.0
             assert packet.bme_metadata.supply_positive_v == 3.3
             assert packet.bme_metadata.output_swing_margin_v == 0.1
+
+
+def test_dynamic_bme_context_injects_for_non_template_differential_front_end():
+    circuit = BME_TEMPLATE_FACTORIES["bme_ecg_front_end"]().circuit_problem.model_copy(deep=True)
+    circuit.id = "student_drawn_differential_front_end"
+    circuit.title = "Student Drawn ECG Differential Front End"
+    circuit.topology_id = None
+    circuit.bme_metadata = None
+
+    packet = solve_circuit(circuit)
+    observations = {observation.id: observation for observation in packet.tutor_observations}
+
+    assert packet.status == "solved"
+    assert packet.bme_metadata is not None
+    assert "topology features" in packet.bme_metadata.assumptions[0].lower()
+    assert observations["differential_input_voltage"].value == pytest.approx(0.001)
+    assert observations["common_mode_input_voltage"].value == pytest.approx(1.0005)
+
+
+def test_dynamic_bme_context_injects_for_student_adc_rc_low_pass():
+    circuit = BME_TEMPLATE_FACTORIES["bme_anti_aliasing_low_pass"]().circuit_problem.model_copy(deep=True)
+    circuit.id = "student_adc_rc_low_pass"
+    circuit.title = "Student ADC RC Low Pass"
+    circuit.topology_id = None
+    circuit.bme_metadata = None
+
+    packet = solve_circuit(circuit)
+    observations = {observation.id: observation for observation in packet.tutor_observations}
+
+    assert packet.status == "solved"
+    assert packet.bme_metadata is not None
+    assert packet.bme_metadata.adc_sampling_frequency_hz is not None
+    assert observations["adc_nyquist_frequency"].value == pytest.approx(
+        packet.bme_metadata.adc_sampling_frequency_hz / 2.0
+    )
+    assert "anti-alias" in packet.bme_metadata.signal_chain_role.lower()
 
 
 def test_bme_ecg_front_end_gain_is_stable():

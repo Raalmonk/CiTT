@@ -1,0 +1,38 @@
+{
+  "comparison_rows": [
+    {
+      "absolute_difference": 211.32741228718345,
+      "compared_source": "measured",
+      "hand_value": 40.0,
+      "id": "fc_hz",
+      "label": "Fc Hz",
+      "measured_value": 251.32741228718345,
+      "note": "Compared measured against hand for fc_hz.",
+      "percent_difference": 528.3185307179587,
+      "reference_source": "hand",
+      "simulation_value": 40.1,
+      "unit": "Hz"
+    }
+  ],
+  "lab_id": "rc_antialias_adc",
+  "likely_causes": [
+    {
+      "confidence": "high",
+      "explanation": "One value is near a 2*pi ratio from another value. That often means angular frequency in rad/s was compared with frequency in Hz, or the 2*pi factor was missed.",
+      "id": "rad_s_vs_hz",
+      "next_check": "Recalculate cutoff using fc = 1/(2*pi*R*C) in Hz and compare with omega_c = 1/(R*C) in rad/s.",
+      "related_keys": [
+        "fc_hz"
+      ],
+      "title": "rad/s vs Hz confusion"
+    }
+  ],
+  "next_check": "Recalculate cutoff using fc = 1/(2*pi*R*C) in Hz and compare with omega_c = 1/(R*C) in rad/s.",
+  "next_probe_suggestion": "Probe the RC output voltage and verify R, C, fc, and omega_c units before changing topology.",
+  "notes": [
+    "Lab Delta suggestions are deterministic teaching heuristics, not bench diagnosis.",
+    "Compare values only when they refer to the same node, signal, unit, and measurement window.",
+    "Student/lab notes considered: Seed example intentionally shows angular frequency reported as Hz."
+  ],
+  "reflection_question": "Which single assumption would you test first, and what measurement would make that assumption visible?"
+}

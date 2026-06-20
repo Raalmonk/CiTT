@@ -1,10 +1,8 @@
-from xml.etree import ElementTree as ET
-
 from app.services.bme_templates import BME_TEMPLATE_FACTORIES
 from app.models.circuit_ir import CircuitProblem, Component, Goal
 from app.services.demo_parser import bridge_network_problem, voltage_divider_problem
 from app.services.pipeline import solve_circuit
-from app.services.schematic_generator import render_schematic_svg
+from app.services.visual_layout import build_visual_circuit
 
 
 def _assert_focus_ids_exist(circuit, packet):
@@ -19,36 +17,19 @@ def _assert_focus_ids_exist(circuit, packet):
         assert set(step.focus.goals) <= goal_ids
 
 
-def _svg_elements(svg: str):
-    root = ET.fromstring(svg)
-    return list(root.iter())
+def _assert_focus_ids_query_visual_layout(circuit, packet):
+    layout = build_visual_circuit(circuit)
+    component_ids = {component.id for component in layout.components}
+    node_ids = {node.id for node in layout.nodes}
+    wire_component_ids = {wire.component_id for wire in layout.wires if wire.component_id}
 
-
-def _has_component(svg_elements, component_id: str) -> bool:
-    return any(element.attrib.get("data-component-id") == component_id for element in svg_elements)
-
-
-def _has_node(svg_elements, node_id: str) -> bool:
-    return any(element.attrib.get("data-node-id") == node_id for element in svg_elements)
-
-
-def _has_current_path(svg_elements, component_id: str) -> bool:
-    return any(
-        element.attrib.get("data-component-id") == component_id
-        and "current-path" in element.attrib.get("class", "").split()
-        for element in svg_elements
-    )
-
-
-def _assert_focus_ids_query_svg(circuit, packet):
-    svg_elements = _svg_elements(render_schematic_svg(circuit))
     for step in packet.guided_steps:
         for component_id in step.focus.components:
-            assert _has_component(svg_elements, component_id), (step.id, component_id)
+            assert component_id in component_ids, (step.id, component_id)
         for node_id in step.focus.nodes:
-            assert _has_node(svg_elements, node_id), (step.id, node_id)
+            assert node_id in node_ids, (step.id, node_id)
         for component_id in step.focus.current_paths:
-            assert _has_current_path(svg_elements, component_id), (step.id, component_id)
+            assert component_id in component_ids or component_id in wire_component_ids, (step.id, component_id)
 
 
 def test_voltage_divider_packet_includes_guided_steps():
@@ -93,7 +74,7 @@ def test_bridge_network_uses_coupled_node_steps_not_divider_shortcut():
     assert set(answer_step.focus.goals) == {"n2_voltage", "n3_voltage", "R5_current"}
     assert any(value.id == "R5_current" for value in answer_step.verified_values)
     _assert_focus_ids_exist(circuit, packet)
-    _assert_focus_ids_query_svg(circuit, packet)
+    _assert_focus_ids_query_visual_layout(circuit, packet)
 
 
 def test_ecg_template_guided_steps_teach_diff_common_mode_and_output():
@@ -130,7 +111,7 @@ def test_first_bme_guided_templates_have_deterministic_steps():
         _assert_focus_ids_exist(circuit, packet)
 
 
-def test_guided_focus_ids_query_actual_svg_elements_for_polished_demos():
+def test_guided_focus_ids_query_visual_layout_for_polished_demos():
     circuits = [
         voltage_divider_problem(),
         BME_TEMPLATE_FACTORIES["bme_ecg_front_end"]().circuit_problem,
@@ -141,7 +122,7 @@ def test_guided_focus_ids_query_actual_svg_elements_for_polished_demos():
     for circuit in circuits:
         packet = solve_circuit(circuit)
 
-        _assert_focus_ids_query_svg(circuit, packet)
+        _assert_focus_ids_query_visual_layout(circuit, packet)
 
 
 def test_renamed_voltage_divider_uses_structure_not_topology_script():

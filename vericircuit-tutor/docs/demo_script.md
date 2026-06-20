@@ -127,7 +127,7 @@ Use this when the demo should show the expanded scope beyond resistor-only DC.
 
 1. Select **RC Low-Pass AC** and run the pipeline.
 2. Show that the requested answer is reported as magnitude and phase, not a direct LLM number.
-3. Point to AC verification: complex KCL and finite phasor values pass; AC power balance is intentionally not verified in this MVP.
+3. Point to AC verification: complex KCL, finite phasor values, and signed complex-power balance pass.
 4. Select **Ideal Non-Inverting Op-Amp** and run the pipeline.
 5. Show that `Vout` is about `10 V` and the inverting input is held near `1 V`.
 6. Emphasize that this is ideal closed-loop DC behavior only.
@@ -136,7 +136,7 @@ Use this when the demo should show the expanded scope beyond resistor-only DC.
 
 Close with:
 
-> The MVP scope is intentionally controlled: DC operating point, first-order RC transient templates, AC steady-state phasors for linear R/L/C/source circuits, AC sweep data, ideal closed-loop op-amp DC, an educational nonideal op-amp model, and Gemini schematic/image-to-Circuit-IR parsing. It still does not handle general transient simulation, DC inductor behavior, diodes, transistors, nonlinear solving, SPICE-grade vendor op-amp macro-models, or guaranteed recognition of unreadable schematic images. Unsupported or ambiguous problems are marked as such instead of being guessed.
+> The MVP scope is intentionally controlled: linear DC operating point, Shockley diode DC operating point through Newton-Raphson nonlinear MNA, linear numerical transient analysis for R/C/L/source circuits, AC steady-state phasors for linear R/L/C/source circuits, AC sweep data, ideal closed-loop op-amp DC, an educational nonideal op-amp macromodel, BME output-noise transfer estimates, and Gemini schematic/image-to-Circuit-IR parsing. It still does not handle arbitrary waveform transient sources, nonlinear transient solving, transistors, diode AC/transient large-signal analysis, SPICE-grade vendor op-amp macro-models, or guaranteed recognition of unreadable schematic images. Unsupported or ambiguous problems are marked as such instead of being guessed.
 
 End on the research point:
 

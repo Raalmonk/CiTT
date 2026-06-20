@@ -72,6 +72,11 @@ def _verification_sentence(packet: SolutionPacket) -> str:
     if not passed_checks:
         return "The packet passed verification, but no individual check names were reported."
     residual = packet.verification.max_kcl_residual_a
+    if packet.symbolic_requested_answers and not packet.requested_answers:
+        return (
+            "The symbolic expression above is from deterministic closed-form checks. "
+            f"Passed checks: {', '.join(passed_checks)}."
+        )
     return (
         "The numerical values above are from the verified Solution Packet. "
         f"Passed checks: {', '.join(passed_checks)}. "
@@ -264,7 +269,7 @@ def _explain_ac(packet: SolutionPacket) -> str:
     if noise_line:
         lines.append(noise_line)
 
-    lines.append(_verification_sentence(packet) + " AC complex power is intentionally not verified in this MVP.")
+    lines.append(_verification_sentence(packet) + " Signed AC complex power balance is checked with the packet's phasor convention.")
     return "\n\n".join(lines)
 
 
@@ -274,8 +279,22 @@ def _explain_rc_transient(packet: SolutionPacket) -> str:
         return _verification_sentence(packet)
 
     lines = _bme_intro(packet)
+    if not response.is_first_order:
+        lines.append(
+            "This is a numerical transient analysis: storage elements are discretized with Backward Euler companion models and solved in the time domain."
+        )
+        lines.append(
+            "From the verified packet: "
+            f"V initial = {_format_value(response.initial_voltage_v, 'V')}, "
+            f"V final DC target = {_format_value(response.final_voltage_v, 'V')}, "
+            f"C = {_format_value(response.capacitance_f, 'F')}, "
+            f"samples = {len(response.sample_points)}."
+        )
+        lines.append(_verification_sentence(packet))
+        return "\n\n".join(lines)
+
     lines.append(
-        "This is a first-order RC transient template: the capacitor voltage moves exponentially from its initial value toward the final DC value."
+        "This is a first-order RC transient solved with numerical Backward Euler integration; the samples follow the expected exponential motion from initial value toward the final DC value."
     )
     lines.append(
         "From the verified packet: "
@@ -338,6 +357,17 @@ def _explain_dc(packet: SolutionPacket) -> str:
             for node, value in sorted(packet.node_voltages.items())
         ]
         lines.append("Verified node voltages: " + "; ".join(formatted_nodes) + ".")
+
+    if packet.symbolic_requested_answers:
+        answer_lines = []
+        for goal_id, answer in packet.symbolic_requested_answers.items():
+            coefficient = (
+                f" (coefficient {answer.numeric_coefficient:.6g})"
+                if answer.numeric_coefficient is not None
+                else ""
+            )
+            answer_lines.append(f"{goal_id}: {answer.expression} (unit {answer.unit}){coefficient}")
+        lines.append("Symbolic requested answer: " + "; ".join(answer_lines) + ".")
 
     if packet.requested_answers:
         answer_lines = []

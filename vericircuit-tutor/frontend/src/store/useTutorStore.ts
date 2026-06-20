@@ -1,8 +1,15 @@
 import { create } from "zustand";
+import type { SchematicRenderer } from "@/api/tutorApi";
 import type {
+  AnalysisView,
   CircuitProblem,
   EntityRef,
+  InstructorDashboard,
+  PracticeVariant,
+  ScopeBoundary,
   SolutionPacket,
+  StudentProfile,
+  RuntimeDebugTrace,
   TutorFocus,
   TutorStep,
   VisualCircuit
@@ -29,19 +36,39 @@ export type TutorStreamEvent =
 
 type LoadCircuitPayload = {
   circuit: CircuitProblem;
+  parserUsed?: string | null;
+  problemText?: string | null;
   visualCircuit?: VisualCircuit | null;
   solutionPacket?: SolutionPacket | null;
+  explanation?: string | null;
+  variants?: PracticeVariant[];
+  analysisView?: AnalysisView | null;
+  debugTrace?: RuntimeDebugTrace | null;
+  schematicRenderer?: SchematicRenderer;
+  schematicSvg?: string | null;
 };
 
 type TutorState = {
   circuit: CircuitProblem | null;
+  parserUsed: string | null;
+  problemText: string | null;
   visualCircuit: VisualCircuit | null;
   solutionPacket: SolutionPacket | null;
+  explanation: string | null;
+  variants: PracticeVariant[];
+  analysisView: AnalysisView | null;
+  scopeBoundary: ScopeBoundary | null;
+  studentProfile: StudentProfile | null;
+  instructorDashboard: InstructorDashboard | null;
+  debugTrace: RuntimeDebugTrace | null;
+  schematicRenderer: SchematicRenderer;
+  schematicSvg: string | null;
   activeStepId: string | null;
   activeStepIndex: number;
   chatHistory: TutorMessage[];
   hoveredEntity: EntityRef | null;
   selectedEntity: EntityRef | null;
+  manualFocusEntities: EntityRef[];
   chatReferencedEntities: EntityRef[];
   highlightedEntities: EntityRef[];
   streamStatus: StreamStatus;
@@ -50,13 +77,23 @@ type TutorState = {
 
 type TutorActions = {
   loadCircuit: (payload: LoadCircuitPayload) => void;
+  setCircuit: (circuit: CircuitProblem) => void;
   setVisualCircuit: (visualCircuit: VisualCircuit | null) => void;
   setSolutionPacket: (solutionPacket: SolutionPacket | null) => void;
+  setAnalysisView: (analysisView: AnalysisView | null) => void;
+  setExplanation: (explanation: string | null) => void;
+  setVariants: (variants: PracticeVariant[]) => void;
+  setScopeBoundary: (scopeBoundary: ScopeBoundary | null) => void;
+  setStudentProfile: (studentProfile: StudentProfile | null) => void;
+  setInstructorDashboard: (dashboard: InstructorDashboard | null) => void;
+  setSchematicSvg: (schematicSvg: string | null, renderer?: SchematicRenderer) => void;
   setActiveStep: (stepId: string | null) => void;
   setActiveStepByIndex: (stepIndex: number) => void;
   setHoveredEntity: (entity: EntityRef | null) => void;
   selectEntity: (entity: EntityRef | null) => void;
+  setManualFocusEntities: (entities: EntityRef[]) => void;
   highlightFromTutorText: (text: string) => EntityRef[];
+  clearChatHistory: () => void;
   clearChatHighlights: () => void;
   addStudentMessage: (content: string) => string;
   addAssistantMessage: (content: string, status?: ChatStatus) => string;
@@ -72,13 +109,25 @@ export type TutorStore = TutorState & TutorActions;
 
 const initialState: TutorState = {
   circuit: null,
+  parserUsed: null,
+  problemText: null,
   visualCircuit: null,
   solutionPacket: null,
+  explanation: null,
+  variants: [],
+  analysisView: null,
+  scopeBoundary: null,
+  studentProfile: null,
+  instructorDashboard: null,
+  debugTrace: null,
+  schematicRenderer: "optcpv",
+  schematicSvg: null,
   activeStepId: null,
   activeStepIndex: -1,
   chatHistory: [],
   hoveredEntity: null,
   selectedEntity: null,
+  manualFocusEntities: [],
   chatReferencedEntities: [],
   highlightedEntities: [],
   streamStatus: "idle",
@@ -88,19 +137,40 @@ const initialState: TutorState = {
 export const useTutorStore = create<TutorStore>((set, get) => ({
   ...initialState,
 
-  loadCircuit: ({ circuit, visualCircuit = null, solutionPacket = null }) => {
+  loadCircuit: ({
+    circuit,
+    parserUsed = null,
+    problemText = null,
+    visualCircuit = null,
+    solutionPacket = null,
+    explanation = null,
+    variants = [],
+    analysisView = null,
+    debugTrace = null,
+    schematicRenderer = "optcpv",
+    schematicSvg = null
+  }) => {
     const firstStep = getSteps(solutionPacket)[0] ?? null;
     set((state) => {
       const next = {
         ...state,
         circuit,
+        parserUsed,
+        problemText,
         visualCircuit,
         solutionPacket,
+        explanation,
+        variants,
+        analysisView,
+        debugTrace,
+        schematicRenderer,
+        schematicSvg,
         activeStepId: firstStep?.id ?? null,
         activeStepIndex: firstStep ? 0 : -1,
         chatReferencedEntities: [],
         hoveredEntity: null,
-        selectedEntity: null
+        selectedEntity: null,
+        manualFocusEntities: []
       };
 
       return {
@@ -108,6 +178,10 @@ export const useTutorStore = create<TutorStore>((set, get) => ({
         highlightedEntities: composeHighlights(next)
       };
     });
+  },
+
+  setCircuit: (circuit) => {
+    set({ circuit });
   },
 
   setVisualCircuit: (visualCircuit) => {
@@ -118,6 +192,37 @@ export const useTutorStore = create<TutorStore>((set, get) => ({
         highlightedEntities: composeHighlights(next)
       };
     });
+  },
+
+  setAnalysisView: (analysisView) => {
+    set({ analysisView });
+  },
+
+  setExplanation: (explanation) => {
+    set({ explanation });
+  },
+
+  setVariants: (variants) => {
+    set({ variants });
+  },
+
+  setScopeBoundary: (scopeBoundary) => {
+    set({ scopeBoundary });
+  },
+
+  setStudentProfile: (studentProfile) => {
+    set({ studentProfile });
+  },
+
+  setInstructorDashboard: (dashboard) => {
+    set({ instructorDashboard: dashboard });
+  },
+
+  setSchematicSvg: (schematicSvg, renderer) => {
+    set((state) => ({
+      schematicRenderer: renderer ?? state.schematicRenderer,
+      schematicSvg
+    }));
   },
 
   setSolutionPacket: (solutionPacket) => {
@@ -191,6 +296,16 @@ export const useTutorStore = create<TutorStore>((set, get) => ({
     });
   },
 
+  setManualFocusEntities: (entities) => {
+    set((state) => {
+      const next = { ...state, manualFocusEntities: entities };
+      return {
+        manualFocusEntities: entities,
+        highlightedEntities: composeHighlights(next)
+      };
+    });
+  },
+
   highlightFromTutorText: (text) => {
     const references = extractCircuitReferences(text, collectKnownEntities(get()));
     set((state) => {
@@ -201,6 +316,25 @@ export const useTutorStore = create<TutorStore>((set, get) => ({
       };
     });
     return references;
+  },
+
+  clearChatHistory: () => {
+    set((state) => {
+      const next = {
+        ...state,
+        chatHistory: [],
+        chatReferencedEntities: [],
+        streamStatus: "idle" as const,
+        streamingMessageId: null
+      };
+      return {
+        chatHistory: [],
+        chatReferencedEntities: [],
+        streamStatus: "idle",
+        streamingMessageId: null,
+        highlightedEntities: composeHighlights(next)
+      };
+    });
   },
 
   clearChatHighlights: () => {
@@ -390,7 +524,12 @@ function collectKnownEntities(state: Pick<TutorState, "circuit" | "visualCircuit
 
 function composeHighlights(state: Pick<
   TutorState,
-  "activeStepId" | "solutionPacket" | "hoveredEntity" | "selectedEntity" | "chatReferencedEntities"
+  | "activeStepId"
+  | "solutionPacket"
+  | "hoveredEntity"
+  | "selectedEntity"
+  | "chatReferencedEntities"
+  | "manualFocusEntities"
 >): EntityRef[] {
   const refs: EntityRef[] = [];
 
@@ -402,6 +541,7 @@ function composeHighlights(state: Pick<
     refs.push(state.hoveredEntity);
   }
 
+  refs.push(...state.manualFocusEntities);
   refs.push(...state.chatReferencedEntities);
 
   const activeStep = getSteps(state.solutionPacket).find((step) => step.id === state.activeStepId);

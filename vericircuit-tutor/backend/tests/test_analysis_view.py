@@ -1,11 +1,11 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.models.circuit_ir import CircuitProblem
 from app.services.analysis_view import build_analysis_view
 from app.services.demo_parser import (
     bridge_network_problem,
     current_divider_problem,
-    parse_demo_problem,
     voltage_divider_problem,
 )
 from app.services.pipeline import solve_circuit
@@ -13,7 +13,7 @@ from app.services.pipeline import solve_circuit
 
 def test_voltage_divider_kcl_reports_r1_entering_and_r2_leaving():
     circuit = voltage_divider_problem()
-    packet = solve_circuit(circuit, parser_used="demo")
+    packet = solve_circuit(circuit, parser_used="fixture")
 
     view = build_analysis_view(circuit, packet)
     n2_report = view.node_kcl["n2"]
@@ -30,7 +30,7 @@ def test_voltage_divider_kcl_reports_r1_entering_and_r2_leaving():
 
 def test_current_divider_top_node_kcl_reports_source_entering_and_resistors_leaving():
     circuit = current_divider_problem()
-    packet = solve_circuit(circuit, parser_used="demo")
+    packet = solve_circuit(circuit, parser_used="fixture")
 
     view = build_analysis_view(circuit, packet)
     top_report = view.node_kcl["top"]
@@ -45,7 +45,7 @@ def test_current_divider_top_node_kcl_reports_source_entering_and_resistors_leav
 
 def test_balanced_bridge_reports_zero_r5_current_and_kcl_passes():
     circuit = bridge_network_problem()
-    packet = solve_circuit(circuit, parser_used="demo")
+    packet = solve_circuit(circuit, parser_used="fixture")
 
     view = build_analysis_view(circuit, packet)
 
@@ -59,12 +59,23 @@ def test_balanced_bridge_reports_zero_r5_current_and_kcl_passes():
 
 def test_analysis_view_endpoint_returns_blocked_for_ambiguous_or_unsupported_packet():
     client = TestClient(app)
-    for prompt in [
-        "Find the voltage in this circuit.",
-        "A capacitor is connected to a 5 V source. Find the current.",
+    for circuit in [
+        CircuitProblem(
+            id="ambiguous_request",
+            title="Ambiguous Circuit Request",
+            ground_node="0",
+            nodes=["0"],
+            ambiguities=["Topology and component values are not specified."],
+        ),
+        CircuitProblem(
+            id="unsupported_request",
+            title="Unsupported Circuit Request",
+            ground_node="0",
+            nodes=["0"],
+            unsupported_features=["unsupported transient source"],
+        ),
     ]:
-        circuit = parse_demo_problem(prompt)
-        packet = solve_circuit(circuit, parser_used="demo")
+        packet = solve_circuit(circuit, parser_used="fixture")
 
         response = client.post(
             "/analysis_view",
@@ -84,7 +95,7 @@ def test_analysis_view_endpoint_returns_blocked_for_ambiguous_or_unsupported_pac
 
 def test_analysis_view_does_not_alter_solver_output():
     circuit = voltage_divider_problem()
-    packet = solve_circuit(circuit, parser_used="demo")
+    packet = solve_circuit(circuit, parser_used="fixture")
     before = packet.model_dump()
 
     build_analysis_view(circuit, packet)

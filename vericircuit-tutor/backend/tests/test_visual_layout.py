@@ -1,5 +1,3 @@
-from xml.etree import ElementTree as ET
-
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -10,7 +8,6 @@ from app.services.demo_parser import (
     op_amp_non_inverting_problem,
     voltage_divider_problem,
 )
-from app.services.schematic_generator import render_schematic_svg
 from app.services.visual_layout import build_visual_circuit
 
 
@@ -23,7 +20,7 @@ def test_visual_layout_endpoint_returns_semantic_layout():
     assert response.status_code == 200
     payload = response.json()
     assert payload["circuit_id"] == "voltage_divider"
-    assert payload["renderer"] == "schemdraw_voltage_divider"
+    assert payload["renderer"] == "optcpv"
     assert any(node["id"] == "0" and node["role"] == "ground" for node in payload["nodes"])
     assert any(component["id"] == "R2" for component in payload["components"])
     assert any(overlay["kind"] == "goal_reference" for overlay in payload["overlays"])
@@ -39,29 +36,13 @@ def test_common_templates_include_semantic_nodes_components_and_symbols():
         assert layout.focus_regions
 
 
-def test_schematic_svg_root_has_renderer_metadata_and_desc():
-    svg = render_schematic_svg(voltage_divider_problem())
-    root = ET.fromstring(svg)
-
-    assert root.attrib["data-vericircuit-renderer"] == "schemdraw_voltage_divider"
-    assert any(
-        element.tag.endswith("desc") and "schemdraw_voltage_divider" in (element.text or "")
-        for element in root.iter()
-    )
-
-
-def test_op_amp_visual_layout_has_pin_semantics_and_svg_markers():
+def test_op_amp_visual_layout_has_pin_semantics():
     circuit = op_amp_non_inverting_problem()
     layout = build_visual_circuit(circuit)
-    svg = render_schematic_svg(circuit)
 
     op_amp = next(component for component in layout.components if component.id == "U1")
     assert op_amp.orientation == "triangle"
     assert op_amp.nodes == ["vp", "vm", "out", "0"]
-    assert "+" in svg
-    assert "-" in svg
-    assert 'data-component-id="U1"' in svg
-    assert 'data-node-id="out"' in svg
 
 
 def test_visual_layout_fallback_does_not_crash():
@@ -80,8 +61,27 @@ def test_visual_layout_fallback_does_not_crash():
     )
 
     layout = build_visual_circuit(circuit)
-    svg = render_schematic_svg(circuit)
 
     assert layout.layout_strategy == "fallback_left_to_right"
     assert layout.warnings
-    assert ET.fromstring(svg).attrib["data-vericircuit-renderer"] == "fallback_graph"
+
+
+def test_visual_layout_fallback_layers_nodes_from_ground():
+    circuit = CircuitProblem(
+        id="custom_chain_network",
+        title="Custom Chain Network",
+        topology_id=None,
+        ground_node="0",
+        nodes=["0", "a", "b", "c"],
+        components=[
+            Component(id="R0", type="resistor", nodes=["0", "a"], value=1000.0, unit="ohm"),
+            Component(id="R1", type="resistor", nodes=["a", "b"], value=1000.0, unit="ohm"),
+            Component(id="R2", type="resistor", nodes=["b", "c"], value=1000.0, unit="ohm"),
+        ],
+        goals=[Goal(id="vc", quantity="node_voltage", target="c")],
+    )
+
+    layout = build_visual_circuit(circuit)
+    positions = {node.id: node.position.x for node in layout.nodes}
+
+    assert positions["0"] < positions["a"] < positions["b"] < positions["c"]

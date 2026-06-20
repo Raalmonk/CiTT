@@ -4,11 +4,39 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services.bme_templates import BME_TEMPLATE_TEXTS
-from app.services.demo_parser import BRIDGE_NETWORK_TEXT, VOLTAGE_DIVIDER_TEXT
+from app.services.bme_templates import BME_TEMPLATE_FACTORIES, BME_TEMPLATE_TEXTS
+from app.services.demo_parser import (
+    BRIDGE_NETWORK_TEXT,
+    VOLTAGE_DIVIDER_TEXT,
+    bridge_network_problem,
+    voltage_divider_problem,
+)
+from app.services.parser_service import ParseResult
+from app.services.pipeline import solve_circuit
 
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def mock_gemini_parse_for_coach_tests(monkeypatch):
+    import app.services.reasoning_coach as reasoning_coach
+
+    circuits_by_prompt = {
+        VOLTAGE_DIVIDER_TEXT: voltage_divider_problem(),
+        BRIDGE_NETWORK_TEXT: bridge_network_problem(),
+        BME_TEMPLATE_TEXTS["bme_ecg_front_end"]: BME_TEMPLATE_FACTORIES["bme_ecg_front_end"]().circuit_problem,
+        BME_TEMPLATE_TEXTS["bme_anti_aliasing_low_pass"]: BME_TEMPLATE_FACTORIES["bme_anti_aliasing_low_pass"]().circuit_problem,
+    }
+
+    def parse_problem(problem_text: str, mode: str = "gemini") -> ParseResult:
+        return ParseResult(
+            circuit=circuits_by_prompt[problem_text],
+            parser_used="gemini",
+            warnings=[],
+        )
+
+    monkeypatch.setattr(reasoning_coach, "parse_problem", parse_problem)
 
 
 def test_reasoning_coach_requires_student_commit_before_reveal():
@@ -131,6 +159,36 @@ def test_reasoning_coach_can_use_gemini_for_student_frame(monkeypatch):
     assert payload["nudge"]["answer_revealed"] is False
 
 
+def test_reasoning_coach_can_use_current_packet_without_reparsing():
+    circuit = voltage_divider_problem()
+    packet = solve_circuit(circuit, parser_used="gemini_image")
+
+    response = client.post(
+        "/reasoning_coach",
+        json={
+            "problem_text": "Uploaded schematic image.",
+            "parser_used": "gemini_image",
+            "student_frame_mode": "heuristic",
+            "circuit_ir": json.loads(circuit.model_dump_json()),
+            "solution_packet": json.loads(packet.model_dump_json()),
+            "student_commitment": {
+                "attempt_text": "I think this is a divider, but I am not sure where to start.",
+                "confidence_percent": 40,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["parser_used"] == "gemini_image"
+    assert payload["circuit_id"] == circuit.id
+    assert payload["verification_badge"]["label"] == "PASS"
+    assert payload["solution_packet"] is None
+    assert payload["nudge"]["answer_revealed"] is False
+    assert payload["nudge"]["question"]
+
+
 def test_reasoning_coach_uses_recurring_profile_for_personalized_feedback():
     response = client.post(
         "/reasoning_coach",
@@ -215,6 +273,33 @@ def test_reasoning_coach_units_representation_and_nyquist_practice():
         "aliasing_nyquist_misread",
         "aliasing_nyquist_misread",
     ]
+
+
+def test_reasoning_coach_builds_dynamic_diagnostic_graph_for_new_issue():
+    response = client.post(
+        "/reasoning_coach",
+        json={
+            "problem_text": VOLTAGE_DIVIDER_TEXT,
+            "requested_hint_level": 2,
+            "student_commitment": {
+                "attempt_text": "The node voltage is absolute, so the ground reference does not matter.",
+                "confidence_percent": 80,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["local_check"]["focus_issue"] == "reference_node_dependency"
+    assert payload["student_frame"]["diagnostic_graph"]
+    assert any(
+        node["kind"] == "root_cause"
+        for node in payload["student_frame"]["diagnostic_graph"]
+    )
+    assert payload["adaptive_practice"][0]["target_misconception"] == "reference_node_dependency"
+    assert payload["profile_update"]["knowledge_state"]["reference_node_dependency"]["opportunities"] == 1
+    assert payload["profile_update"]["knowledge_state"]["reference_node_dependency"]["mastery"] < 0.5
 
 
 def test_reasoning_coach_reveals_solution_only_at_level_five_after_commit():

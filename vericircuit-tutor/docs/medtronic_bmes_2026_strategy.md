@@ -44,7 +44,7 @@ Frame the product as a controlled learning environment with five visible capabil
 | --- | --- | --- |
 | Product need and market potential | Clear user: BME instructors and students in biomedical instrumentation, circuits, and sensor-interface labs. Clear pain: unverified AI tutoring can teach wrong numerical reasoning. | Need sourced market/user evidence before final submission. Avoid unsupported market-size claims until sourced. |
 | Device utility and novelty | Novel authority split: LLM is not the truth source; solver, verifier, and Solution Packet are. BME templates cover ECG, EMG, pressure, strain, thermistor, photodiode, instrumentation amplifier, and anti-aliasing cases. | Need a polished product demo that makes the difference obvious within 60 seconds. |
-| Technical feasibility | Working FastAPI backend, Circuit IR, validation, MNA solver, AC solver, RC transient template, verification badges, lesson packets, BME metadata, and automated tests. | Need a benchmark table and one baseline comparison against ordinary LLM free-text answers. |
+| Technical feasibility | Working FastAPI backend, Circuit IR, validation, MNA solver, AC solver, linear numerical transient solver, verification badges, lesson packets, BME metadata, and automated tests. | Need a benchmark table and one baseline comparison against ordinary LLM free-text answers. |
 | Budget and economic plan | Software-first prototype has low marginal cost and can run deterministic demos without external LLM calls. | Need a credible per-institution pricing/support/deployment model and a small cost table. |
 | Writing clarity and style | Core idea is concise: "The LLM is not the source of truth." | Need application-length drafts under the official word limits. |
 
@@ -94,9 +94,9 @@ VeriCircuit Tutor addresses this problem with a solver-verified AI tutoring arch
 
 ### Final Design Summary (<=250 Words)
 
-The prototype is a FastAPI software system with a deterministic circuit-analysis core and an optional LLM parsing layer. It supports DC operating point analysis for supported linear circuits, single-frequency AC phasor analysis, AC sweeps, first-order RC transient templates, ideal closed-loop op-amp analysis, SPICE-like netlist export, deterministic SVG schematics, verification badges, answer provenance, and structured lesson packets. The core design rule is that the LLM never owns final numerical answers. Numerical values come from the solver and are packaged in a Solution Packet before any tutor explanation is generated.
+The prototype is a FastAPI software system with a deterministic circuit-analysis core and an optional LLM parsing layer. It supports DC operating point analysis for supported linear circuits, Shockley diode DC operating points through Newton-Raphson nonlinear MNA, single-frequency AC phasor analysis, AC sweeps, linear numerical transient analysis, ideal closed-loop op-amp analysis, educational nonideal op-amp macromodeling, BME output-noise transfer estimates, SPICE-like netlist export, deterministic SVG schematics, verification badges, answer provenance, and structured lesson packets. The core design rule is that the LLM never owns final numerical answers. Numerical values come from the solver and are packaged in a Solution Packet before any tutor explanation is generated.
 
-For biomedical instrumentation education, the system includes named templates and metadata for ECG front-end differential amplification, EMG filtering, pressure and strain bridges, thermistor dividers, photodiode transimpedance amplification, instrumentation amplification, and ADC anti-aliasing. The tutor layer attaches biomedical context, common lab mistakes, typical signal ranges, safety notes, nonideal reminders, CMRR mismatch what-if observations, ADC sampling observations, and starter noise-budget estimates where appropriate.
+For biomedical instrumentation education, the system includes named templates and metadata for ECG front-end differential amplification, EMG filtering, pressure and strain bridges, thermistor dividers, photodiode transimpedance amplification, instrumentation amplification, and ADC anti-aliasing. It also includes limited topology-feature injection for student-built differential front ends and ADC-style RC low-pass stages. The tutor layer attaches biomedical context, common lab mistakes, typical signal ranges, safety notes, nonideal reminders, CMRR mismatch what-if observations, ADC sampling observations, and output-referred noise estimates where appropriate.
 
 Risk controls include explicit unsupported/ambiguous statuses, no fabricated numerical answers for unsupported circuits, visible verification badges, answer provenance, and a boundary statement that the tool is educational software, not clinical diagnosis, patient-specific decision support, safety certification, IEC compliance, or regulatory clearance.
 
@@ -106,7 +106,7 @@ The current offline benchmark contains 15 cases across core circuits and BME sub
 
 Each solved PASS case must produce expected requested answers within tolerance and a structured lesson packet. BME cases additionally require biomedical metadata such as context, signal-chain role, typical signal range, safety note, learning objectives, common lab mistakes, and real-world nonidealities. Selected BME cases also require tutor observations for differential/common-mode inputs, CMRR mismatch, noise-boundary estimates, ADC sampling, Nyquist frequency, and aliasing warnings.
 
-The benchmark also includes an unsupported diode rectifier request. The system correctly returns UNSUPPORTED rather than fabricating a numerical result, demonstrating the product's honesty boundary.
+The benchmark also includes an unsupported AC diode rectifier-style request. The system correctly returns UNSUPPORTED rather than fabricating a numerical result, demonstrating the product's honesty boundary beyond the supported DC Shockley diode scope.
 
 ### Regulatory Pathway (<=125 Words)
 
@@ -118,7 +118,7 @@ VeriCircuit Tutor should be positioned as educational software for engineering i
 2. Show the architecture: natural language -> Circuit IR -> validation -> solver -> verification -> Solution Packet -> explanation.
 3. Run the ECG or anti-aliasing BME template live.
 4. Point to the PASS badge, requested answer, provenance, BME context, safety note, and limitation boundary.
-5. Run the unsupported diode rectifier case to show honest refusal instead of fake confidence.
+5. Run an unsupported AC diode rectifier or transistor case to show honest refusal instead of fake confidence.
 6. Close with the benchmark table and the phrase: "The tutor can be conversational, but it is not the source of numerical truth."
 
 ## Next Highest-Value Work

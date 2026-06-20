@@ -6,7 +6,11 @@ from app.models.scope_boundary import ProductCapability, ScopeBoundary, ScopeIte
 SUPPORTED_ANALYSIS_MODES = [
     ScopeItem(
         label="Linear DC operating point",
-        detail="Resistor/source networks, capacitor open-circuit behavior, ideal closed-loop op-amp DC, and simplified nonideal op-amp DC within validator limits.",
+        detail="Resistor/source networks, capacitor open-circuit behavior, inductor short-circuit behavior, ideal closed-loop op-amp DC, and simplified nonideal op-amp DC within validator limits.",
+    ),
+    ScopeItem(
+        label="Nonlinear DC operating point",
+        detail="Shockley diode DC circuits are solved by Newton-Raphson nonlinear MNA with a local Jacobian and convergence trace.",
     ),
     ScopeItem(
         label="AC phasor and sweep",
@@ -14,30 +18,34 @@ SUPPORTED_ANALYSIS_MODES = [
     ),
     ScopeItem(
         label="Educational nonideal op-amp model",
-        detail="Finite open-loop gain, rail/output-swing clipping, input bias current, output-current limit checks, slew-rate notes, clipping-recovery notes, and AC frequency response.",
+        detail="Finite open-loop gain, input offset, input resistance, finite output resistance, compensation capacitance, rail/output-swing clipping, input bias current, output-current limit checks, slew-rate notes, clipping-recovery notes, and AC frequency response.",
     ),
     ScopeItem(
         label="Gemini schematic/image parsing",
         detail="The /parse_image endpoint can ask Gemini to convert visible schematic connectivity and text labels into Circuit IR, with ambiguities preserved instead of guessed.",
     ),
     ScopeItem(
-        label="First-order RC transient template",
-        detail="Single-capacitor educational charging/discharging template, not a general transient engine.",
+        label="Linear numerical transient",
+        detail="Backward Euler companion-model integration for linear R/C/L/source circuits, with first-order RC time constants reported when applicable.",
     ),
     ScopeItem(
         label="Reasoning coach",
-        detail="Student-frame checks, hint ladder, adaptive practice, and Level 5 reveal after student commitment.",
+        detail="Student-frame checks, dynamic diagnostic micro-graphs, BKT-style portable knowledge-state updates, adaptive practice, and Level 5 reveal after student commitment.",
+    ),
+    ScopeItem(
+        label="Interactive resistor updates",
+        detail="DC resistor-only value edits can use a Sherman-Morrison rank-1 update endpoint before falling back to the full solver.",
     ),
 ]
 
 UNSUPPORTED_FEATURES = [
     ScopeItem(
-        label="General transient simulation",
-        detail="Includes arbitrary time-domain, RLC transient, and nonlinear transient solving.",
+        label="Arbitrary or nonlinear transient simulation",
+        detail="Arbitrary waveform sources, semiconductor nonlinearities, and transistor-level time-domain solving are outside the current solver scope.",
     ),
     ScopeItem(
-        label="Nonlinear or semiconductor devices",
-        detail="Diodes, transistors, nonlinear solving, and arbitrary dependent-source behavior are outside the current solver scope.",
+        label="General semiconductor devices",
+        detail="Transistors, diode AC/transient large-signal behavior, arbitrary dependent-source behavior, and vendor device models are outside the current solver scope.",
     ),
     ScopeItem(
         label="SPICE-grade device macro-models",
@@ -51,8 +59,8 @@ UNSUPPORTED_FEATURES = [
 
 SCOPE_BOUNDARY = ScopeBoundary(
     product_positioning=(
-        "Professor-facing MVP for supported undergraduate circuit-analysis topics, "
-        "educational BME templates, and reasoning-coach loops."
+        "Graphical tutor layer for supported undergraduate circuit-analysis topics, "
+        "BME signal-conditioning labs, MATLAB/Simscape playground artifacts, and reasoning-coach loops."
     ),
     source_of_truth_rule=(
         "Final numerical values come from Circuit IR validation, deterministic solving, "
@@ -67,7 +75,7 @@ SCOPE_BOUNDARY = ScopeBoundary(
             ),
             current_evidence=(
                 "PASS Solution Packets include requested answers, MNA provenance, KCL checks, "
-                "supported power-balance checks, and a verification badge."
+                "DC and AC power-balance checks, and a verification badge."
             ),
             boundary="Only applies inside the supported linear and template-based solver scope.",
         ),
@@ -79,7 +87,8 @@ SCOPE_BOUNDARY = ScopeBoundary(
             ),
             current_evidence=(
                 "nonideal_op_amp components are accepted in Circuit IR; DC solving stamps finite gain, "
-                "bias current, and rail clamp, while AC solving uses a single-pole gain-bandwidth model."
+                "bias current, input offset, input resistance, finite output resistance, and rail clamp, while AC solving "
+                "uses gain-bandwidth behavior plus optional output compensation capacitance."
             ),
             boundary=(
                 "Educational model only; slew rate and clipping recovery are reported as dynamic limits, "
@@ -120,10 +129,10 @@ SCOPE_BOUNDARY = ScopeBoundary(
                 "and delays final numbers until a Level 5 reveal."
             ),
             current_evidence=(
-                "/reasoning_coach returns StudentFrame, CoachNudge, misconception tags, adaptive practice, "
-                "profile updates, and instructor-dashboard summaries."
+                "/reasoning_coach returns StudentFrame, diagnostic graph nodes, CoachNudge, known or dynamic "
+                "misconception tags, adaptive practice, BKT-style knowledge_state updates, and instructor-dashboard summaries."
             ),
-            boundary="Profiles are portable stateless payloads in this MVP, not persistent LMS analytics.",
+            boundary="Profiles are portable stateless payloads, not persistent LMS analytics or a database-backed learner model.",
         ),
         ProductCapability(
             capability="Biomedical instrumentation teaching layer",
@@ -132,10 +141,32 @@ SCOPE_BOUNDARY = ScopeBoundary(
                 "instrumentation-amplifier, and anti-aliasing learning contexts."
             ),
             current_evidence=(
-                "Named BME templates carry metadata, safety notes, common lab mistakes, CMRR what-ifs, "
-                "ADC sampling observations, noise starter estimates, and practice variants."
+                "Named BME templates and limited topology-feature injection carry metadata, safety notes, common lab mistakes, "
+                "CMRR what-ifs, ADC sampling observations, noise starter estimates, and practice variants."
             ),
-            boundary="Educational context only; not biomedical design verification, IEC compliance, or safety certification.",
+            boundary="Educational context only; not biomedical design verification, IEC compliance, or safety certification; limited feature injection is not arbitrary physiological inference.",
+        ),
+        ProductCapability(
+            capability="Incremental interaction path",
+            user_value=(
+                "Allows resistor edits in simple DC exercises to update answers quickly enough for slider-style intuition building."
+            ),
+            current_evidence=(
+                "/incremental_resistor_update uses a Sherman-Morrison rank-1 conductance update for supported DC resistor changes, "
+                "then verifies the resulting packet before the UI accepts it."
+            ),
+            boundary="Current endpoint is stateless, DC-only, resistor-only, and falls back to the full pipeline outside that scope.",
+        ),
+        ProductCapability(
+            capability="Noise transfer teaching estimates",
+            user_value=(
+                "Shows students how resistor thermal noise, photodiode shot noise, and configured 1/f corners are shaped by the circuit before reaching the output."
+            ),
+            current_evidence=(
+                "BME metadata noise sources can be injected as equivalent current-noise sources through complex MNA over the configured bandwidth, "
+                "then RSS-combined into output integrated RMS noise observations."
+            ),
+            boundary="Educational noise propagation only; not a foundry-grade or datasheet-complete noise model.",
         ),
         ProductCapability(
             capability="Honest unsupported handling",
@@ -155,18 +186,21 @@ SCOPE_BOUNDARY = ScopeBoundary(
         "resistor",
         "independent voltage source",
         "independent current source",
-        "capacitor in DC and RC-template contexts",
-        "inductor in AC phasor/sweep contexts",
+        "capacitor in DC, AC, and linear transient contexts",
+        "inductor in DC, AC phasor/sweep, and linear transient contexts",
+        "diode in Newton-Raphson DC operating-point contexts",
         "ideal op amp in closed-loop DC contexts",
-        "nonideal op amp with simplified educational rail, bias, current-limit, slew, recovery, and frequency-response fields",
+        "nonideal op amp with simplified educational rail, bias, offset, input/output resistance, compensation-capacitance, current-limit, slew, recovery, and frequency-response fields",
     ],
     supported_workflows=[
         "natural-language-to-Circuit-IR parsing with deterministic fallback",
         "schematic/image-to-Circuit-IR parsing through Gemini image mode",
         "MNA-backed solution packets with provenance",
+        "DC resistor-only incremental update endpoint with Sherman-Morrison verification",
+        "BME output-noise propagation through complex MNA transfer integration",
         "verification badges for PASS, FAIL, AMBIGUOUS, and UNSUPPORTED outcomes",
         "structured lesson packets and diagram focus steps for verified PASS solutions",
-        "practice variants for supported circuits and named BME templates",
+        "practice variants for supported circuits and named or dynamically inferred BME teaching contexts",
     ],
     unsupported_features=UNSUPPORTED_FEATURES,
     verification_boundary=[
@@ -176,10 +210,10 @@ SCOPE_BOUNDARY = ScopeBoundary(
         "Unsupported or ambiguous requests should return controlled statuses instead of guessed numerical answers.",
     ],
     bme_boundary=[
-        "BME metadata is educational context attached to named templates, not physiological inference from arbitrary circuits.",
+        "BME metadata is educational context attached to named templates or limited topology-feature injection, not physiological inference from arbitrary circuits.",
         "Safety notes can remind students about isolation, leakage-current limits, patient-connected design, optical exposure, and ADC anti-aliasing.",
-        "The MVP does not calculate leakage current, isolation-barrier ratings, IEC-style constraints, device compliance, alias energy, or full noise propagation.",
-        "CMRR, ADC, noise, and nonideal op-amp observations are deterministic teaching estimates, not full device-level models.",
+        "The current implementation does not calculate leakage current, isolation-barrier ratings, IEC-style constraints, device compliance, alias energy, or datasheet-complete noise models.",
+        "CMRR, ADC, output-noise, and nonideal op-amp observations are deterministic teaching estimates, not full device-level models.",
     ],
     bme_templates=[
         "ECG front-end differential amplifier",
@@ -190,6 +224,12 @@ SCOPE_BOUNDARY = ScopeBoundary(
         "photodiode transimpedance amplifier",
         "instrumentation amplifier",
         "anti-aliasing RC low-pass filter",
+    ],
+    debug_boundary=[
+        "The Scope Debug panel shows the current local session state, Circuit IR, Solution Packet, and backend runtime trace for the most recent parse/full-pipeline run.",
+        "Gemini debug events include the model name, prompt text, response JSON schema, returned structured text or validation error, and request timing.",
+        "Secrets are redacted by construction: Gemini API keys are not included, and uploaded image/base64 payloads are summarized by MIME type and byte count only.",
+        "Debug output is for development and instructor troubleshooting; it should not be treated as an additional solver verification source.",
     ],
 )
 

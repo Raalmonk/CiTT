@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import defaultdict, deque
+
 from app.models.circuit_ir import CircuitProblem, Component, is_ideal_op_amp_type
 from app.models.visual_layout import (
     VisualAnnotation,
@@ -11,7 +13,7 @@ from app.models.visual_layout import (
     VisualPoint,
     VisualWire,
 )
-from app.services.schematic_generator import format_component_label
+from app.services.component_labels import format_component_label
 
 
 VARIANT_SUFFIXES = ("_value_variant", "_goal_variant")
@@ -59,7 +61,7 @@ def build_visual_circuit(circuit: CircuitProblem) -> VisualCircuit:
         annotations=annotations,
         overlays=overlays,
         focus_regions=focus_regions,
-        warnings=[] if key in {"voltage_divider", "current_divider", "bridge_network", "bridge_network_alt", "rc_low_pass"} else ["Fallback semantic layout; SVG renderer may use a generic graph."],
+        warnings=[] if key in {"voltage_divider", "current_divider", "bridge_network", "bridge_network_alt", "rc_low_pass"} else ["Fallback semantic layout for interaction anchors; SVG rendering is handled by OptCPV."],
     )
 
 
@@ -219,10 +221,38 @@ def _node_positions(circuit: CircuitProblem, key: str) -> tuple[dict[str, tuple[
 def _fallback_positions(circuit: CircuitProblem) -> dict[str, tuple[float, float]]:
     ground = circuit.ground_node
     positions: dict[str, tuple[float, float]] = {}
-    non_ground = [node for node in circuit.nodes if node != ground]
-    positions[ground] = (160, 320)
-    for index, node in enumerate(non_ground):
-        positions[node] = (160 + index * 170, 130 + (index % 2) * 80)
+    graph: dict[str, set[str]] = defaultdict(set)
+    for component in circuit.components:
+        for idx, node_a in enumerate(component.nodes):
+            for node_b in component.nodes[idx + 1 :]:
+                graph[node_a].add(node_b)
+                graph[node_b].add(node_a)
+
+    depth = {ground: 0}
+    queue: deque[str] = deque([ground])
+    while queue:
+        node = queue.popleft()
+        for neighbor in sorted(graph[node]):
+            if neighbor in depth:
+                continue
+            depth[neighbor] = depth[node] + 1
+            queue.append(neighbor)
+
+    for node in circuit.nodes:
+        if node not in depth:
+            depth[node] = max(depth.values(), default=0) + 1
+
+    by_depth: dict[int, list[str]] = defaultdict(list)
+    for node, node_depth in depth.items():
+        by_depth[node_depth].append(node)
+
+    for node_depth, nodes in by_depth.items():
+        ordered = sorted(nodes, key=lambda item: (item != ground, item))
+        column_x = 120 + node_depth * 190
+        total_height = (len(ordered) - 1) * 90
+        start_y = 210 - total_height / 2
+        for index, node in enumerate(ordered):
+            positions[node] = (column_x, start_y + index * 90)
     return positions
 
 
@@ -255,12 +285,4 @@ def _renderer_key(circuit: CircuitProblem) -> str:
 
 
 def _renderer_name(key: str) -> str:
-    if key == "voltage_divider":
-        return "schemdraw_voltage_divider"
-    if key == "current_divider":
-        return "schemdraw_current_divider"
-    if key in {"bridge_network", "bridge_network_alt"}:
-        return "manual_svg_bridge_network"
-    if key == "rc_low_pass":
-        return "semantic_rc_low_pass_fallback"
-    return "fallback_graph"
+    return "optcpv"

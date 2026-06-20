@@ -92,6 +92,8 @@ def _lesson_teaching_text(lesson: LessonPacket) -> Iterable[str]:
 
 def _summary(circuit: CircuitProblem, packet: SolutionPacket) -> str:
     if packet.transient_response:
+        if not packet.transient_response.is_first_order:
+            return "A verified numerical transient lesson is available for the requested capacitor response."
         return "A verified first-order transient lesson is available for the requested capacitor response."
     if packet.ac_requested_answers or packet.ac_sweep:
         return "A verified AC phasor lesson is available for the requested frequency-domain quantity."
@@ -115,7 +117,10 @@ def _learning_objectives(circuit: CircuitProblem, packet: SolutionPacket) -> lis
     if packet.ac_requested_answers or packet.ac_sweep:
         objectives.insert(1, "Relate impedance, magnitude, and phase to the requested phasor.")
     if packet.transient_response:
-        objectives.insert(1, "Relate initial value, final value, and time constant to the exponential response.")
+        if packet.transient_response.is_first_order:
+            objectives.insert(1, "Relate initial value, final value, and time constant to the exponential response.")
+        else:
+            objectives.insert(1, "Read time-domain samples from the numerical transient integration.")
     if circuit.bme_metadata is not None:
         objectives.append("Keep educational biomedical context separate from safety certification.")
     return objectives
@@ -136,7 +141,10 @@ def _conceptual_overview(circuit: CircuitProblem, packet: SolutionPacket) -> lis
     if packet.ac_requested_answers or packet.ac_sweep:
         overview.append("AC intuition: impedance makes the answer a phasor with magnitude and phase, not only a scalar.")
     if packet.transient_response:
-        overview.append("Transient intuition: the capacitor voltage approaches its final value exponentially.")
+        if packet.transient_response.is_first_order:
+            overview.append("Transient intuition: the capacitor voltage approaches its final value exponentially.")
+        else:
+            overview.append("Transient intuition: storage elements are stepped through time with companion models, so high-order responses can overshoot or ring.")
     if circuit.bme_metadata is not None:
         overview.append("Biomedical context is a teaching layer around the verified circuit result, not medical-device compliance.")
     return overview
@@ -152,7 +160,7 @@ def _equation_steps(
         LessonEquationStep(
             id="sign_convention",
             title="Use the packet sign convention",
-            equation="V_component = V(nodes[0]) - V(nodes[1]); I is positive from nodes[0] to nodes[1]",
+            equation=r"V_{\text{component}} = V(\text{nodes}[0]) - V(\text{nodes}[1]);\quad \text{I is positive from nodes[0] to nodes[1]}",
             explanation="This defines polarity and current direction before any requested answer is read.",
             focus=focus,
         )
@@ -167,7 +175,7 @@ def _equation_steps(
         LessonEquationStep(
             id="verification_equation",
             title="Verify the solved packet",
-            equation="sum I_leaving(node) = 0; sum P_signed = 0 when DC power balance applies",
+            equation=r"\sum I_{\text{leaving}}(\text{node}) = 0;\quad \sum P_{\text{signed}} = 0\ \text{for DC};\quad \sum S_{\text{signed}} = 0\ \text{for AC}",
             explanation="The tutor explains only after these deterministic checks pass.",
             focus=steps[-1].focus if steps else TutorFocus(),
             value_refs=["max_kcl_residual", "power_balance_error"],
@@ -187,7 +195,7 @@ def _dc_equations(
             LessonEquationStep(
                 id="series_current",
                 title="Use one series current",
-                equation="I_series = V_source / R_total",
+                equation=r"I_{\text{series}} = \frac{V_{\text{source}}}{R_{\text{total}}}",
                 explanation="The divider resistors share one current path, so current is solved once and reused for voltage drops.",
                 focus=focus,
                 value_refs=["circuit_current"],
@@ -195,7 +203,7 @@ def _dc_equations(
             LessonEquationStep(
                 id="divider_output_readout",
                 title="Read the requested divider value",
-                equation="V_out = voltage across the requested lower branch or output node reference",
+                equation=r"V_{\text{out}} = \text{voltage across the requested lower branch or output node reference}",
                 explanation="The requested answer is extracted from the verified packet with its stated polarity.",
                 focus=_focus_by_step(steps, "divider_output") or focus,
                 value_refs=list(packet.requested_answers),
@@ -206,7 +214,7 @@ def _dc_equations(
             LessonEquationStep(
                 id="parallel_current_split",
                 title="Use common branch voltage",
-                equation="I_branch = V_common / R_branch",
+                equation=r"I_{\text{branch}} = \frac{V_{\text{common}}}{R_{\text{branch}}}",
                 explanation="Parallel branches share node voltage, and the source current splits among conductances.",
                 focus=focus,
                 value_refs=list(packet.requested_answers),
@@ -217,7 +225,7 @@ def _dc_equations(
             LessonEquationStep(
                 id="bridge_nodal_kcl",
                 title="Write KCL at bridge interior nodes",
-                equation="sum conductance*(V_node - V_neighbor) = injected current",
+                equation=r"\sum g(V_{\text{node}} - V_{\text{neighbor}}) = I_{\text{injected}}",
                 explanation="The bridge resistor couples the midpoint nodes, so nodal equations replace a simple divider shortcut.",
                 focus=focus,
                 value_refs=list(packet.requested_answers),
@@ -227,7 +235,7 @@ def _dc_equations(
         LessonEquationStep(
             id="dc_nodal_kcl",
             title="Write nodal KCL",
-            equation="sum I_leaving(node) = 0",
+            equation=r"\sum I_{\text{leaving}}(\text{node}) = 0",
             explanation="Unknown node voltages are solved by balancing currents at each non-reference node.",
             focus=focus,
             value_refs=list(packet.requested_answers),
@@ -240,7 +248,7 @@ def _ac_equations(packet: SolutionPacket, steps: list[TutorStep]) -> list[Lesson
         LessonEquationStep(
             id="ac_impedance",
             title="Convert storage elements to impedance",
-            equation="Z_C = 1/(j*omega*C); Z_L = j*omega*L",
+            equation=r"Z_C = \frac{1}{j\omega C};\quad Z_L = j\omega L",
             explanation="The AC solver uses complex impedance, so the answer carries magnitude and phase.",
             focus=_focus_by_step(steps, "ac_low_pass_pole") or (steps[0].focus if steps else TutorFocus()),
             value_refs=["analysis_frequency", "low_pass_cutoff_frequency"],
@@ -248,7 +256,7 @@ def _ac_equations(packet: SolutionPacket, steps: list[TutorStep]) -> list[Lesson
         LessonEquationStep(
             id="phasor_answer",
             title="Read magnitude and phase together",
-            equation="phasor = magnitude angle phase",
+            equation=r"\text{phasor} = \text{magnitude}\angle\text{phase}",
             explanation="The output may be attenuated and phase shifted at the selected frequency.",
             focus=_focus_by_step(steps, "ac_output_phasor") or (steps[0].focus if steps else TutorFocus()),
             value_refs=[item for goal_id in packet.ac_requested_answers for item in [f"{goal_id}_magnitude", f"{goal_id}_phase"]],
@@ -258,12 +266,23 @@ def _ac_equations(packet: SolutionPacket, steps: list[TutorStep]) -> list[Lesson
 
 def _rc_equations(packet: SolutionPacket, steps: list[TutorStep]) -> list[LessonEquationStep]:
     response = packet.transient_response
+    if response is not None and not response.is_first_order:
+        return [
+            LessonEquationStep(
+                id="transient_companion_model",
+                title="Step the state variables",
+                equation=r"C:\ i_n = C\frac{v_n - v_{\text{prev}}}{\Delta t};\quad L:\ v_n = L\frac{i_n - i_{\text{prev}}}{\Delta t}",
+                explanation="The transient solver discretizes storage elements and solves a fresh MNA system at each time step.",
+                focus=_focus_by_step(steps, "rc_requested_target") or (steps[0].focus if steps else TutorFocus()),
+                value_refs=["initial_capacitor_voltage", "final_capacitor_voltage", "transient_sample_count"],
+            )
+        ]
     refs = ["initial_capacitor_voltage", "final_capacitor_voltage", "thevenin_resistance", "time_constant"]
     return [
         LessonEquationStep(
             id="rc_time_constant",
             title="Compute the time scale",
-            equation="tau = R_seen_by_C * C",
+            equation=r"\tau = R_{\text{seen by }C}C",
             explanation="The deterministic transient solver computes the resistance seen by the capacitor and multiplies by capacitance.",
             focus=_focus_by_step(steps, "rc_time_constant") or (steps[0].focus if steps else TutorFocus()),
             value_refs=refs,
@@ -271,7 +290,7 @@ def _rc_equations(packet: SolutionPacket, steps: list[TutorStep]) -> list[Lesson
         LessonEquationStep(
             id="rc_exponential",
             title="Use exponential approach",
-            equation="V_C(t) = V_final + (V_initial - V_final)*exp(-t/tau)",
+            equation=r"V_C(t) = V_{\text{final}} + (V_{\text{initial}} - V_{\text{final}})e^{-t/\tau}",
             explanation="The curve starts from the initial capacitor voltage and approaches the final DC value.",
             focus=_focus_by_step(steps, "rc_exponential_motion") or (steps[0].focus if steps else TutorFocus()),
             value_refs=refs if response else [],
@@ -336,12 +355,18 @@ def _build_value_refs(packet: SolutionPacket, steps: list[TutorStep]) -> list[Le
         )
     if packet.transient_response is not None:
         response = packet.transient_response
-        for ref_id, label, value, unit in [
+        transient_refs = [
             ("initial_capacitor_voltage", "Initial capacitor voltage", response.initial_voltage_v, "V"),
             ("final_capacitor_voltage", "Final capacitor voltage", response.final_voltage_v, "V"),
-            ("thevenin_resistance", "Resistance seen by capacitor", response.resistance_ohm, "ohm"),
-            ("time_constant", "Time constant", response.time_constant_s, "s"),
-        ]:
+        ]
+        if response.is_first_order:
+            transient_refs.extend(
+                [
+                    ("thevenin_resistance", "Resistance seen by capacitor", response.resistance_ohm, "ohm"),
+                    ("time_constant", "Time constant", response.time_constant_s, "s"),
+                ]
+            )
+        for ref_id, label, value, unit in transient_refs:
             _add_ref(
                 refs,
                 LessonValueRef(
@@ -363,9 +388,15 @@ def _build_value_refs(packet: SolutionPacket, steps: list[TutorStep]) -> list[Le
                 note=observation.note or None,
             ),
         )
+    power_error_unit = "VA" if packet.ac_requested_answers or packet.ac_sweep else "W"
     for ref_id, label, value, unit in [
         ("max_kcl_residual", "Max KCL residual", packet.verification.max_kcl_residual_a, "A"),
-        ("power_balance_error", "Power-balance error", packet.verification.power_balance_error_w, "W"),
+        (
+            "power_balance_error",
+            "Power-balance error",
+            packet.verification.power_balance_error_w,
+            power_error_unit,
+        ),
     ]:
         _add_ref(
             refs,
@@ -452,10 +483,10 @@ def _limitations(circuit: CircuitProblem, packet: SolutionPacket) -> list[str]:
         "The LLM is not used as the source of numerical truth.",
         "Unsupported or ambiguous features must be clarified instead of guessed.",
     ]
-    if packet.ac_requested_answers or packet.ac_sweep:
-        limitations.append("AC complex power is not verified in this MVP.")
     if circuit.analysis_type == "rc_transient":
-        limitations.append("Only the implemented first-order RC transient template is covered.")
+        limitations.append(
+            "Transient support is limited to linear R/C/L/source circuits with constant independent sources."
+        )
     if circuit.bme_metadata is not None:
         limitations.append("Biomedical notes are educational context, not patient-safety certification or device compliance.")
     return limitations

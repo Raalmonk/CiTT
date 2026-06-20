@@ -13,7 +13,7 @@ Use a growing offline benchmark in `backend/tests/fixtures/benchmark_cases/`. Th
 - Source-of-truth compliance: every user-visible numerical lesson value must come from `SolutionPacket`, `TutorObservation`, `AnalysisView`, or deterministic metadata.
 - Unsupported honesty: unsupported or ambiguous cases must not produce fake numerical answers or structured lessons.
 - BME caution quality: biomedical context must remain educational and non-certifying.
-- Gemini fallback behavior: fallback mode must recover to demo parsing, strict mode must return controlled ambiguity, and all Gemini tests must be mock-only by default.
+- Gemini parser behavior: Gemini failures must return controlled ambiguity without bundled parser fallback, and all Gemini tests must be mock-only by default.
 
 ## Tutor-Quality Rubric
 

@@ -89,6 +89,15 @@ def verify_solution(
                     node_residuals[input_node] += bias_current
                 if ref_node != problem.ground_node:
                     node_residuals[ref_node] -= bias_current
+            if component.input_resistance_ohm is not None:
+                vp, vm = component.nodes[0], component.nodes[1]
+                vp_voltage = solution.node_voltages.get(vp, 0.0)
+                vm_voltage = solution.node_voltages.get(vm, 0.0)
+                input_current = (vp_voltage - vm_voltage) / component.input_resistance_ohm
+                if vp != problem.ground_node:
+                    node_residuals[vp] += input_current
+                if vm != problem.ground_node:
+                    node_residuals[vm] -= input_current
 
     max_kcl_residual = max((abs(value) for value in node_residuals.values()), default=0.0)
     kcl_passed = max_kcl_residual <= current_tol
@@ -116,6 +125,12 @@ def verify_solution(
         for input_node in component.nodes[:2]:
             input_voltage = solution.node_voltages.get(input_node, 0.0)
             signed_power_sum += (input_voltage - ref_voltage) * bias_current
+        if component.input_resistance_ohm is not None:
+            vp_voltage = solution.node_voltages.get(component.nodes[0], 0.0)
+            vm_voltage = solution.node_voltages.get(component.nodes[1], 0.0)
+            signed_power_sum += (
+                (vp_voltage - vm_voltage) ** 2 / component.input_resistance_ohm
+            )
     power_balance_error = abs(signed_power_sum)
     power_passed = power_balance_error <= power_tol
     checks.append(

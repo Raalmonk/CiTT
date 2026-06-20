@@ -8,7 +8,7 @@ from app.services.demo_parser import (
     current_divider_problem,
     voltage_divider_problem,
 )
-from app.services.schematic_generator import render_schematic_svg
+from app.services.optcpv_bridge import render_optcpv_schematic_svg
 from app.services.variant_generator import generate_goal_variant, generate_value_variant
 
 
@@ -18,7 +18,7 @@ EXPORT_DIR = Path(__file__).resolve().parents[1] / "schematic_exports"
 def export_svg(filename: str, circuit) -> None:
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
     path = EXPORT_DIR / filename
-    path.write_text(render_schematic_svg(circuit), encoding="utf-8")
+    path.write_text(render_optcpv_schematic_svg(circuit), encoding="utf-8")
     print(path)
 
 
@@ -40,4 +40,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

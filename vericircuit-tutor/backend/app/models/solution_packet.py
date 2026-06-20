@@ -20,6 +20,16 @@ class QuantityValue(BaseModel):
     reference: dict[str, str] | None = None
 
 
+class SymbolicQuantityValue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expression: str
+    unit: str
+    explanation_key: str | None = None
+    reference: dict[str, str] | None = None
+    numeric_coefficient: float | None = None
+
+
 class ComplexQuantityValue(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -46,7 +56,11 @@ class ACComponentResult(BaseModel):
 
     voltage: ComplexQuantityValue
     current: ComplexQuantityValue
-    power_note: str = "AC complex power is not verified in this MVP."
+    complex_power: ComplexQuantityValue | None = None
+    power_note: str = (
+        "Signed AC complex power uses V * conjugate(I). Negative real power "
+        "means the component supplies net active power under the stated reference."
+    )
 
 
 class CheckResult(BaseModel):
@@ -146,6 +160,59 @@ class RCTransientResponse(BaseModel):
     time_constant_s: float
     formula: str
     sample_points: list[TransientPoint] = Field(default_factory=list)
+    analysis_method: str = "first_order_rc_template"
+    is_first_order: bool = True
+
+
+class TeachingPlotPoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    x: float
+    y: float
+    x_label: str | None = None
+    y_label: str | None = None
+    note: str | None = None
+
+
+class TeachingPlotSeries(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    label: str
+    unit: str | None = None
+    points: list[TeachingPlotPoint] = Field(default_factory=list)
+
+
+class TeachingPlotMarker(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    axis: Literal["x", "y"]
+    value: float
+    label: str
+
+
+class TeachingPlot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    title: str
+    subtitle: str | None = None
+    plot_type: Literal["line", "bar"] = "line"
+    source: Literal[
+        "dc_operating_point",
+        "ac_single_frequency",
+        "ac_sweep",
+        "rc_transient",
+        "biomedical_context",
+        "verification",
+    ]
+    x_label: str
+    y_label: str
+    x_scale: Literal["linear", "log"] = "linear"
+    y_scale: Literal["linear", "log"] = "linear"
+    series: list[TeachingPlotSeries] = Field(default_factory=list)
+    markers: list[TeachingPlotMarker] = Field(default_factory=list)
+    insight: str | None = None
 
 
 class TutorObservation(BaseModel):
@@ -218,6 +285,88 @@ class LessonCheck(BaseModel):
     value_ref: str | None = None
 
 
+class SocraticModeProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal[
+        "first_exposure",
+        "worked_example",
+        "end_of_chapter_practice",
+        "review_debug",
+    ]
+    tutor_posture: str
+    reveal_rule: str
+    pace_notes: list[str] = Field(default_factory=list)
+
+
+class SocraticLecturePrompt(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    phase: Literal[
+        "orient",
+        "represent",
+        "model",
+        "predict",
+        "commit",
+        "compare",
+        "check",
+        "transfer",
+    ]
+    tutor_move: str
+    student_task: str
+    expected_student_evidence: str
+    if_correct: str
+    if_stuck: str
+    reveal_policy: Literal[
+        "no_numeric_reveal",
+        "value_refs_only",
+        "allow_verified_reveal",
+    ] = "no_numeric_reveal"
+    unlocks: list[str] = Field(default_factory=list)
+    plot_ids: list[str] = Field(default_factory=list)
+    value_refs: list[str] = Field(default_factory=list)
+    focus: TutorFocus = Field(default_factory=TutorFocus)
+
+
+class SocraticLectureStage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    title: str
+    goal: str
+    pace: Literal[
+        "observe",
+        "predict",
+        "commit",
+        "calculate",
+        "interpret",
+        "transfer",
+    ]
+    prompts: list[SocraticLecturePrompt] = Field(default_factory=list)
+    advance_when: str
+    common_failure: str | None = None
+    instructor_note: str | None = None
+
+
+class SocraticLecturePacket(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal[
+        "first_exposure",
+        "worked_example",
+        "end_of_chapter_practice",
+        "review_debug",
+    ] = "worked_example"
+    source_pattern: str
+    opening_contract: str
+    textbook_pacing_summary: list[str] = Field(default_factory=list)
+    mode_profiles: list[SocraticModeProfile] = Field(default_factory=list)
+    stages: list[SocraticLectureStage] = Field(default_factory=list)
+    gemini_prompt: str
+    safety_notes: list[str] = Field(default_factory=list)
+
+
 class LessonPacket(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -242,6 +391,7 @@ class SolutionPacket(BaseModel):
     node_voltages: dict[str, float] = Field(default_factory=dict)
     component_results: dict[str, ComponentResult] = Field(default_factory=dict)
     requested_answers: dict[str, QuantityValue] = Field(default_factory=dict)
+    symbolic_requested_answers: dict[str, SymbolicQuantityValue] = Field(default_factory=dict)
     ac_node_voltages: dict[str, ComplexQuantityValue] = Field(default_factory=dict)
     ac_component_results: dict[str, ACComponentResult] = Field(default_factory=dict)
     ac_requested_answers: dict[str, ComplexQuantityValue] = Field(default_factory=dict)
@@ -257,5 +407,7 @@ class SolutionPacket(BaseModel):
     assumptions_used: list[str] = Field(default_factory=list)
     bme_metadata: BMETemplateMetadata | None = None
     tutor_observations: list[TutorObservation] = Field(default_factory=list)
+    teaching_plots: list[TeachingPlot] = Field(default_factory=list)
     guided_steps: list[TutorStep] = Field(default_factory=list)
     lesson_packet: LessonPacket | None = None
+    socratic_lecture: SocraticLecturePacket | None = None

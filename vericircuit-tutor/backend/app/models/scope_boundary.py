@@ -26,3 +26,4 @@ class ScopeBoundary(BaseModel):
     verification_boundary: list[str]
     bme_boundary: list[str]
     bme_templates: list[str]
+    debug_boundary: list[str]

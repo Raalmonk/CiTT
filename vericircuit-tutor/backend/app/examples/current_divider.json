@@ -3,7 +3,7 @@
   "title": "Current Source Feeding Parallel Resistors",
   "analysis_type": "dc_operating_point",
   "topology_id": "current_divider",
-  "layout_hint": {"renderer": "schemdraw_current_divider"},
+  "layout_hint": {"renderer": "optcpv"},
   "ground_node": "0",
   "nodes": ["0", "top"],
   "components": [

@@ -5,12 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vericircuit-tutor-backend"
 version = "0.1.0"
-description = "Simulation-grounded AI tutor MVP for supported undergraduate circuit-analysis workflows, BME teaching templates, and reasoning coaching."
+description = "Graphical tutor layer for supported circuit-analysis workflows, BME signal-conditioning labs, MATLAB/Simscape playground artifacts, and reasoning coaching."
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.111",
   "google-genai>=1.0",
+  "cairosvg>=2.7",
   "numpy>=1.26",
+  "opencv-python-headless>=4.8",
+  "pillow>=10",
   "pydantic>=2.7",
   "schemdraw>=0.19",
   "uvicorn[standard]>=0.29",
@@ -38,6 +41,5 @@ exclude = [
 
 [tool.setuptools.package-data]
 app = [
-  "static/*",
   "examples/*.json",
 ]

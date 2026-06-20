@@ -17,6 +17,11 @@ def _finite_complex_values(solution: SolutionPacket) -> bool:
         *solution.ac_node_voltages.values(),
         *[result.voltage for result in solution.ac_component_results.values()],
         *[result.current for result in solution.ac_component_results.values()],
+        *[
+            result.complex_power
+            for result in solution.ac_component_results.values()
+            if result.complex_power is not None
+        ],
         *solution.ac_requested_answers.values(),
     ]
     return all(
@@ -28,10 +33,20 @@ def _finite_complex_values(solution: SolutionPacket) -> bool:
     )
 
 
+def _node_voltage(solution: SolutionPacket, node: str, ground: str) -> complex:
+    if node == ground:
+        return 0.0 + 0.0j
+    value = solution.ac_node_voltages.get(node)
+    if value is None:
+        return 0.0 + 0.0j
+    return quantity_to_complex(value)
+
+
 def verify_ac_solution(
     problem: CircuitProblem,
     solution: SolutionPacket,
     current_tol: float = 1e-8,
+    power_tol: float = 1e-8,
 ) -> VerificationReport:
     checks: list[CheckResult] = []
 
@@ -101,6 +116,33 @@ def verify_ac_solution(
             node_residuals[node_a] += current
         if node_b != problem.ground_node:
             node_residuals[node_b] -= current
+        if is_nonideal_op_amp_type(component.type):
+            vp, vm, out, ref = component.nodes
+            if component.input_resistance_ohm is not None:
+                input_current = (
+                    _node_voltage(solution, vp, problem.ground_node)
+                    - _node_voltage(solution, vm, problem.ground_node)
+                ) / component.input_resistance_ohm
+                if vp != problem.ground_node:
+                    node_residuals[vp] += input_current
+                if vm != problem.ground_node:
+                    node_residuals[vm] -= input_current
+            if component.compensation_capacitance_f is not None and solution.frequency_hz is not None:
+                cap_current = (
+                    1j
+                    * 2.0
+                    * math.pi
+                    * solution.frequency_hz
+                    * component.compensation_capacitance_f
+                    * (
+                        _node_voltage(solution, out, problem.ground_node)
+                        - _node_voltage(solution, ref, problem.ground_node)
+                    )
+                )
+                if out != problem.ground_node:
+                    node_residuals[out] += cap_current
+                if ref != problem.ground_node:
+                    node_residuals[ref] -= cap_current
 
     max_kcl_residual = max((abs(value) for value in node_residuals.values()), default=0.0)
     kcl_passed = max_kcl_residual <= current_tol and not missing_component_result
@@ -161,10 +203,66 @@ def verify_ac_solution(
             )
         )
 
+    complex_power_sum = 0.0 + 0.0j
+    for result in solution.ac_component_results.values():
+        if result.complex_power is not None:
+            complex_power_sum += quantity_to_complex(result.complex_power)
+        else:
+            complex_power_sum += quantity_to_complex(result.voltage) * quantity_to_complex(
+                result.current
+            ).conjugate()
+    for component in problem.components:
+        if not is_nonideal_op_amp_type(component.type):
+            continue
+        vp, vm, out, ref = component.nodes
+        if component.input_resistance_ohm is not None:
+            input_voltage = (
+                _node_voltage(solution, vp, problem.ground_node)
+                - _node_voltage(solution, vm, problem.ground_node)
+            )
+            input_current = input_voltage / component.input_resistance_ohm
+            complex_power_sum += input_voltage * input_current.conjugate()
+        if component.compensation_capacitance_f is not None and solution.frequency_hz is not None:
+            output_voltage = (
+                _node_voltage(solution, out, problem.ground_node)
+                - _node_voltage(solution, ref, problem.ground_node)
+            )
+            cap_current = (
+                1j
+                * 2.0
+                * math.pi
+                * solution.frequency_hz
+                * component.compensation_capacitance_f
+                * output_voltage
+            )
+            complex_power_sum += output_voltage * cap_current.conjugate()
+    active_error_w = abs(complex_power_sum.real)
+    reactive_error_var = abs(complex_power_sum.imag)
+    complex_power_error = abs(complex_power_sum)
+    power_passed = (
+        active_error_w <= power_tol
+        and reactive_error_var <= power_tol
+        and not missing_component_result
+    )
+    checks.append(
+        _check(
+            "ac_complex_power_balance",
+            power_passed,
+            "Signed AC complex powers balance within tolerance."
+            if power_passed
+            else "Signed AC complex powers do not balance within tolerance.",
+            value=(
+                f"P_error={active_error_w:.6g} W, "
+                f"Q_error={reactive_error_var:.6g} var, "
+                f"|S_error|={complex_power_error:.6g} VA"
+            ),
+        )
+    )
+
     passed = all(check.passed for check in checks)
     return VerificationReport(
         passed=passed,
         max_kcl_residual_a=float(max_kcl_residual),
-        power_balance_error_w=0.0,
+        power_balance_error_w=float(complex_power_error),
         checks=checks,
     )

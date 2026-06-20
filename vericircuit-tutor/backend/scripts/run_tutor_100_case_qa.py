@@ -18,7 +18,7 @@ from app.models.circuit_ir import ACSweep, CircuitProblem, Component, Goal, RCTr
 from app.services.bme_templates import BME_TEMPLATE_FACTORIES
 from app.services.lesson_builder import lesson_has_unverified_numeric_claims
 from app.services.pipeline import solve_circuit
-from app.services.schematic_generator import render_schematic_svg
+from app.services.optcpv_bridge import render_optcpv_schematic_svg
 from app.services.variant_generator import generate_goal_variant, generate_value_variant
 
 
@@ -321,7 +321,7 @@ def _svg_elements(svg: str):
 
 def _focus_ids_query_svg(circuit: CircuitProblem, packet) -> list[str]:
     try:
-        elements = _svg_elements(render_schematic_svg(circuit))
+        elements = _svg_elements(render_optcpv_schematic_svg(circuit))
     except Exception as exc:  # noqa: BLE001 - QA report should capture renderer failures.
         return [f"schematic render failed: {exc}"]
 

@@ -35,6 +35,8 @@ class BMETemplate(BaseModel):
     thermal_noise_resistor_ids: list[str] = Field(default_factory=list)
     photodiode_shot_noise_current_id: str | None = None
     op_amp_input_noise_nv_per_sqrt_hz: float | None = None
+    flicker_noise_corner_hz: float | None = None
+    flicker_noise_component_ids: list[str] = Field(default_factory=list)
     cmrr_mismatch_percent: float | None = None
     cmrr_mismatch_component_id: str | None = None
 
@@ -65,6 +67,8 @@ class BMETemplate(BaseModel):
             thermal_noise_resistor_ids=self.thermal_noise_resistor_ids,
             photodiode_shot_noise_current_id=self.photodiode_shot_noise_current_id,
             op_amp_input_noise_nv_per_sqrt_hz=self.op_amp_input_noise_nv_per_sqrt_hz,
+            flicker_noise_corner_hz=self.flicker_noise_corner_hz,
+            flicker_noise_component_ids=self.flicker_noise_component_ids,
             cmrr_mismatch_percent=self.cmrr_mismatch_percent,
             cmrr_mismatch_component_id=self.cmrr_mismatch_component_id,
         )
@@ -156,6 +160,8 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         noise_bandwidth_hz=150.0,
         thermal_noise_resistor_ids=["RINN", "RF", "RINP", "RREF"],
         op_amp_input_noise_nv_per_sqrt_hz=20.0,
+        flicker_noise_corner_hz=10.0,
+        flicker_noise_component_ids=["RINN", "RF", "RINP", "RREF"],
         cmrr_mismatch_percent=1.0,
         cmrr_mismatch_component_id="RF",
     ),
@@ -351,6 +357,8 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         thermal_noise_resistor_ids=["RF"],
         photodiode_shot_noise_current_id="IPD",
         op_amp_input_noise_nv_per_sqrt_hz=15.0,
+        flicker_noise_corner_hz=20.0,
+        flicker_noise_component_ids=["RF"],
     ),
     "bme_instrumentation_amplifier": BMETemplateMetadata(
         biomedical_context="Many biomedical sensors produce millivolt differential signals on top of a common-mode voltage.",
@@ -389,6 +397,8 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         noise_bandwidth_hz=500.0,
         thermal_noise_resistor_ids=["R1", "R2", "RG", "R3", "R4", "R5", "R6"],
         op_amp_input_noise_nv_per_sqrt_hz=20.0,
+        flicker_noise_corner_hz=10.0,
+        flicker_noise_component_ids=["RG"],
         cmrr_mismatch_percent=1.0,
         cmrr_mismatch_component_id="R4",
     ),
@@ -428,6 +438,8 @@ BME_TEMPLATE_METADATA: dict[str, BMETemplateMetadata] = {
         adc_input_impedance_ohm=1_000_000.0,
         noise_bandwidth_hz=500.0,
         thermal_noise_resistor_ids=["R1"],
+        flicker_noise_corner_hz=5.0,
+        flicker_noise_component_ids=["R1"],
     ),
 }
 
@@ -782,6 +794,8 @@ def build_bme_template(template_id: str) -> BMETemplate:
         thermal_noise_resistor_ids=list(metadata.thermal_noise_resistor_ids),
         photodiode_shot_noise_current_id=metadata.photodiode_shot_noise_current_id,
         op_amp_input_noise_nv_per_sqrt_hz=metadata.op_amp_input_noise_nv_per_sqrt_hz,
+        flicker_noise_corner_hz=metadata.flicker_noise_corner_hz,
+        flicker_noise_component_ids=list(metadata.flicker_noise_component_ids),
         cmrr_mismatch_percent=metadata.cmrr_mismatch_percent,
         cmrr_mismatch_component_id=metadata.cmrr_mismatch_component_id,
     )
@@ -821,26 +835,3 @@ def get_bme_demo_examples() -> list[dict[str, object]]:
         for template_id in BME_TEMPLATE_FACTORIES
         for template in [BME_TEMPLATE_FACTORIES[template_id]()]
     ]
-
-
-def parse_bme_template(problem_text: str) -> CircuitProblem | None:
-    lowered = " ".join(problem_text.lower().split())
-    if "ecg" in lowered and ("front-end" in lowered or "front end" in lowered):
-        return BME_TEMPLATE_FACTORIES["bme_ecg_front_end"]().circuit_problem
-    if "emg" in lowered and ("band-pass" in lowered or "band pass" in lowered):
-        return BME_TEMPLATE_FACTORIES["bme_emg_band_pass_chain"]().circuit_problem
-    if "pressure" in lowered and "divider" in lowered:
-        return BME_TEMPLATE_FACTORIES["bme_pressure_sensor_divider"]().circuit_problem
-    if "pressure" in lowered and "bridge" in lowered:
-        return BME_TEMPLATE_FACTORIES["bme_pressure_sensor_bridge"]().circuit_problem
-    if "strain" in lowered and ("wheatstone" in lowered or "bridge" in lowered):
-        return BME_TEMPLATE_FACTORIES["bme_strain_gauge_wheatstone"]().circuit_problem
-    if "thermistor" in lowered and "divider" in lowered:
-        return BME_TEMPLATE_FACTORIES["bme_thermistor_divider"]().circuit_problem
-    if "photodiode" in lowered and ("transimpedance" in lowered or "tia" in lowered):
-        return BME_TEMPLATE_FACTORIES["bme_photodiode_tia"]().circuit_problem
-    if "instrumentation amplifier" in lowered:
-        return BME_TEMPLATE_FACTORIES["bme_instrumentation_amplifier"]().circuit_problem
-    if "anti-aliasing" in lowered or "anti aliasing" in lowered:
-        return BME_TEMPLATE_FACTORIES["bme_anti_aliasing_low_pass"]().circuit_problem
-    return None

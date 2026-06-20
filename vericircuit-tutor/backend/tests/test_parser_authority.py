@@ -22,7 +22,7 @@ def test_parser_ir_has_no_numerical_answer_fields_and_solver_still_owns_answer()
     assert not hasattr(circuit, "final_answer")
     assert not hasattr(circuit, "requested_answers")
 
-    packet = solve_circuit(circuit, parser_used="demo")
+    packet = solve_circuit(circuit, parser_used="fixture")
 
     assert packet.requested_answers["voltage_across_R2"].value == pytest.approx(6.0)
     assert packet.calculation_trace.answer_source == "mna_solver"
@@ -126,6 +126,9 @@ def test_mocked_gemini_parse_marks_parser_used_as_gemini(monkeypatch):
             ),
         ],
         assumptions=["Voltage source positive terminal is node n1."],
+        nonblocking_ambiguities=[
+            "A disconnected measurement annotation was outside the requested calculation scope."
+        ],
         ambiguities=[],
         unsupported_features=[],
     )
@@ -133,13 +136,16 @@ def test_mocked_gemini_parse_marks_parser_used_as_gemini(monkeypatch):
     monkeypatch.setattr(
         parser_service,
         "parse_with_gemini",
-        lambda _problem_text: CircuitProblem.model_validate(parsed.model_dump()),
+        lambda _problem_text, **_kwargs: CircuitProblem.model_validate(parsed.model_dump()),
     )
 
     result = parser_service.parse_problem("mock parse request", mode="gemini")
 
     assert result.parser_used == "gemini"
     assert result.circuit.id == "gemini_voltage_divider"
+    assert result.circuit.nonblocking_ambiguities == [
+        "A disconnected measurement annotation was outside the requested calculation scope."
+    ]
 
 
 def test_full_pipeline_with_mocked_gemini_uses_mna_for_answers(monkeypatch):
@@ -196,7 +202,7 @@ def test_full_pipeline_with_mocked_gemini_uses_mna_for_answers(monkeypatch):
         ).model_dump()
     )
 
-    monkeypatch.setattr(parser_service, "parse_with_gemini", lambda _problem_text: circuit)
+    monkeypatch.setattr(parser_service, "parse_with_gemini", lambda _problem_text, **_kwargs: circuit)
 
     response = TestClient(app).post(
         "/full_pipeline",
@@ -207,6 +213,8 @@ def test_full_pipeline_with_mocked_gemini_uses_mna_for_answers(monkeypatch):
 
     assert response.status_code == 200
     assert payload["parser_used"] == "gemini"
+    assert payload["debug_trace"]["enabled"] is True
+    assert any(event["label"] == "solve_circuit_complete" for event in payload["debug_trace"]["events"])
     assert packet["verification_badge"]["label"] == "PASS"
     assert packet["calculation_trace"]["parser_used"] == "gemini"
     assert packet["calculation_trace"]["answer_source"] == "mna_solver"

@@ -1,0 +1,103 @@
+[
+  {
+    "expected_behavior": "The 60 Hz component should be smaller after the RC stage.",
+    "future_matlab_steps": [
+      "Enable signal logging on the RC output line.",
+      "Add a scope or logged signal named rc_filter_output.",
+      "Associate the log with focus_map entry lab_delta_measurement_point."
+    ],
+    "id": "rc_output_voltage_probe",
+    "matlab_comment_lines": [
+      "% CiTT Probe tab: add voltage probe at RC output.",
+      "% Future Simulink highlight: rc_filter"
+    ],
+    "measurement_explanation": "This probe checks the exact point where the filter output is handed to the sampling stage.",
+    "quantity": "voltage",
+    "student_goal": "Inspect the local signal after the low-pass stage and before sampling.",
+    "student_question": "Does the measured output match the cutoff you calculated by hand?",
+    "suggested_logging": [
+      "input_signal",
+      "filtered_output"
+    ],
+    "suggested_sensor_insertion": [
+      "Voltage sensor from vout to ground in a future Simscape model."
+    ],
+    "target": {
+      "description": "Voltage at the capacitor/output node.",
+      "id": "rc_filter_output",
+      "label": "RC filter output",
+      "port": "output",
+      "simulink_path": "citt_rc_antialias_adc/RC Filter/1",
+      "svg_id": "vout",
+      "target_path": "rc_filter/output",
+      "target_type": "port"
+    },
+    "title": "Add voltage probe at RC output",
+    "unit": "V"
+  },
+  {
+    "expected_behavior": "The post-filter 60 Hz amplitude should be lower than the input amplitude.",
+    "future_matlab_steps": [
+      "Compute or estimate the 60 Hz component in both logged signals.",
+      "Show the comparison in the Probe tab before Lab Delta diagnosis."
+    ],
+    "id": "compare_60hz_component",
+    "matlab_comment_lines": [
+      "% CiTT Probe tab: compare pre-filter and post-filter 60 Hz component."
+    ],
+    "measurement_explanation": "This separates filter behavior from sampling behavior before discussing aliasing.",
+    "quantity": "attenuation",
+    "student_goal": "Estimate how much interference remains at the ADC input.",
+    "student_question": "Is 60 Hz far enough above cutoff to be meaningfully reduced?",
+    "suggested_logging": [
+      "input_signal",
+      "filtered_output"
+    ],
+    "suggested_sensor_insertion": [],
+    "target": {
+      "description": "Frequency-component comparison across the filter.",
+      "id": "sixty_hz_comparison",
+      "label": "60 Hz before/after comparison",
+      "port": null,
+      "simulink_path": "citt_rc_antialias_adc/Input Path to RC Filter Output",
+      "svg_id": null,
+      "target_path": "input_path->rc_filter_output",
+      "target_type": "conceptual_path"
+    },
+    "title": "Compare pre-filter and post-filter 60 Hz component",
+    "unit": "ratio or dB"
+  },
+  {
+    "expected_behavior": "Samples should follow the filtered waveform at 500 Hz.",
+    "future_matlab_steps": [
+      "Log the zero-order hold or ADC output line.",
+      "Compare sampled_output against filtered_output at the same timestamps."
+    ],
+    "id": "sampled_output_probe",
+    "matlab_comment_lines": [
+      "% CiTT Probe tab: log sampled output for ADC comparison.",
+      "% Future Simulink highlight: sampling_stage"
+    ],
+    "measurement_explanation": "This probe connects the analog filter output to the ADC learning objective.",
+    "quantity": "sampled voltage",
+    "student_goal": "Inspect what the ADC-facing data stream would contain.",
+    "student_question": "Does the sampled waveform preserve the filtered signal without alias surprises?",
+    "suggested_logging": [
+      "sample_times",
+      "sampled_output"
+    ],
+    "suggested_sensor_insertion": [],
+    "target": {
+      "description": "Output after the sampling stage.",
+      "id": "sampled_output",
+      "label": "Sampled output",
+      "port": null,
+      "simulink_path": "citt_rc_antialias_adc/Sampling Stage/1",
+      "svg_id": null,
+      "target_path": "sampling_stage/output",
+      "target_type": "line"
+    },
+    "title": "Log sampled output",
+    "unit": "V"
+  }
+]

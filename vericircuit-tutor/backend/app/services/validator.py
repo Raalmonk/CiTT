@@ -32,6 +32,7 @@ SUPPORTED_COMPONENT_TYPES = {
     "current_source",
     "capacitor",
     "inductor",
+    "diode",
     *IDEAL_OP_AMP_TYPES,
     *NONIDEAL_OP_AMP_TYPES,
 }
@@ -41,6 +42,7 @@ NORMALIZED_UNITS = {
     "current_source": "A",
     "capacitor": "F",
     "inductor": "H",
+    "diode": "model",
     **{component_type: "ideal" for component_type in IDEAL_OP_AMP_TYPES},
     **{component_type: "model" for component_type in NONIDEAL_OP_AMP_TYPES},
 }
@@ -50,6 +52,7 @@ AC_SUPPORTED_COMPONENT_TYPES = {
     "current_source",
     "capacitor",
     "inductor",
+    "diode",
     *IDEAL_OP_AMP_TYPES,
     *NONIDEAL_OP_AMP_TYPES,
 }
@@ -114,7 +117,19 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
     normalized = problem.model_copy(deep=True)
     checks: list[CheckResult] = []
     errors: list[str] = []
-    warnings: list[str] = []
+    warnings: list[str] = [
+        f"Non-blocking parse note: {ambiguity}"
+        for ambiguity in normalized.nonblocking_ambiguities
+    ]
+
+    if normalized.nonblocking_ambiguities:
+        _add_check(
+            checks,
+            "nonblocking_ambiguities",
+            True,
+            "Non-blocking parser ambiguities were retained as warnings.",
+            value=len(normalized.nonblocking_ambiguities),
+        )
 
     if normalized.unsupported_features:
         message = "Unsupported features: " + ", ".join(normalized.unsupported_features)
@@ -176,22 +191,28 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
         capacitors = [
             component for component in normalized.components if component.type == "capacitor"
         ]
-        transient_scope_valid = len(capacitors) == 1
+        transient_scope_valid = bool(capacitors)
         if normalized.transient and normalized.transient.capacitor_id is not None:
-            transient_scope_valid = transient_scope_valid and any(
+            transient_scope_valid = any(
                 component.id == normalized.transient.capacitor_id for component in capacitors
             )
+        elif len(capacitors) != 1:
+            transient_scope_valid = False
         _add_check(
             checks,
             "rc_transient_scope",
             transient_scope_valid,
-            "RC transient template has exactly one target capacitor."
+            "Transient analysis has a unique target capacitor."
             if transient_scope_valid
-            else "RC transient template requires exactly one capacitor and a valid target capacitor.",
+            else (
+                "Transient analysis requires a capacitor target; set transient.capacitor_id "
+                "when more than one capacitor is present."
+            ),
         )
         if not transient_scope_valid:
             errors.append(
-                "rc_transient analysis requires exactly one capacitor and a valid target capacitor."
+                "rc_transient analysis requires a capacitor target; set transient.capacitor_id "
+                "when more than one capacitor is present."
             )
 
     ground_exists = bool(normalized.ground_node) and normalized.ground_node in normalized.nodes
@@ -224,21 +245,31 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
             errors.append(
                 f"Unsupported component type {component.type!r} on {component.id}. "
                 "Supported types are resistor, voltage_source, current_source, "
-                "capacitor, inductor, op_amp_ideal, ideal_op_amp, "
+                "capacitor, inductor, diode, op_amp_ideal, ideal_op_amp, "
                 "op_amp_nonideal, and nonideal_op_amp."
             )
             component_types_supported = False
             component_nodes_valid = False
         if normalized.analysis_type in {"ac_steady_state", "ac_single_frequency", "ac_sweep"}:
-            if component.type not in AC_SUPPORTED_COMPONENT_TYPES:
+            if component.type == "diode":
+                errors.append(
+                    f"Diode {component.id} is nonlinear and is currently supported for DC "
+                    "Newton-Raphson operating-point analysis only."
+                )
+                component_types_supported = False
+            elif component.type not in AC_SUPPORTED_COMPONENT_TYPES:
                 errors.append(
                     f"Unsupported component type {component.type!r} for AC analysis on {component.id}."
                 )
                 component_types_supported = False
-        elif component.type == "inductor":
+        elif component.type == "inductor" and normalized.analysis_type not in {
+            "dc_operating_point",
+            "rc_transient",
+        }:
             errors.append(
                 f"Unsupported component type 'inductor' for {normalized.analysis_type} analysis on "
-                f"{component.id}. Inductors are only supported for AC steady-state or AC sweep analysis."
+                f"{component.id}. Inductors are only supported for DC, AC steady-state, "
+                "AC sweep, or transient analysis."
             )
             component_types_supported = False
         if normalized.analysis_type == "rc_transient":
@@ -247,9 +278,10 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
                 "voltage_source",
                 "current_source",
                 "capacitor",
+                "inductor",
             }:
                 errors.append(
-                    f"Unsupported component type {component.type!r} for RC transient template on {component.id}."
+                    f"Unsupported component type {component.type!r} for transient analysis on {component.id}."
                 )
                 component_types_supported = False
         if is_op_amp_type(component.type):
@@ -322,6 +354,16 @@ def validate_circuit(problem: CircuitProblem) -> ValidationResult:
         if component.type == "inductor" and component.value <= 0:
             values_valid = False
             errors.append(f"{component.id} is an inductor and must have a positive value.")
+        if component.type == "diode":
+            if component.saturation_current_a is not None and component.saturation_current_a <= 0:
+                values_valid = False
+                errors.append(f"{component.id} diode saturation_current_a must be positive.")
+            if component.emission_coefficient is not None and component.emission_coefficient <= 0:
+                values_valid = False
+                errors.append(f"{component.id} diode emission_coefficient must be positive.")
+            if component.thermal_voltage_v is not None and component.thermal_voltage_v <= 0:
+                values_valid = False
+                errors.append(f"{component.id} diode thermal_voltage_v must be positive.")
         if component.type in {"voltage_source", "current_source"}:
             if component.ac_magnitude is not None and component.ac_magnitude < 0:
                 values_valid = False

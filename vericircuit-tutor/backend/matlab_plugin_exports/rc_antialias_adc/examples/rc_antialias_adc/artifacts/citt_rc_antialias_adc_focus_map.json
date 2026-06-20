@@ -1,0 +1,202 @@
+[
+  {
+    "current_svg_components": [
+      "VSIG",
+      "R",
+      "C"
+    ],
+    "current_svg_goals": [],
+    "current_svg_nodes": [
+      "vin",
+      "vout",
+      "0"
+    ],
+    "future_simulink_actions": [
+      "Highlight the full signal path from source through RC filter to sampling stage.",
+      "Future MATLAB plugin may call hilite_system on connected blocks and lines."
+    ],
+    "id": "overview_signal_flow",
+    "reason": "The student needs the map before interpreting any local value.",
+    "student_prompt": "Where does the anti-aliasing decision happen in this chain?",
+    "surfaces": [
+      "web_svg",
+      "simulink",
+      "conceptual"
+    ],
+    "tab": "overview",
+    "target": {
+      "description": "Whole-model path students should understand before probing.",
+      "id": "overview_signal_flow",
+      "label": "Input to filter to sampler to output",
+      "port": null,
+      "simulink_path": "citt_rc_antialias_adc",
+      "svg_id": null,
+      "target_path": "input_path->rc_filter->sampling_stage->output_signal",
+      "target_type": "conceptual_path"
+    },
+    "teaching_step_id": "overview",
+    "title": "Signal flow overview"
+  },
+  {
+    "current_svg_components": [
+      "VSIG"
+    ],
+    "current_svg_goals": [],
+    "current_svg_nodes": [
+      "vin"
+    ],
+    "future_simulink_actions": [
+      "Highlight the source block and line into the RC subsystem."
+    ],
+    "id": "input_path",
+    "reason": "Students should see that the unwanted 60 Hz component enters before filtering.",
+    "student_prompt": "Which frequency component do you expect the filter to reduce more?",
+    "surfaces": [
+      "web_svg",
+      "simulink"
+    ],
+    "tab": "teach",
+    "target": {
+      "description": "The signal before the RC stage.",
+      "id": "input_path",
+      "label": "ECG-like signal plus 60 Hz interference",
+      "port": null,
+      "simulink_path": "citt_rc_antialias_adc/Input Path",
+      "svg_id": "VSIG",
+      "target_path": "input_path",
+      "target_type": "line"
+    },
+    "teaching_step_id": "identify_input",
+    "title": "Input path"
+  },
+  {
+    "current_svg_components": [
+      "R",
+      "C"
+    ],
+    "current_svg_goals": [],
+    "current_svg_nodes": [
+      "vout",
+      "0"
+    ],
+    "future_simulink_actions": [
+      "Highlight the RC subsystem and its parameter annotation."
+    ],
+    "id": "rc_filter",
+    "reason": "This is where fc = 1/(2*pi*R*C) becomes a model parameter.",
+    "student_prompt": "What happens to fc if C is accidentally entered in uF instead of nF?",
+    "surfaces": [
+      "web_svg",
+      "simulink"
+    ],
+    "tab": "teach",
+    "target": {
+      "description": "The first-order low-pass stage that sets cutoff.",
+      "id": "rc_filter",
+      "label": "R-C low-pass stage",
+      "port": null,
+      "simulink_path": "citt_rc_antialias_adc/RC Filter",
+      "svg_id": "R,C",
+      "target_path": "rc_filter",
+      "target_type": "block"
+    },
+    "teaching_step_id": "calculate_cutoff",
+    "title": "RC filter"
+  },
+  {
+    "current_svg_components": [],
+    "current_svg_goals": [
+      "adc_sampled_output"
+    ],
+    "current_svg_nodes": [],
+    "future_simulink_actions": [
+      "Highlight the zero-order hold or ADC sample block."
+    ],
+    "id": "sampling_stage",
+    "reason": "Filtering must be interpreted relative to fs and Nyquist.",
+    "student_prompt": "How does Nyquist compare with the 60 Hz interference?",
+    "surfaces": [
+      "simulink",
+      "conceptual"
+    ],
+    "tab": "teach",
+    "target": {
+      "description": "The point where Nyquist and sample time matter.",
+      "id": "sampling_stage",
+      "label": "ADC sampling stage",
+      "port": null,
+      "simulink_path": "citt_rc_antialias_adc/Sampling Stage",
+      "svg_id": null,
+      "target_path": "sampling_stage",
+      "target_type": "block"
+    },
+    "teaching_step_id": "connect_to_adc",
+    "title": "Sampling stage"
+  },
+  {
+    "current_svg_components": [],
+    "current_svg_goals": [
+      "vout"
+    ],
+    "current_svg_nodes": [
+      "vout"
+    ],
+    "future_simulink_actions": [
+      "Highlight the logged output line and scope block."
+    ],
+    "id": "output_signal",
+    "reason": "This is the student-visible consequence of the filter and sampler.",
+    "student_prompt": "What visual change should the filtered output show compared with the input?",
+    "surfaces": [
+      "simulink",
+      "conceptual"
+    ],
+    "tab": "teach",
+    "target": {
+      "description": "The waveform sent to downstream analysis.",
+      "id": "output_signal",
+      "label": "Filtered and sampled output",
+      "port": null,
+      "simulink_path": "citt_rc_antialias_adc/Output Signal",
+      "svg_id": null,
+      "target_path": "output_signal",
+      "target_type": "line"
+    },
+    "teaching_step_id": "inspect_output",
+    "title": "Output signal"
+  },
+  {
+    "current_svg_components": [],
+    "current_svg_goals": [
+      "cutoff_hz",
+      "output_rms_v"
+    ],
+    "current_svg_nodes": [
+      "vout",
+      "0"
+    ],
+    "future_simulink_actions": [
+      "Attach logging or a voltage probe at the RC output port."
+    ],
+    "id": "lab_delta_measurement_point",
+    "reason": "Lab Delta is only meaningful if all three values refer to the same point.",
+    "student_prompt": "Are your hand value, simulation value, and measured value all taken at this point?",
+    "surfaces": [
+      "web_svg",
+      "simulink"
+    ],
+    "tab": "lab_delta",
+    "target": {
+      "description": "The probe point used to compare hand, simulation, and lab values.",
+      "id": "lab_delta_measurement_point",
+      "label": "RC output measurement",
+      "port": "output",
+      "simulink_path": "citt_rc_antialias_adc/RC Filter/1",
+      "svg_id": "vout",
+      "target_path": "rc_filter/output",
+      "target_type": "port"
+    },
+    "teaching_step_id": "compare_measurements",
+    "title": "Lab Delta measurement point"
+  }
+]

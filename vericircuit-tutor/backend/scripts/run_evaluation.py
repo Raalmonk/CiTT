@@ -107,7 +107,7 @@ def evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
             "reason": "mocked Gemini fixtures are validated by pytest, not by network evaluation",
         }
 
-    parsed = parse_problem(case["problem_text"], mode=case.get("mode", "demo"))
+    parsed = parse_problem(case["problem_text"], mode=case.get("mode", "gemini"))
     packet = solve_circuit(parsed.circuit, parser_used=parsed.parser_used)
     failures: list[str] = []
     if packet.status != case["expected_status"]:

@@ -3,7 +3,7 @@
   "title": "Second Five-Resistor Bridge Network",
   "analysis_type": "dc_operating_point",
   "topology_id": "bridge_network",
-  "layout_hint": {"renderer": "schemdraw_bridge_network"},
+  "layout_hint": {"renderer": "optcpv"},
   "ground_node": "0",
   "nodes": ["0", "src", "a", "b"],
   "components": [

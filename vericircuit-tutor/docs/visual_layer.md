@@ -6,7 +6,7 @@ The current visual stack is incremental:
 Circuit IR -> VisualCircuit semantic layout -> SVG renderer and frontend overlays
 ```
 
-`/schematic` remains the public SVG endpoint. SVG output preserves `data-component-id`, `data-node-id`, current-path metadata, a renderer `<desc>`, and a `data-vericircuit-renderer` root attribute.
+`/schematic` remains the public SVG endpoint, but CiTT now delegates schematic drawing to OptCPV through `app.services.optcpv_bridge`. SVG output preserves OptCPV renderer metadata plus `data-component-id`, net, and pin metadata for tutor focus.
 
 `/visual_layout` exposes the semantic layout as JSON:
 
@@ -17,17 +17,18 @@ Circuit IR -> VisualCircuit semantic layout -> SVG renderer and frontend overlay
 - `VisualOverlay`
 - `VisualFocusRegion`
 
-The frontend lesson mode still uses SVG metadata for focus and zoom. `VisualCircuit` gives future UI work a stable place for overlays such as KCL arrows, current paths, voltage polarity markers, phasor hints, and lesson focus regions.
+The frontend lesson mode still uses SVG metadata for focus and zoom. `VisualCircuit` gives future UI work a stable place for overlays such as KCL arrows, current paths, voltage polarity markers, phasor hints, and lesson focus regions without becoming the schematic drawing source of truth.
 
 ## Current Scope
 
-Named templates cover voltage divider, current divider, bridge networks, and common BME fallback layouts through the existing SVG renderer. The semantic visual layer also recognizes RC low-pass structure, op-amp pins, ground, input, output, and goal reference overlays.
+OptCPV covers the public schematic SVG path for named examples, BME templates, and supported custom circuits. The semantic visual layer recognizes RC low-pass structure, op-amp pins, ground, input, output, and goal reference overlays for interaction anchors.
 
-Fallback visual layout is intentionally conservative and may not be publication-quality. It should remain valid, inspectable, and honest about being fallback.
+Fallback semantic visual layout is intentionally conservative and may not be publication-quality. For unsupported interaction templates it layers nodes outward from the ground/reference side of the circuit graph instead of placing every unknown topology in a circle. It should remain valid, inspectable, and honest about being fallback, while `/schematic` remains OptCPV-owned.
 
 ## Not Implemented
 
-- Arbitrary image or schematic recognition.
+- Guaranteed arbitrary image or schematic recognition.
 - Full automatic schematic placement for every topology.
+- Full WYSIWYG schematic editing with drag/drop component creation.
 - AC complex-power overlays.
 - Medical safety diagrams or certification markings.

@@ -16,6 +16,8 @@ def build_rc_transient_steps(
     response = packet.transient_response
     if response is None:
         return _generic_rc_steps(circuit, packet, graph)
+    if not response.is_first_order or response.time_constant_s <= 0:
+        return _generic_rc_steps(circuit, packet, graph)
 
     capacitor_id = response.capacitor_id
     capacitor = graph.component(capacitor_id)
@@ -142,9 +144,9 @@ def _generic_rc_steps(
         TutorStep(
             id="rc_requested_target",
             title="Identify the transient target",
-            body="The RC transient lesson starts from the capacitor or requested target.",
+            body="The transient lesson starts from the capacitor or requested target.",
             look_at="Look at the highlighted capacitor or requested branch.",
-            why_it_matters="The state variable determines the shape of a first-order transient.",
+            why_it_matters="The state variables determine the shape of the time-domain response.",
             common_mistake="Treating a transient result like a static DC answer.",
             focus=common.focus(circuit, components=component_focus, nodes=node_focus, goals=goal_ids),
             verified_values=common.all_requested_observations(packet),

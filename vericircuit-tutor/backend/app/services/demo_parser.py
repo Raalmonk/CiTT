@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.models.circuit_ir import ACSweep, CircuitProblem, Component, Goal, RCTransient
-from app.services.bme_templates import get_bme_demo_examples, parse_bme_template
+from app.services.bme_templates import get_bme_demo_examples
 
 
 VOLTAGE_DIVIDER_TEXT = (
@@ -45,6 +45,11 @@ RC_TRANSIENT_TEXT = (
     "R1 = 1 kOhm. Find the first-order RC transient voltage across the capacitor."
 )
 
+DIODE_LIMITER_TEXT = (
+    "A 5 V DC source feeds R1 = 1 kOhm into a silicon diode D1 from Vout to ground. "
+    "Find Vout and the diode current using the Shockley diode model."
+)
+
 OP_AMP_NON_INVERTING_TEXT = (
     "An ideal non-inverting op-amp has Vplus driven by a 1 V source, Rg = 1 kOhm "
     "from the inverting input to ground, and Rf = 9 kOhm from output to the "
@@ -67,7 +72,7 @@ def voltage_divider_problem() -> CircuitProblem:
         title="Voltage Divider",
         analysis_type="dc_operating_point",
         topology_id="voltage_divider",
-        layout_hint={"renderer": "schemdraw_voltage_divider"},
+        layout_hint={"renderer": "optcpv"},
         ground_node="0",
         nodes=["0", "n1", "n2"],
         components=[
@@ -131,7 +136,7 @@ def current_divider_problem() -> CircuitProblem:
         title="Current Source Feeding Parallel Resistors",
         analysis_type="dc_operating_point",
         topology_id="current_divider",
-        layout_hint={"renderer": "schemdraw_current_divider"},
+        layout_hint={"renderer": "optcpv"},
         ground_node="0",
         nodes=["0", "top"],
         components=[
@@ -201,7 +206,7 @@ def bridge_network_problem() -> CircuitProblem:
         title="Five-Resistor Bridge Network",
         analysis_type="dc_operating_point",
         topology_id="bridge_network",
-        layout_hint={"renderer": "schemdraw_bridge_network"},
+        layout_hint={"renderer": "optcpv"},
         ground_node="0",
         nodes=["0", "n1", "n2", "n3"],
         components=[
@@ -254,7 +259,7 @@ def bridge_network_alt_problem() -> CircuitProblem:
         title="Second Five-Resistor Bridge Network",
         analysis_type="dc_operating_point",
         topology_id="bridge_network",
-        layout_hint={"renderer": "schemdraw_bridge_network"},
+        layout_hint={"renderer": "optcpv"},
         ground_node="0",
         nodes=["0", "src", "a", "b"],
         components=[
@@ -401,6 +406,38 @@ def rc_transient_charging_problem() -> CircuitProblem:
     )
 
 
+def diode_limiter_problem() -> CircuitProblem:
+    return CircuitProblem(
+        id="diode_limiter_dc",
+        title="Shockley Diode DC Limiter",
+        analysis_type="dc_operating_point",
+        topology_id="diode_limiter_dc",
+        ground_node="0",
+        nodes=["0", "vin", "vout"],
+        components=[
+            Component(id="V1", type="voltage_source", nodes=["vin", "0"], value=5.0, unit="V"),
+            Component(id="R1", type="resistor", nodes=["vin", "vout"], value=1000.0, unit="ohm"),
+            Component(
+                id="D1",
+                type="diode",
+                nodes=["vout", "0"],
+                value=0.0,
+                unit="model",
+                saturation_current_a=1e-12,
+                emission_coefficient=1.0,
+                thermal_voltage_v=0.025852,
+            ),
+        ],
+        goals=[
+            Goal(id="vout", quantity="node_voltage", target="vout"),
+            Goal(id="diode_current", quantity="component_current", target="D1"),
+        ],
+        assumptions=[
+            "D1 uses the Shockley diode equation and is solved with Newton-Raphson nonlinear MNA.",
+        ],
+    )
+
+
 def op_amp_non_inverting_problem() -> CircuitProblem:
     return CircuitProblem(
         id="op_amp_non_inverting",
@@ -470,39 +507,6 @@ def nonideal_op_amp_problem() -> CircuitProblem:
     )
 
 
-def unsupported_problem(problem_text: str, feature: str) -> CircuitProblem:
-    return CircuitProblem(
-        id="unsupported_request",
-        title="Unsupported Circuit Request",
-        analysis_type="dc_operating_point",
-        ground_node="0",
-        nodes=["0"],
-        components=[],
-        goals=[],
-        assumptions=[],
-        ambiguities=[],
-        unsupported_features=[feature, f"Original request: {problem_text}"],
-    )
-
-
-def ambiguous_problem(problem_text: str) -> CircuitProblem:
-    return CircuitProblem(
-        id="ambiguous_request",
-        title="Ambiguous Circuit Request",
-        analysis_type="dc_operating_point",
-        ground_node="0",
-        nodes=["0"],
-        components=[],
-        goals=[],
-        assumptions=[],
-        ambiguities=[
-            "The deterministic demo parser only recognizes the bundled examples.",
-            f"Original request: {problem_text}",
-        ],
-        unsupported_features=[],
-    )
-
-
 def get_demo_examples() -> list[dict[str, object]]:
     return [
         {
@@ -541,6 +545,11 @@ def get_demo_examples() -> list[dict[str, object]]:
             "problem_text": RC_TRANSIENT_TEXT,
         },
         {
+            "id": "diode_limiter_dc",
+            "title": "Shockley Diode DC Limiter",
+            "problem_text": DIODE_LIMITER_TEXT,
+        },
+        {
             "id": "op_amp_non_inverting",
             "title": "Ideal Non-Inverting Op-Amp",
             "problem_text": OP_AMP_NON_INVERTING_TEXT,
@@ -552,83 +561,3 @@ def get_demo_examples() -> list[dict[str, object]]:
         },
         *get_bme_demo_examples(),
     ]
-
-
-def parse_demo_problem(problem_text: str) -> CircuitProblem:
-    lowered = " ".join(problem_text.lower().split())
-    bme_template = parse_bme_template(problem_text)
-    if bme_template is not None:
-        return bme_template
-    if (
-        ("transient" in lowered or "time-domain" in lowered)
-        and "5 v" in lowered
-        and "1 kohm" in lowered
-        and "1 uf" in lowered
-        and ("uncharged" in lowered or "initially 0" in lowered)
-    ):
-        return rc_transient_charging_problem()
-    if "transient" in lowered or "time-domain" in lowered:
-        return unsupported_problem(problem_text, "transient analysis")
-    if ("op-amp" in lowered or "op amp" in lowered) and any(
-        term in lowered
-        for term in [
-            "rail",
-            "rails",
-            "saturation",
-            "slew",
-            "bias current",
-            "input bias",
-            "clipping",
-            "clipping recovery",
-            "output current",
-            "output-current",
-            "current limit",
-            "finite bandwidth",
-            "bandwidth",
-            "frequency response",
-        ]
-    ):
-        return nonideal_op_amp_problem()
-    if any(
-        term in lowered
-        for term in [
-            "from this image",
-            "from an image",
-            "from the image",
-            "photo",
-            "picture",
-            "screenshot",
-        ]
-    ):
-        return ambiguous_problem(
-            f"{problem_text} Use /parse_image with image_base64 for schematic/image recognition."
-        )
-    if any(term in lowered for term in ["diode", "transistor"]):
-        return unsupported_problem(
-            problem_text,
-            "Unsupported component outside the current MVP scope.",
-        )
-    if "inductor" in lowered:
-        return unsupported_problem(
-            problem_text,
-            "Inductors are supported only when parsed as AC steady-state or AC sweep circuits.",
-        )
-    if (
-        "10 v voltage source" in lowered
-        and "r1 = 2 kohm" in lowered
-        and "r2 = 3 kohm" in lowered
-    ):
-        return voltage_divider_problem()
-    if "3 ma current source" in lowered and "parallel resistors" in lowered:
-        return current_divider_problem()
-    if "another bridge network" in lowered and "9 v source" in lowered and "r5" in lowered:
-        return bridge_network_alt_problem()
-    if "bridge" in lowered and "r5" in lowered:
-        return bridge_network_problem()
-    if "sweep" in lowered and "low-pass" in lowered and "1 uf" in lowered:
-        return rc_low_pass_sweep_problem()
-    if "low-pass" in lowered and "1 uf" in lowered and "159.154943" in lowered:
-        return rc_low_pass_problem()
-    if "non-inverting" in lowered and ("op-amp" in lowered or "op amp" in lowered):
-        return op_amp_non_inverting_problem()
-    return ambiguous_problem(problem_text)

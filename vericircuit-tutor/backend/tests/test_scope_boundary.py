@@ -29,7 +29,7 @@ def test_scope_endpoint_exposes_product_boundaries():
         for item in payload["product_capabilities"]
     )
     assert any(
-        item["label"] == "General transient simulation"
+        item["label"] == "Arbitrary or nonlinear transient simulation"
         for item in payload["unsupported_features"]
     )
     assert any(
@@ -55,10 +55,10 @@ def test_scope_boundary_mentions_current_supported_modes_without_claiming_univer
 
     assert "Linear DC operating point" in supported
     assert "AC phasor and sweep" in supported
-    assert "First-order RC transient template" in supported
+    assert "Linear numerical transient" in supported
     assert "Educational nonideal op-amp model" in supported
     assert "Gemini schematic/image parsing" in supported
-    assert "General transient simulation" in unsupported
+    assert "Arbitrary or nonlinear transient simulation" in unsupported
     assert "SPICE-grade device macro-models" in unsupported
     assert {capability.capability for capability in scope.product_capabilities} >= {
         "Solver-verified circuit answers",

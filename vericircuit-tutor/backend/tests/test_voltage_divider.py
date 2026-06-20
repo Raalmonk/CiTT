@@ -1,12 +1,11 @@
 import pytest
 
-from app.services.demo_parser import VOLTAGE_DIVIDER_TEXT
-from app.services.parser_service import parse_problem
+from app.services.demo_parser import voltage_divider_problem
 from app.services.pipeline import solve_circuit
 
 
 def test_voltage_divider_solution():
-    circuit = parse_problem(VOLTAGE_DIVIDER_TEXT).circuit
+    circuit = voltage_divider_problem()
     packet = solve_circuit(circuit)
 
     assert packet.status == "solved"
@@ -21,7 +20,7 @@ def test_voltage_divider_solution():
 
 
 def test_voltage_divider_kcl_residual_is_near_zero():
-    circuit = parse_problem(VOLTAGE_DIVIDER_TEXT).circuit
+    circuit = voltage_divider_problem()
     packet = solve_circuit(circuit)
 
     assert packet.verification.max_kcl_residual_a <= 1e-8

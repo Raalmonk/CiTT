@@ -1,0 +1,632 @@
+{
+  "adapter_plan": {
+    "adapter_id": "matlab_app_designer_adapter_v1",
+    "agent_actions": [
+      {
+        "action_kind": "fetch_manifest",
+        "dry_run_note": "This is fully supported by the current API.",
+        "expected_output": "Four tabs and available lab summaries.",
+        "id": "load_manifest",
+        "inputs": [
+          "GET /matlab_plugin/manifest"
+        ],
+        "label": "Load plugin manifest",
+        "requires_matlab_runtime": false,
+        "tab": "overview"
+      },
+      {
+        "action_kind": "render_tab",
+        "dry_run_note": "No MATLAB runtime is needed to render this tab.",
+        "expected_output": "Student-facing lab map with inputs, outputs, assumptions, and evidence.",
+        "id": "render_overview",
+        "inputs": [
+          "MatlabLabSummary",
+          "overview payload"
+        ],
+        "label": "Render Overview tab",
+        "requires_matlab_runtime": false,
+        "tab": "overview"
+      },
+      {
+        "action_kind": "render_tab",
+        "dry_run_note": "Use generated hand-check text and focus-map metadata only.",
+        "expected_output": "Prompt-before-reveal steps and focus targets.",
+        "id": "render_teach",
+        "inputs": [
+          "MatlabTeachStep[]",
+          "FocusMapEntry[]"
+        ],
+        "label": "Render Teach tab",
+        "requires_matlab_runtime": false,
+        "tab": "teach"
+      },
+      {
+        "action_kind": "highlight_target",
+        "dry_run_note": "Current API returns highlight plans; it must not claim hilite_system ran.",
+        "expected_output": "Highlighted SVG target today or Simulink target in a future adapter.",
+        "id": "highlight_focus",
+        "inputs": [
+          "FocusMapEntry.target"
+        ],
+        "label": "Highlight model focus",
+        "requires_matlab_runtime": true,
+        "tab": "teach"
+      },
+      {
+        "action_kind": "insert_probe",
+        "dry_run_note": "Current API returns deterministic probe plans and MATLAB comments only.",
+        "expected_output": "Signal logging or sensor insertion plan.",
+        "id": "insert_probe",
+        "inputs": [
+          "ProbePlan"
+        ],
+        "label": "Insert or log probe",
+        "requires_matlab_runtime": true,
+        "tab": "probe"
+      },
+      {
+        "action_kind": "run_simulation",
+        "dry_run_note": "Current CI must not execute MATLAB; use generated text and deterministic hand checks.",
+        "expected_output": "Simulation evidence for the popup.",
+        "id": "run_simulation",
+        "inputs": [
+          "MATLAB script artifact",
+          "future Simulink model"
+        ],
+        "label": "Run simulation",
+        "requires_matlab_runtime": true,
+        "tab": "probe"
+      },
+      {
+        "action_kind": "compare_lab_delta",
+        "dry_run_note": "This is supported by deterministic Python heuristics.",
+        "expected_output": "Comparison rows, likely causes, next check, and reflection question.",
+        "id": "compare_lab_delta",
+        "inputs": [
+          "LabDeltaRequest"
+        ],
+        "label": "Compare hand, simulation, and measured values",
+        "requires_matlab_runtime": false,
+        "tab": "lab_delta"
+      },
+      {
+        "action_kind": "refuse_unsupported",
+        "dry_run_note": "Do not fabricate MATLAB, Simulink, or bench results.",
+        "expected_output": "Clear unsupported/future-adapter message.",
+        "id": "refuse_unsupported",
+        "inputs": [
+          "Any request requiring unconfigured MATLAB execution"
+        ],
+        "label": "Refuse unsupported runtime claims",
+        "requires_matlab_runtime": false,
+        "tab": null
+      }
+    ],
+    "ci_validation": [
+      "Validate JSON serialization of manifest, lab plan, adapter plan, artifacts, focus map, probe plan, and Lab Delta response.",
+      "Inspect generated MATLAB script text for hand-check formulas and named outputs.",
+      "Verify dry-run plans set requires_matlab_runtime=false at bundle level.",
+      "Verify runtime action steps are marked requires_matlab_runtime=true when they would need MATLAB later."
+    ],
+    "future_runtime_hooks": [
+      "Launch MATLAB App Designer popup with command: citt.",
+      "Call hilite_system for block, line, port, and annotation targets after a model exists.",
+      "Insert signal logging or Simscape sensors from ProbePlan entries.",
+      "Run MATLAB/Simulink simulations through an optional local adapter.",
+      "Package +citt/, templates/, examples/, docs/, and app/ into a .mltbx toolbox."
+    ],
+    "lab_id": "rc_antialias_adc",
+    "launch_command": "citt",
+    "mode": "dry_run_contract",
+    "refusal_rules": [
+      "Do not claim that MATLAB, Simulink, Simscape, hilite_system, or .mltbx packaging ran unless a future adapter reports that execution evidence.",
+      "Do not turn LLM prose into final numerical answers.",
+      "Do not diagnose biomedical safety or patient-connected device compliance.",
+      "If a model region cannot be mapped to a focus target, return a clear missing-map message.",
+      "If measured data uses unknown units or measurement points, ask for clarification before ranking causes strongly."
+    ],
+    "required_matlab_products": [
+      "MATLAB",
+      "Simulink for future runtime execution",
+      "Simscape Electrical for future sensor insertion templates"
+    ],
+    "supported_now": [
+      "Fetch and render the typed plugin manifest.",
+      "Fetch generated MATLAB script text and dry-run Simulink build plans.",
+      "Render four popup tabs from JSON without MATLAB execution.",
+      "Map focus entries to current SVG targets or future Simulink paths.",
+      "Render probe plans and Lab Delta comparison suggestions."
+    ]
+  },
+  "expected_artifact_kinds": [
+    "matlab_script",
+    "simulink_build_script",
+    "focus_map_json",
+    "probe_plan_json",
+    "app_designer_plan",
+    "toolbox_manifest"
+  ],
+  "focus_map": [
+    {
+      "current_svg_components": [
+        "VSIG",
+        "R",
+        "C"
+      ],
+      "current_svg_goals": [],
+      "current_svg_nodes": [
+        "vin",
+        "vout",
+        "0"
+      ],
+      "future_simulink_actions": [
+        "Highlight the full signal path from source through RC filter to sampling stage.",
+        "Future MATLAB plugin may call hilite_system on connected blocks and lines."
+      ],
+      "id": "overview_signal_flow",
+      "reason": "The student needs the map before interpreting any local value.",
+      "student_prompt": "Where does the anti-aliasing decision happen in this chain?",
+      "surfaces": [
+        "web_svg",
+        "simulink",
+        "conceptual"
+      ],
+      "tab": "overview",
+      "target": {
+        "description": "Whole-model path students should understand before probing.",
+        "id": "overview_signal_flow",
+        "label": "Input to filter to sampler to output",
+        "port": null,
+        "simulink_path": "citt_rc_antialias_adc",
+        "svg_id": null,
+        "target_path": "input_path->rc_filter->sampling_stage->output_signal",
+        "target_type": "conceptual_path"
+      },
+      "teaching_step_id": "overview",
+      "title": "Signal flow overview"
+    },
+    {
+      "current_svg_components": [
+        "VSIG"
+      ],
+      "current_svg_goals": [],
+      "current_svg_nodes": [
+        "vin"
+      ],
+      "future_simulink_actions": [
+        "Highlight the source block and line into the RC subsystem."
+      ],
+      "id": "input_path",
+      "reason": "Students should see that the unwanted 60 Hz component enters before filtering.",
+      "student_prompt": "Which frequency component do you expect the filter to reduce more?",
+      "surfaces": [
+        "web_svg",
+        "simulink"
+      ],
+      "tab": "teach",
+      "target": {
+        "description": "The signal before the RC stage.",
+        "id": "input_path",
+        "label": "ECG-like signal plus 60 Hz interference",
+        "port": null,
+        "simulink_path": "citt_rc_antialias_adc/Input Path",
+        "svg_id": "VSIG",
+        "target_path": "input_path",
+        "target_type": "line"
+      },
+      "teaching_step_id": "identify_input",
+      "title": "Input path"
+    },
+    {
+      "current_svg_components": [
+        "R",
+        "C"
+      ],
+      "current_svg_goals": [],
+      "current_svg_nodes": [
+        "vout",
+        "0"
+      ],
+      "future_simulink_actions": [
+        "Highlight the RC subsystem and its parameter annotation."
+      ],
+      "id": "rc_filter",
+      "reason": "This is where fc = 1/(2*pi*R*C) becomes a model parameter.",
+      "student_prompt": "What happens to fc if C is accidentally entered in uF instead of nF?",
+      "surfaces": [
+        "web_svg",
+        "simulink"
+      ],
+      "tab": "teach",
+      "target": {
+        "description": "The first-order low-pass stage that sets cutoff.",
+        "id": "rc_filter",
+        "label": "R-C low-pass stage",
+        "port": null,
+        "simulink_path": "citt_rc_antialias_adc/RC Filter",
+        "svg_id": "R,C",
+        "target_path": "rc_filter",
+        "target_type": "block"
+      },
+      "teaching_step_id": "calculate_cutoff",
+      "title": "RC filter"
+    },
+    {
+      "current_svg_components": [],
+      "current_svg_goals": [
+        "adc_sampled_output"
+      ],
+      "current_svg_nodes": [],
+      "future_simulink_actions": [
+        "Highlight the zero-order hold or ADC sample block."
+      ],
+      "id": "sampling_stage",
+      "reason": "Filtering must be interpreted relative to fs and Nyquist.",
+      "student_prompt": "How does Nyquist compare with the 60 Hz interference?",
+      "surfaces": [
+        "simulink",
+        "conceptual"
+      ],
+      "tab": "teach",
+      "target": {
+        "description": "The point where Nyquist and sample time matter.",
+        "id": "sampling_stage",
+        "label": "ADC sampling stage",
+        "port": null,
+        "simulink_path": "citt_rc_antialias_adc/Sampling Stage",
+        "svg_id": null,
+        "target_path": "sampling_stage",
+        "target_type": "block"
+      },
+      "teaching_step_id": "connect_to_adc",
+      "title": "Sampling stage"
+    },
+    {
+      "current_svg_components": [],
+      "current_svg_goals": [
+        "vout"
+      ],
+      "current_svg_nodes": [
+        "vout"
+      ],
+      "future_simulink_actions": [
+        "Highlight the logged output line and scope block."
+      ],
+      "id": "output_signal",
+      "reason": "This is the student-visible consequence of the filter and sampler.",
+      "student_prompt": "What visual change should the filtered output show compared with the input?",
+      "surfaces": [
+        "simulink",
+        "conceptual"
+      ],
+      "tab": "teach",
+      "target": {
+        "description": "The waveform sent to downstream analysis.",
+        "id": "output_signal",
+        "label": "Filtered and sampled output",
+        "port": null,
+        "simulink_path": "citt_rc_antialias_adc/Output Signal",
+        "svg_id": null,
+        "target_path": "output_signal",
+        "target_type": "line"
+      },
+      "teaching_step_id": "inspect_output",
+      "title": "Output signal"
+    },
+    {
+      "current_svg_components": [],
+      "current_svg_goals": [
+        "cutoff_hz",
+        "output_rms_v"
+      ],
+      "current_svg_nodes": [
+        "vout",
+        "0"
+      ],
+      "future_simulink_actions": [
+        "Attach logging or a voltage probe at the RC output port."
+      ],
+      "id": "lab_delta_measurement_point",
+      "reason": "Lab Delta is only meaningful if all three values refer to the same point.",
+      "student_prompt": "Are your hand value, simulation value, and measured value all taken at this point?",
+      "surfaces": [
+        "web_svg",
+        "simulink"
+      ],
+      "tab": "lab_delta",
+      "target": {
+        "description": "The probe point used to compare hand, simulation, and lab values.",
+        "id": "lab_delta_measurement_point",
+        "label": "RC output measurement",
+        "port": "output",
+        "simulink_path": "citt_rc_antialias_adc/RC Filter/1",
+        "svg_id": "vout",
+        "target_path": "rc_filter/output",
+        "target_type": "port"
+      },
+      "teaching_step_id": "compare_measurements",
+      "title": "Lab Delta measurement point"
+    }
+  ],
+  "lab": {
+    "assumptions": [
+      "The source and ADC input are ideal unless Lab Delta suggests otherwise.",
+      "The RC stage is modeled as a first-order low-pass filter.",
+      "The example waveform is educational and ECG-like, not patient data."
+    ],
+    "bme_safety_boundary": "This is a signal-conditioning teaching model, not biomedical safety verification or patient-connected design approval.",
+    "evidence_to_collect": [
+      "Calculated cutoff frequency",
+      "Nyquist frequency",
+      "Input and filtered waveforms",
+      "Sampled output waveform",
+      "Lab Delta comparison rows"
+    ],
+    "generated_artifact_kinds": [
+      "matlab_script",
+      "simulink_build_script",
+      "focus_map_json",
+      "probe_plan_json",
+      "app_designer_plan",
+      "toolbox_manifest"
+    ],
+    "id": "rc_antialias_adc",
+    "idealizations": [
+      "No op-amp buffer loading is included in the initial artifact.",
+      "Component tolerances are represented as Lab Delta causes, not random simulation.",
+      "ADC quantization is summarized instead of modeled as a device datasheet."
+    ],
+    "inputs": [
+      "ECG-like low-frequency signal",
+      "60 Hz interference",
+      "Sampling rate"
+    ],
+    "key_parameters": {
+      "C": "100 nF",
+      "R": "39.7887358 kOhm",
+      "fs": "500 Hz",
+      "target_fc": "40 Hz"
+    },
+    "objective": "Connect the hand cutoff calculation to a Simulink-style filter and sampled waveform before an ADC.",
+    "outputs": [
+      "Filtered RC output",
+      "Sampled ADC input waveform",
+      "Hand/simulation/lab cutoff comparison"
+    ],
+    "status": "implemented",
+    "tabs": [
+      "overview",
+      "teach",
+      "probe",
+      "lab_delta"
+    ],
+    "title": "RC anti-aliasing before ADC"
+  },
+  "lab_delta_seed_request": {
+    "hand_values": {
+      "fc_hz": 40.0
+    },
+    "measured_values": {
+      "fc_hz": 251.32741228718345
+    },
+    "notes": "Seed example intentionally shows angular frequency reported as Hz.",
+    "simulation_values": {
+      "fc_hz": 40.1
+    },
+    "value_units": {
+      "fc_hz": "Hz"
+    }
+  },
+  "overview": {
+    "assumptions": [
+      "The source and ADC input are ideal unless Lab Delta suggests otherwise.",
+      "The RC stage is modeled as a first-order low-pass filter.",
+      "The example waveform is educational and ECG-like, not patient data."
+    ],
+    "bme_safety_boundary": "This is a signal-conditioning teaching model, not biomedical safety verification or patient-connected design approval.",
+    "evidence_to_collect": [
+      "Calculated cutoff frequency",
+      "Nyquist frequency",
+      "Input and filtered waveforms",
+      "Sampled output waveform",
+      "Lab Delta comparison rows"
+    ],
+    "generated_artifacts": [
+      "matlab_script",
+      "simulink_build_script",
+      "focus_map_json",
+      "probe_plan_json",
+      "app_designer_plan",
+      "toolbox_manifest"
+    ],
+    "idealizations": [
+      "No op-amp buffer loading is included in the initial artifact.",
+      "Component tolerances are represented as Lab Delta causes, not random simulation.",
+      "ADC quantization is summarized instead of modeled as a device datasheet."
+    ],
+    "inputs": [
+      "ECG-like low-frequency signal",
+      "60 Hz interference",
+      "Sampling rate"
+    ],
+    "key_parameters": {
+      "C": "100 nF",
+      "R": "39.7887358 kOhm",
+      "fs": "500 Hz",
+      "target_fc": "40 Hz"
+    },
+    "objective": "Connect the hand cutoff calculation to a Simulink-style filter and sampled waveform before an ADC.",
+    "outputs": [
+      "Filtered RC output",
+      "Sampled ADC input waveform",
+      "Hand/simulation/lab cutoff comparison"
+    ],
+    "title": "RC anti-aliasing before ADC"
+  },
+  "probe_plan": [
+    {
+      "expected_behavior": "The 60 Hz component should be smaller after the RC stage.",
+      "future_matlab_steps": [
+        "Enable signal logging on the RC output line.",
+        "Add a scope or logged signal named rc_filter_output.",
+        "Associate the log with focus_map entry lab_delta_measurement_point."
+      ],
+      "id": "rc_output_voltage_probe",
+      "matlab_comment_lines": [
+        "% CiTT Probe tab: add voltage probe at RC output.",
+        "% Future Simulink highlight: rc_filter"
+      ],
+      "measurement_explanation": "This probe checks the exact point where the filter output is handed to the sampling stage.",
+      "quantity": "voltage",
+      "student_goal": "Inspect the local signal after the low-pass stage and before sampling.",
+      "student_question": "Does the measured output match the cutoff you calculated by hand?",
+      "suggested_logging": [
+        "input_signal",
+        "filtered_output"
+      ],
+      "suggested_sensor_insertion": [
+        "Voltage sensor from vout to ground in a future Simscape model."
+      ],
+      "target": {
+        "description": "Voltage at the capacitor/output node.",
+        "id": "rc_filter_output",
+        "label": "RC filter output",
+        "port": "output",
+        "simulink_path": "citt_rc_antialias_adc/RC Filter/1",
+        "svg_id": "vout",
+        "target_path": "rc_filter/output",
+        "target_type": "port"
+      },
+      "title": "Add voltage probe at RC output",
+      "unit": "V"
+    },
+    {
+      "expected_behavior": "The post-filter 60 Hz amplitude should be lower than the input amplitude.",
+      "future_matlab_steps": [
+        "Compute or estimate the 60 Hz component in both logged signals.",
+        "Show the comparison in the Probe tab before Lab Delta diagnosis."
+      ],
+      "id": "compare_60hz_component",
+      "matlab_comment_lines": [
+        "% CiTT Probe tab: compare pre-filter and post-filter 60 Hz component."
+      ],
+      "measurement_explanation": "This separates filter behavior from sampling behavior before discussing aliasing.",
+      "quantity": "attenuation",
+      "student_goal": "Estimate how much interference remains at the ADC input.",
+      "student_question": "Is 60 Hz far enough above cutoff to be meaningfully reduced?",
+      "suggested_logging": [
+        "input_signal",
+        "filtered_output"
+      ],
+      "suggested_sensor_insertion": [],
+      "target": {
+        "description": "Frequency-component comparison across the filter.",
+        "id": "sixty_hz_comparison",
+        "label": "60 Hz before/after comparison",
+        "port": null,
+        "simulink_path": "citt_rc_antialias_adc/Input Path to RC Filter Output",
+        "svg_id": null,
+        "target_path": "input_path->rc_filter_output",
+        "target_type": "conceptual_path"
+      },
+      "title": "Compare pre-filter and post-filter 60 Hz component",
+      "unit": "ratio or dB"
+    },
+    {
+      "expected_behavior": "Samples should follow the filtered waveform at 500 Hz.",
+      "future_matlab_steps": [
+        "Log the zero-order hold or ADC output line.",
+        "Compare sampled_output against filtered_output at the same timestamps."
+      ],
+      "id": "sampled_output_probe",
+      "matlab_comment_lines": [
+        "% CiTT Probe tab: log sampled output for ADC comparison.",
+        "% Future Simulink highlight: sampling_stage"
+      ],
+      "measurement_explanation": "This probe connects the analog filter output to the ADC learning objective.",
+      "quantity": "sampled voltage",
+      "student_goal": "Inspect what the ADC-facing data stream would contain.",
+      "student_question": "Does the sampled waveform preserve the filtered signal without alias surprises?",
+      "suggested_logging": [
+        "sample_times",
+        "sampled_output"
+      ],
+      "suggested_sensor_insertion": [],
+      "target": {
+        "description": "Output after the sampling stage.",
+        "id": "sampled_output",
+        "label": "Sampled output",
+        "port": null,
+        "simulink_path": "citt_rc_antialias_adc/Sampling Stage/1",
+        "svg_id": null,
+        "target_path": "sampling_stage/output",
+        "target_type": "line"
+      },
+      "title": "Log sampled output",
+      "unit": "V"
+    }
+  ],
+  "teach_steps": [
+    {
+      "common_mistakes": [
+        "Treating the sampler as if it can remove analog interference by itself.",
+        "Looking only at the output without checking the input path."
+      ],
+      "explanation": "Anti-aliasing is a chain problem: the analog filter changes the waveform before the sampler sees it.",
+      "focus_entry_ids": [
+        "overview_signal_flow",
+        "input_path",
+        "rc_filter",
+        "sampling_stage"
+      ],
+      "id": "overview_signal_flow",
+      "prompt_before_reveal": "Before calculating, point to where the ECG-like signal, 60 Hz interference, filter, sampler, and output each live.",
+      "reveal_policy": "prompt_first",
+      "tab": "teach",
+      "title": "Trace the signal chain",
+      "verified_value_refs": [
+        "fs",
+        "target_fc"
+      ]
+    },
+    {
+      "common_mistakes": [
+        "Using omega_c as if it were Hz.",
+        "Dropping the 2*pi factor.",
+        "Entering 100 nF as 100 uF."
+      ],
+      "explanation": "For a first-order RC low-pass, fc = 1/(2*pi*R*C) in Hz and omega_c = 1/(R*C) in rad/s.",
+      "focus_entry_ids": [
+        "rc_filter"
+      ],
+      "id": "calculate_cutoff",
+      "prompt_before_reveal": "Predict whether the cutoff should use R*C or 2*pi*R*C.",
+      "reveal_policy": "show_hand_check",
+      "tab": "teach",
+      "title": "Calculate the RC cutoff",
+      "verified_value_refs": [
+        "hand_fc_hz",
+        "nyquist"
+      ]
+    },
+    {
+      "common_mistakes": [
+        "Checking Nyquist but forgetting the analog filter response.",
+        "Comparing sampled output to hand cutoff at a different measurement point."
+      ],
+      "explanation": "The RC stage should reduce the 60 Hz component before the ADC-facing samples are interpreted.",
+      "focus_entry_ids": [
+        "sampling_stage",
+        "output_signal"
+      ],
+      "id": "connect_to_sampling",
+      "prompt_before_reveal": "Compare 60 Hz, the cutoff, and Nyquist before looking at the sampled plot.",
+      "reveal_policy": "show_simulation_evidence",
+      "tab": "teach",
+      "title": "Connect cutoff to sampling",
+      "verified_value_refs": [
+        "attenuation_at_60_hz"
+      ]
+    }
+  ]
+}

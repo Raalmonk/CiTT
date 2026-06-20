@@ -1,6 +1,7 @@
 import type { KatexOptions } from "katex";
 
 const CODE_PLACEHOLDER_PREFIX = "CITT_PROTECTED_CODE";
+const BARE_CIRCUIT_SYMBOL = /(^|[^A-Za-z0-9$\\])([VvIiRrCcLlZzYyAaQqFfGgTt]_(?:\{?[A-Za-z0-9]+\}?))(?![A-Za-z0-9])/g;
 
 export const katexOptions = {
   throwOnError: false,
@@ -44,6 +45,8 @@ export function normalizeTutorLatex(markdown: string): string {
   normalized = normalized
     .replace(/\\\[((?:.|\n)*?)\\\]/g, (_, equation: string) => `\n$$\n${equation.trim()}\n$$\n`)
     .replace(/\\\(((?:.|\n)*?)\\\)/g, (_, equation: string) => `$${equation.trim()}$`);
+  normalized = protectMath(normalized, protectedBlocks);
+  normalized = autoWrapBareCircuitSymbols(normalized);
 
   return restoreCode(normalized, protectedBlocks);
 }
@@ -73,6 +76,20 @@ function protectCode(markdown: string, protectedBlocks: string[]): string {
   return markdown
     .replace(/(```[\s\S]*?```|~~~[\s\S]*?~~~)/g, protect)
     .replace(/`[^`\n]*`/g, protect);
+}
+
+function protectMath(markdown: string, protectedBlocks: string[]): string {
+  return markdown.replace(/(\$\$[\s\S]*?\$\$|\$[^$\n]+\$)/g, (match: string) => {
+    const index = protectedBlocks.push(match) - 1;
+    return `${CODE_PLACEHOLDER_PREFIX}_${index}`;
+  });
+}
+
+function autoWrapBareCircuitSymbols(markdown: string): string {
+  return markdown.replace(
+    BARE_CIRCUIT_SYMBOL,
+    (_match: string, prefix: string, symbol: string) => `${prefix}$${symbol}$`
+  );
 }
 
 function restoreCode(markdown: string, protectedBlocks: string[]): string {

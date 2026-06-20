@@ -3,7 +3,11 @@ import math
 import pytest
 
 from app.models.circuit_ir import ACSweep, CircuitProblem, Component, Goal, RCTransient
-from app.services.demo_parser import RC_LOW_PASS_SWEEP_TEXT, RC_TRANSIENT_TEXT, parse_demo_problem
+from app.services.demo_parser import (
+    nonideal_op_amp_problem,
+    rc_low_pass_sweep_problem,
+    rc_transient_charging_problem,
+)
 from app.services.pipeline import solve_circuit
 
 
@@ -66,6 +70,9 @@ def test_rc_low_pass_ac_single_frequency():
     answer = packet.ac_requested_answers["vout"]
     assert answer.magnitude == pytest.approx(0.7071, rel=1e-3)
     assert answer.phase_deg == pytest.approx(-45.0, abs=1e-2)
+    assert packet.ac_component_results["R1"].complex_power is not None
+    assert any(check.name == "ac_complex_power_balance" for check in packet.verification.checks)
+    assert packet.verification.power_balance_error_w <= 1e-8
 
 
 def test_rc_low_pass_ac_steady_state():
@@ -284,8 +291,8 @@ def test_ac_sweep_exposes_plot_ready_series():
     assert any(series.id == "component:C1:current" for series in packet.ac_sweep_plots)
 
 
-def test_demo_parser_recognizes_rc_low_pass_sweep_template():
-    circuit = parse_demo_problem(RC_LOW_PASS_SWEEP_TEXT)
+def test_rc_low_pass_sweep_fixture_solves():
+    circuit = rc_low_pass_sweep_problem()
     packet = solve_circuit(circuit)
 
     assert circuit.analysis_type == "ac_sweep"
@@ -294,7 +301,7 @@ def test_demo_parser_recognizes_rc_low_pass_sweep_template():
     assert packet.ac_sweep
 
 
-def test_first_order_rc_transient_template_charging():
+def test_first_order_rc_transient_numerical_charging():
     circuit = CircuitProblem(
         id="rc_transient_charging",
         title="First-Order RC Charging",
@@ -323,16 +330,52 @@ def test_first_order_rc_transient_template_charging():
     assert packet.transient_response.final_voltage_v == pytest.approx(5.0)
     assert packet.transient_response.resistance_ohm == pytest.approx(1000.0)
     assert packet.transient_response.time_constant_s == pytest.approx(0.001)
-    assert "exp(-t/0.001)" in packet.transient_response.formula
+    assert packet.transient_response.is_first_order is True
+    assert packet.transient_response.analysis_method == "backward_euler_companion_model"
+    assert "Backward Euler" in packet.transient_response.formula
+    assert packet.calculation_trace.solver_method == "Backward Euler companion-model transient integration"
     assert packet.requested_answers["time_constant"].value == pytest.approx(0.001)
     sample_at_tau = next(
         point for point in packet.transient_response.sample_points if abs(point.time_s - 0.001) < 1e-12
     )
-    assert sample_at_tau.voltage_v == pytest.approx(5.0 * (1.0 - math.exp(-1.0)))
+    assert sample_at_tau.voltage_v == pytest.approx(5.0 * (1.0 - math.exp(-1.0)), rel=2e-3)
 
 
-def test_demo_parser_recognizes_first_order_rc_transient_template():
-    circuit = parse_demo_problem(RC_TRANSIENT_TEXT)
+def test_rlc_transient_uses_numerical_integration_for_overshoot():
+    circuit = CircuitProblem(
+        id="rlc_transient_step",
+        title="Underdamped RLC Step",
+        analysis_type="rc_transient",
+        ground_node="0",
+        nodes=["0", "vin", "n1", "vc"],
+        transient=RCTransient(
+            capacitor_id="C1",
+            initial_voltage_v=0.0,
+            time_points_s=[5e-5, 1.05e-4, 2e-4, 1e-3],
+        ),
+        components=[
+            Component(id="V1", type="voltage_source", nodes=["vin", "0"], value=1.0, unit="V"),
+            Component(id="R1", type="resistor", nodes=["vin", "n1"], value=20.0, unit="ohm"),
+            Component(id="L1", type="inductor", nodes=["n1", "vc"], value=1e-3, unit="H"),
+            Component(id="C1", type="capacitor", nodes=["vc", "0"], value=1e-6, unit="F"),
+        ],
+        goals=[Goal(id="capacitor_voltage", quantity="component_voltage", target="C1")],
+    )
+
+    packet = solve_circuit(circuit)
+
+    assert packet.status == "solved"
+    assert packet.verification_badge.label == "PASS"
+    assert packet.transient_response is not None
+    assert packet.transient_response.is_first_order is False
+    assert packet.transient_response.time_constant_s == pytest.approx(0.0)
+    assert packet.transient_response.final_voltage_v == pytest.approx(1.0)
+    assert max(point.voltage_v for point in packet.transient_response.sample_points) > 1.1
+    assert "time_constant" not in packet.requested_answers
+
+
+def test_first_order_rc_transient_fixture_solves():
+    circuit = rc_transient_charging_problem()
     packet = solve_circuit(circuit)
 
     assert circuit.analysis_type == "rc_transient"
@@ -412,10 +455,7 @@ def test_ideal_op_amp_type_alias_non_inverting_amplifier_dc():
 
 
 def test_nonideal_op_amp_dc_clamps_to_output_rail_window():
-    circuit = parse_demo_problem(
-        "Analyze an op-amp with rail saturation, slew rate, bias current, clipping recovery, "
-        "output current limit, and frequency response."
-    )
+    circuit = nonideal_op_amp_problem()
 
     packet = solve_circuit(circuit)
 

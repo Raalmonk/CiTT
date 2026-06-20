@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.circuit_ir import CircuitProblem
 from app.models.solution_packet import SolutionPacket, VerificationBadge
 
 
@@ -44,9 +45,36 @@ class StudentFrame(BaseModel):
     suspected_method: str | None = None
     confusion: str | None = None
     likely_misconceptions: list[str] = Field(default_factory=list)
+    diagnostic_graph: list["DiagnosticNode"] = Field(default_factory=list)
     confidence: Literal["unknown", "low", "medium", "high"] = "unknown"
     evidence: list[str] = Field(default_factory=list)
     source: Literal["heuristic", "gemini", "gemini_fallback"] = "heuristic"
+
+
+class DiagnosticEdge(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target_id: str = Field(min_length=1)
+    relation: Literal["causes", "depends_on", "evidence_for", "next_check"] = "causes"
+
+
+class DiagnosticNode(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    kind: Literal["observed_error", "missing_concept", "root_cause", "next_step"] = "observed_error"
+    evidence: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    edges: list[DiagnosticEdge] = Field(default_factory=list)
+
+
+class KnowledgeState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mastery: float = Field(default=0.5, ge=0.0, le=1.0)
+    opportunities: int = Field(default=0, ge=0)
+    last_evidence: str | None = None
 
 
 class StudentProfile(BaseModel):
@@ -54,6 +82,7 @@ class StudentProfile(BaseModel):
 
     strengths: list[str] = Field(default_factory=list)
     recurring_misconceptions: dict[str, int] = Field(default_factory=dict)
+    knowledge_state: dict[str, KnowledgeState] = Field(default_factory=dict)
     hint_preference: str = "conceptual_nudges"
     independence_level: IndependenceScore = "medium"
     hint_budget_used: int = Field(default=0, ge=0)
@@ -113,7 +142,11 @@ class ReasoningCoachRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     problem_text: str = Field(min_length=1)
-    mode: Literal["demo", "gemini", "gemini_strict"] = "demo"
+    mode: Literal["gemini", "gemini_strict"] = "gemini"
+    circuit_ir: CircuitProblem | None = None
+    solution_packet: SolutionPacket | None = None
+    parser_used: str | None = None
+    student_frame_mode: Literal["heuristic", "gemini"] = "gemini"
     student_commitment: StudentCommitment = Field(default_factory=StudentCommitment)
     student_profile: StudentProfile | None = None
     requested_hint_level: int = Field(default=1, ge=0, le=5)

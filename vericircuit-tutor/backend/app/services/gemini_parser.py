@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.circuit_ir import CircuitProblem
+from app.models.runtime_debug import RuntimeDebugTrace, add_debug_event
 from app.services.gemini_client import (
     GeminiClientUnavailable,
     GeminiStructuredClient,
@@ -108,6 +109,7 @@ class GeminiAPICircuitProblem(BaseModel):
     components: list[GeminiAPIComponent] = Field(default_factory=list)
     goals: list[GeminiAPIGoal] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
+    nonblocking_ambiguities: list[str] = Field(default_factory=list)
     ambiguities: list[str] = Field(default_factory=list)
     unsupported_features: list[str] = Field(default_factory=list)
 
@@ -205,6 +207,7 @@ class GeminiCircuitProblem(BaseModel):
     components: list[GeminiComponent] = Field(default_factory=list)
     goals: list[GeminiGoal] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
+    nonblocking_ambiguities: list[str] = Field(default_factory=list)
     ambiguities: list[str] = Field(default_factory=list)
     unsupported_features: list[str] = Field(default_factory=list)
 
@@ -235,7 +238,10 @@ Rules:
 - If the problem asks for general transient/time-domain response beyond a first-order RC template, list "transient analysis" in unsupported_features.
 - If an op-amp is ideal and closed-loop assumptions are clear, use ideal_op_amp.
 - If op-amp rails, saturation dynamics, slew rate, bias current, clipping recovery, output-current limits, finite bandwidth, or nonideal frequency response is requested and the connectivity is clear, use nonideal_op_amp instead of unsupported_features.
-- If an image/photo/screenshot/schematic is provided to the image parser, read explicit visible connectivity and component text from the image into Circuit IR. If the image is unreadable or connectivity is ambiguous, fill ambiguities instead of guessing.
+- If an image/photo/screenshot/schematic is provided to the image parser, read explicit visible connectivity and component text from the image into Circuit IR. If the image is unreadable or connectivity needed for the requested goals is ambiguous, fill ambiguities instead of guessing.
+- Do not create numeric placeholder values such as 1 ohm, 1 F, or 1 V for unreadable component values. If the missing value is needed to answer the requested goals, put it in ambiguities and do not pretend to solve it.
+- If an unreadable, unvalued, switched, or extra branch is outside the simplified circuit needed for the requested goals, omit that branch or component from components and record the limitation in nonblocking_ambiguities instead of ambiguities.
+- For ECG right-leg-drive/common-mode DC questions, missing R1/R2 input-buffer gain resistors, an output current-limiting Ro, or later differential/AC-coupled output-stage trim values are nonblocking if i_d, R_RL, R_f, the RLD summing input resistors, ideal-op-amp assumptions, and requested common-mode DC nodes are explicit.
 - Biomedical words such as ECG, EMG, pressure, strain, thermistor, photodiode, or anti-aliasing do not by themselves justify guessing circuit topology, physiology, safety claims, or BME template metadata.
 - If biomedical component values and connectivity are explicit, parse them as ordinary Circuit IR and put only stated assumptions in assumptions.
 - If a biomedical prompt appears to request a known BME template but leaves topology, values, sensor model, or signal-chain role ambiguous, fill ambiguities instead of inventing a template.
@@ -259,6 +265,7 @@ Use only visible component labels, node labels, values, and unambiguous wire con
 {context}
 
 If a component value, source polarity, ground reference, op-amp pin, or wire junction is not readable, fill ambiguities instead of guessing.
+If a visible detail is intentionally omitted because it is outside the requested calculation scope, put that note in nonblocking_ambiguities and do not include placeholder-valued components for it.
 """.strip()
     )
 
@@ -267,14 +274,26 @@ def _api_key_is_present() -> bool:
     return gemini_is_configured()
 
 
-def parse_with_gemini(problem_text: str) -> CircuitProblem:
+def parse_with_gemini(
+    problem_text: str,
+    *,
+    debug_trace: RuntimeDebugTrace | None = None,
+) -> CircuitProblem:
     if not gemini_api_key():
+        add_debug_event(
+            debug_trace,
+            stage="gemini",
+            label="not_configured",
+            message="Gemini API key was not configured.",
+            data={"gemini_configured": False},
+        )
         raise GeminiParserUnavailable("GEMINI_API_KEY or GOOGLE_API_KEY is not set.")
 
     try:
         response_text = GeminiStructuredClient().generate_json_text(
             prompt=_schema_prompt(problem_text),
             schema_model=GeminiAPICircuitProblem,
+            debug_trace=debug_trace,
         )
     except GeminiClientUnavailable as exc:
         raise GeminiParserUnavailable(str(exc)) from exc
@@ -282,8 +301,29 @@ def parse_with_gemini(problem_text: str) -> CircuitProblem:
     try:
         api_parsed = GeminiAPICircuitProblem.model_validate_json(response_text)
         strict_parsed = GeminiCircuitProblem.model_validate(api_parsed.model_dump())
-        return CircuitProblem.model_validate(strict_parsed.model_dump())
+        circuit = CircuitProblem.model_validate(strict_parsed.model_dump())
+        add_debug_event(
+            debug_trace,
+            stage="parser",
+            label="gemini_json_validated",
+            message="Gemini response validated as CircuitProblem.",
+            data={
+                "circuit_id": circuit.id,
+                "component_count": len(circuit.components),
+                "goal_count": len(circuit.goals),
+                "ambiguity_count": len(circuit.ambiguities),
+                "nonblocking_ambiguity_count": len(circuit.nonblocking_ambiguities),
+            },
+        )
+        return circuit
     except ValueError as exc:
+        add_debug_event(
+            debug_trace,
+            stage="parser",
+            label="gemini_json_validation_failed",
+            message="Gemini response did not validate as CircuitProblem.",
+            data={"error": str(exc), "response_text": response_text},
+        )
         raise GeminiParserUnavailable(f"Gemini did not return valid CircuitProblem JSON: {exc}") from exc
 
 
@@ -292,8 +332,16 @@ def parse_image_with_gemini(
     problem_text: str,
     image_bytes: bytes,
     mime_type: str,
+    debug_trace: RuntimeDebugTrace | None = None,
 ) -> CircuitProblem:
     if not gemini_api_key():
+        add_debug_event(
+            debug_trace,
+            stage="gemini",
+            label="not_configured",
+            message="Gemini API key was not configured.",
+            data={"gemini_configured": False},
+        )
         raise GeminiParserUnavailable("GEMINI_API_KEY or GOOGLE_API_KEY is not set.")
 
     try:
@@ -302,6 +350,7 @@ def parse_image_with_gemini(
             image_bytes=image_bytes,
             mime_type=mime_type,
             schema_model=GeminiAPICircuitProblem,
+            debug_trace=debug_trace,
         )
     except GeminiClientUnavailable as exc:
         raise GeminiParserUnavailable(str(exc)) from exc
@@ -309,8 +358,29 @@ def parse_image_with_gemini(
     try:
         api_parsed = GeminiAPICircuitProblem.model_validate_json(response_text)
         strict_parsed = GeminiCircuitProblem.model_validate(api_parsed.model_dump())
-        return CircuitProblem.model_validate(strict_parsed.model_dump())
+        circuit = CircuitProblem.model_validate(strict_parsed.model_dump())
+        add_debug_event(
+            debug_trace,
+            stage="parser",
+            label="gemini_image_json_validated",
+            message="Gemini image response validated as CircuitProblem.",
+            data={
+                "circuit_id": circuit.id,
+                "component_count": len(circuit.components),
+                "goal_count": len(circuit.goals),
+                "ambiguity_count": len(circuit.ambiguities),
+                "nonblocking_ambiguity_count": len(circuit.nonblocking_ambiguities),
+            },
+        )
+        return circuit
     except ValueError as exc:
+        add_debug_event(
+            debug_trace,
+            stage="parser",
+            label="gemini_image_json_validation_failed",
+            message="Gemini image response did not validate as CircuitProblem.",
+            data={"error": str(exc), "response_text": response_text},
+        )
         raise GeminiParserUnavailable(
             f"Gemini did not return valid image CircuitProblem JSON: {exc}"
         ) from exc

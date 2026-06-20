@@ -92,6 +92,24 @@ def _quantity(
     )
 
 
+def _stamp_conductance(
+    matrix: np.ndarray,
+    node_index: dict[str, int],
+    node_a: str,
+    node_b: str,
+    conductance: float,
+) -> None:
+    idx_a = node_index.get(node_a)
+    idx_b = node_index.get(node_b)
+    if idx_a is not None:
+        matrix[idx_a, idx_a] += conductance
+    if idx_b is not None:
+        matrix[idx_b, idx_b] += conductance
+    if idx_a is not None and idx_b is not None:
+        matrix[idx_a, idx_b] -= conductance
+        matrix[idx_b, idx_a] -= conductance
+
+
 def _build_requested_answers(
     problem: CircuitProblem,
     node_voltages: dict[str, float],
@@ -161,22 +179,28 @@ def solve_mna(
     voltage_sources = [
         component for component in problem.components if component.type == "voltage_source"
     ]
+    inductors = [component for component in problem.components if component.type == "inductor"]
     op_amps = [component for component in problem.components if is_op_amp_type(component.type)]
     source_index = {
         component.id: len(non_ground_nodes) + idx
         for idx, component in enumerate(voltage_sources)
     }
-    op_amp_index = {
+    inductor_index = {
         component.id: len(non_ground_nodes) + len(voltage_sources) + idx
+        for idx, component in enumerate(inductors)
+    }
+    op_amp_index = {
+        component.id: len(non_ground_nodes) + len(voltage_sources) + len(inductors) + idx
         for idx, component in enumerate(op_amps)
     }
     unknown_order = [
         *(f"V({node})" for node in non_ground_nodes),
         *(f"I({component.id})" for component in voltage_sources),
+        *(f"I({component.id})" for component in inductors),
         *(f"I({component.id}_out)" for component in op_amps),
     ]
 
-    size = len(non_ground_nodes) + len(voltage_sources) + len(op_amps)
+    size = len(non_ground_nodes) + len(voltage_sources) + len(inductors) + len(op_amps)
     if size == 0:
         return SolveResult(
             success=False,
@@ -204,17 +228,23 @@ def solve_mna(
             # Resistor stamp: current leaving node a is g*(Va - Vb), and
             # current leaving node b is g*(Vb - Va). This adds +g to each
             # connected diagonal and -g to each off-diagonal coupling.
-            if idx_a is not None:
-                matrix[idx_a, idx_a] += conductance
-            if idx_b is not None:
-                matrix[idx_b, idx_b] += conductance
-            if idx_a is not None and idx_b is not None:
-                matrix[idx_a, idx_b] -= conductance
-                matrix[idx_b, idx_a] -= conductance
+            _stamp_conductance(matrix, node_index, node_a, node_b, conductance)
 
         elif component.type == "capacitor":
             # DC operating point: ideal capacitors are open circuits.
             continue
+
+        elif component.type == "inductor":
+            inductor_idx = inductor_index[component.id]
+            # DC operating point: ideal inductors are steady-state shorts.
+            # Model this as a 0 V source so the branch current remains solved.
+            if idx_a is not None:
+                matrix[idx_a, inductor_idx] += 1.0
+                matrix[inductor_idx, idx_a] += 1.0
+            if idx_b is not None:
+                matrix[idx_b, inductor_idx] -= 1.0
+                matrix[inductor_idx, idx_b] -= 1.0
+            rhs[inductor_idx] = 0.0
 
         elif component.type == "current_source":
             current = component.value
@@ -258,6 +288,15 @@ def solve_mna(
             idx_out = node_index.get(out)
             idx_ref = node_index.get(ref)
 
+            if component.input_resistance_ohm is not None:
+                _stamp_conductance(
+                    matrix,
+                    node_index,
+                    vp,
+                    vm,
+                    1.0 / component.input_resistance_ohm,
+                )
+
             if idx_out is not None:
                 matrix[idx_out, op_idx] += 1.0
             if idx_ref is not None:
@@ -277,8 +316,24 @@ def solve_mna(
                     if idx_ref is not None:
                         matrix[op_idx, idx_ref] -= 1.0
                     rhs[op_idx] = forced_output
+                elif component.output_resistance_ohm is not None:
+                    output_conductance = 1.0 / component.output_resistance_ohm
+                    gain = nonideal_open_loop_gain(component)
+                    gm = gain * output_conductance
+                    offset = component.input_offset_voltage_v or 0.0
+                    if idx_out is not None:
+                        matrix[op_idx, idx_out] -= output_conductance
+                    if idx_ref is not None:
+                        matrix[op_idx, idx_ref] += output_conductance
+                    if idx_vp is not None:
+                        matrix[op_idx, idx_vp] += gm
+                    if idx_vm is not None:
+                        matrix[op_idx, idx_vm] -= gm
+                    matrix[op_idx, op_idx] += 1.0
+                    rhs[op_idx] = -gm * offset
                 else:
                     gain = nonideal_open_loop_gain(component)
+                    offset = component.input_offset_voltage_v or 0.0
                     if idx_out is not None:
                         matrix[op_idx, idx_out] += 1.0
                     if idx_ref is not None:
@@ -287,6 +342,7 @@ def solve_mna(
                         matrix[op_idx, idx_vp] -= gain
                     if idx_vm is not None:
                         matrix[op_idx, idx_vm] += gain
+                    rhs[op_idx] = gain * offset
             else:
                 if idx_vp is not None:
                     matrix[op_idx, idx_vp] += 1.0
@@ -363,6 +419,10 @@ def solve_mna(
         component.id: float(solution[source_index[component.id]])
         for component in voltage_sources
     }
+    inductor_currents = {
+        component.id: float(solution[inductor_index[component.id]])
+        for component in inductors
+    }
     op_amp_output_currents = {
         component.id: float(solution[op_amp_index[component.id]])
         for component in op_amps
@@ -387,6 +447,12 @@ def solve_mna(
                 "DC operating point: ideal capacitor is treated as an open circuit. "
                 "Voltage is V(nodes[0]) - V(nodes[1]); current is 0 A."
             )
+        elif component.type == "inductor":
+            current = inductor_currents[component.id]
+            sign_convention = (
+                "DC operating point: ideal inductor is treated as a short circuit. "
+                "Voltage is constrained to 0 V; current is positive from nodes[0] to nodes[1]."
+            )
         elif component.type == "current_source":
             current = component.value
             sign_convention = SOURCE_SIGN_CONVENTION
@@ -396,11 +462,17 @@ def solve_mna(
         elif is_op_amp_type(component.type):
             current = op_amp_output_currents[component.id]
             if is_nonideal_op_amp_type(component.type):
-                sign_convention = (
-                    "Nonideal op-amp model: voltage is V(output) - V(reference), "
-                    "output current is positive from output to reference, finite gain "
-                    "and optional rail clamp are included."
-                )
+                if component.output_resistance_ohm is not None:
+                    sign_convention = (
+                        "Nonideal op-amp macromodel: output port is a VCCS plus finite "
+                        "output resistance, with current positive from output to reference."
+                    )
+                else:
+                    sign_convention = (
+                        "Nonideal op-amp model: voltage is V(output) - V(reference), "
+                        "output current is positive from output to reference, finite gain "
+                        "and optional rail clamp are included."
+                    )
             else:
                 sign_convention = (
                     "Ideal op-amp sign convention: voltage is V(output) - V(reference), "

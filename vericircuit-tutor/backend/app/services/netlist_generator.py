@@ -28,6 +28,20 @@ def _line_for_component(component: Component) -> str:
         return f"{component.id} {node_a} {node_b} {_fmt(component.value)}"
     if component.type == "inductor":
         return f"{component.id} {node_a} {node_b} {_fmt(component.value)}"
+    if component.type == "diode":
+        saturation_current = component.saturation_current_a or 1e-12
+        emission = component.emission_coefficient or 1.0
+        thermal_voltage = component.thermal_voltage_v or 0.025852
+        return "\n".join(
+            [
+                f"{component.id} {node_a} {node_b} D_{component.id}",
+                (
+                    f".model D_{component.id} D("
+                    f"IS={_fmt(saturation_current)} N={_fmt(emission)} "
+                    f"VT={_fmt(thermal_voltage)})"
+                ),
+            ]
+        )
     if component.type == "voltage_source":
         return f"{component.id} {node_a} {node_b} DC {_fmt(component.value)}{ac_suffix}"
     if component.type == "current_source":
@@ -58,6 +72,18 @@ def _line_for_component(component: Component) -> str:
             )
         if component.output_current_limit_a is not None:
             details.append(f"* output_current_limit_a={_fmt(component.output_current_limit_a)}")
+        if component.input_offset_voltage_v is not None:
+            details.append(f"* input_offset_voltage_v={_fmt(component.input_offset_voltage_v)}")
+        if component.input_resistance_ohm is not None:
+            details.append(f"* input_resistance_ohm={_fmt(component.input_resistance_ohm)}")
+        if component.output_resistance_ohm is not None:
+            details.append(f"* output_resistance_ohm={_fmt(component.output_resistance_ohm)}")
+        if component.compensation_capacitance_f is not None:
+            details.append(f"* compensation_capacitance_f={_fmt(component.compensation_capacitance_f)}")
+        if component.clamp_diode_saturation_current_a is not None:
+            details.append(
+                f"* clamp_diode_saturation_current_a={_fmt(component.clamp_diode_saturation_current_a)}"
+            )
         return "\n".join(details)
     raise ValueError(f"Unsupported component type: {component.type}")
 
@@ -80,7 +106,7 @@ def generate_netlist(problem: CircuitProblem) -> str:
             )
     elif problem.analysis_type == "rc_transient":
         initial = problem.transient.initial_voltage_v if problem.transient else 0.0
-        lines.append(f"* first-order RC transient template, initial capacitor voltage {_fmt(initial)} V")
+        lines.append(f"* numerical transient, initial target capacitor voltage {_fmt(initial)} V")
     else:
         lines.append(".op")
     lines.append(".end")

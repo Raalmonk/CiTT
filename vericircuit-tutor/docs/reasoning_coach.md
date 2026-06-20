@@ -57,7 +57,7 @@ If a submitted `StudentProfile` shows low independence or a high hint budget, th
 ```json
 {
   "problem_text": "A 10 V voltage source is connected in series with R1 = 2 kOhm and R2 = 3 kOhm. Find the voltage across R2 and the current through the circuit.",
-  "mode": "demo",
+  "mode": "gemini",
   "requested_hint_level": 1,
   "representation_mode": "physical_intuition",
   "student_commitment": {
@@ -81,9 +81,10 @@ Response fields:
 
 - `verification_badge`: hidden solver/verifier status, without exposing final values.
 - `student_frame`: parsed view of the student's partial thinking.
+- `student_frame.diagnostic_graph`: a short causal micro-graph linking observed error, missing concept, root cause, and next check when available.
 - `local_check`: one local blocker or next-step status.
 - `nudge`: hint level, message, representation prompt, next question, and student choices.
-- `profile_update`: updated misconception counts, strengths, hint budget, and independence level.
+- `profile_update`: updated misconception counts, BKT-style `knowledge_state`, strengths, hint budget, and independence level.
 - `adaptive_practice`: small follow-up prompts targeted at the current misconception.
 - `reflection`: compact learning journal entry with `today_i_learned` bullets.
 - `solution_packet`: `null` until Level 5 reveal is allowed.
@@ -102,9 +103,9 @@ Representation modes:
 - `units_magnitude`
 - `biomedical_context`
 
-## Misconception Tags
+## Diagnostic Tags And Graphs
 
-The first implementation detects common learning issues with deterministic heuristics:
+The coach starts with several built-in learning issues:
 
 - `common_mode_as_differential`
 - `inappropriate_divider_shortcut`
@@ -113,12 +114,43 @@ The first implementation detects common learning issues with deterministic heuri
 - `ideal_op_amp_input_current`
 - `unit_prefix`
 - `aliasing_nyquist_misread`
+- `reference_node_dependency`
+- `mesh_current_direction_dependency`
 
-These tags are intentionally small and teachable. They are returned in `profile_update.recurring_misconceptions`, so a UI, instructor dashboard, or future persistence layer can track patterns across attempts.
+These tags remain intentionally small and teachable, but the schema no longer forces every issue into that closed set. Gemini classification and deterministic heuristics may emit a concise new `snake_case` issue when the student's error does not fit a built-in category. The selected issues are returned in `profile_update.recurring_misconceptions`, so a UI, instructor dashboard, or future persistence layer can track patterns across attempts.
+
+`student_frame.diagnostic_graph` gives the UI a compact diagnostic tree. A node can represent an observed error, a missing concept, a likely root cause, or the next check. Edges use simple relations such as `causes`, `depends_on`, `evidence_for`, and `next_check`.
+
+Example:
+
+```json
+{
+  "id": "reference_node_dependency_missing_concept",
+  "label": "Reference node sets every measured voltage",
+  "kind": "missing_concept",
+  "confidence": 0.72,
+  "edges": [
+    {
+      "target_id": "reference_node_dependency_next_check",
+      "relation": "next_check"
+    }
+  ]
+}
+```
+
+## Portable Knowledge State
+
+`StudentProfile.knowledge_state` stores a lightweight BKT-style mastery estimate per skill or misconception. Each entry has:
+
+- `mastery`: 0 to 1 estimate after the latest evidence.
+- `opportunities`: number of coach turns that updated that skill.
+- `last_evidence`: compact reason for the update.
+
+The backend treats this as a portable payload supplied by the caller. It is useful for cross-session adaptation when the client or LMS stores and resubmits it, but the MVP itself does not persist student records.
 
 ## Adaptive Practice
 
-When a local issue maps to a misconception tag, the response includes two deterministic `adaptive_practice` prompts. They are deliberately smaller than the original problem and target one misconception at a time.
+When a local issue maps to a built-in or dynamic misconception tag, the response includes two deterministic `adaptive_practice` prompts. They are deliberately smaller than the original problem and target one misconception at a time.
 
 Example:
 
@@ -168,6 +200,6 @@ This endpoint is stateless. It does not store student data; it aggregates what t
 
 The coach layer is not a new truth engine. It delegates parsing and verification to the existing pipeline, then shapes the visible tutoring response. Future work can replace or augment the deterministic student-frame extraction with an LLM, but final numerical authority must remain solver/verifier-grounded.
 
-Current LLM boundary: Gemini may classify the student's partial reasoning in `gemini` and `gemini_strict` modes, but its schema has no answer fields and its prompt forbids solving. If Gemini is unavailable, the coach falls back to deterministic heuristics and returns a warning.
+Current LLM boundary: Gemini may classify the student's partial reasoning and propose diagnostic graph nodes in `gemini` and `gemini_strict` modes, but its schema has no answer fields and its prompt forbids solving. If Gemini is unavailable, the coach falls back to deterministic heuristics and returns a warning.
 
 Current persistence boundary: student profiles and dashboard inputs are portable payloads, not database-backed records. A production system can persist those profiles later without changing solver authority.

@@ -1,140 +1,93 @@
 from fastapi.testclient import TestClient
 
-from app.models.circuit_ir import CircuitProblem, Component, Goal
 from app.main import app
+from app.models.circuit_ir import CircuitProblem, Component, Goal
+from app.services import optcpv_bridge
+from app.services.bme_templates import BME_TEMPLATE_FACTORIES
 from app.services.demo_parser import (
     bridge_network_alt_problem,
     bridge_network_problem,
     current_divider_problem,
     voltage_divider_problem,
 )
-from app.services.bme_templates import BME_TEMPLATE_FACTORIES
-from app.services import schematic_generator
 from app.services.variant_generator import generate_goal_variant, generate_value_variant
 
 
-def _schematic(circuit: CircuitProblem):
+def _schematic(circuit: CircuitProblem, renderer: str | None = None):
     client = TestClient(app)
-    return client.post("/schematic", json={"circuit_ir": circuit.model_dump()})
+    payload = {"circuit_ir": circuit.model_dump()}
+    if renderer:
+        payload["renderer"] = renderer
+    return client.post("/schematic", json=payload)
 
 
-def test_schematic_endpoint_returns_svg_for_original_examples():
-    examples = [
-        (voltage_divider_problem(), "schemdraw_voltage_divider"),
-        (current_divider_problem(), "schemdraw_current_divider"),
-        (bridge_network_problem(), "manual_svg_bridge_network"),
-        (bridge_network_alt_problem(), "manual_svg_bridge_network"),
-    ]
-
-    for circuit, renderer in examples:
-        response = _schematic(circuit)
-
-        assert response.status_code == 200
-        assert response.headers["content-type"].startswith("image/svg+xml")
-        assert response.text.lstrip().startswith("<svg")
-        assert renderer in response.text
-        assert "fallback_graph" not in response.text
-
-
-def test_schematic_contains_component_ids_and_values():
-    response = _schematic(voltage_divider_problem())
-
+def _assert_optcpv_svg(response, circuit: CircuitProblem) -> None:
     assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/svg+xml")
+    assert response.text.lstrip().startswith("<svg")
+    assert 'data-renderer="optcpv.' in response.text
+    assert f'data-optcpv-circuit-id="{circuit.id}"' in response.text
+    assert "fallback_graph" not in response.text
+    assert "schemdraw_voltage_divider" not in response.text
+    assert "manual_svg_bridge_network" not in response.text
+
+
+def test_schematic_endpoint_returns_optcpv_svg_for_original_examples():
+    for circuit in [
+        voltage_divider_problem(),
+        current_divider_problem(),
+        bridge_network_problem(),
+        bridge_network_alt_problem(),
+    ]:
+        _assert_optcpv_svg(_schematic(circuit), circuit)
+
+
+def test_schematic_preserves_component_metadata_and_resistor_labels():
+    circuit = voltage_divider_problem()
+    response = _schematic(circuit)
+
+    _assert_optcpv_svg(response, circuit)
+    for component in circuit.components:
+        assert f'data-component-id="{component.id}"' in response.text
     assert "R1" in response.text
     assert "2 kΩ" in response.text
     assert "R2" in response.text
     assert "3 kΩ" in response.text
     assert "V1" in response.text
-    assert "10 V" in response.text
 
 
-def test_known_schematics_include_probe_metadata_and_current_paths():
-    examples = [voltage_divider_problem(), current_divider_problem(), bridge_network_problem()]
+def test_bridge_schematic_keeps_all_bridge_components():
+    circuit = bridge_network_problem()
+    response = _schematic(circuit)
 
-    for circuit in examples:
-        response = _schematic(circuit)
-
-        assert response.status_code == 200
-        for component in circuit.components:
-            assert f'data-component-id="{component.id}"' in response.text
-            assert f'class="current-path" data-component-id="{component.id}"' in response.text
-        for node in circuit.nodes:
-            assert f'data-node-id="{node}"' in response.text
-
-
-def test_bridge_schematic_contains_clear_component_and_node_labels():
-    response = _schematic(bridge_network_problem())
-
-    assert response.status_code == 200
-    for label in ["R1", "R2", "R3", "R4", "R5", "V1"]:
-        assert label in response.text
-    for node_label in ["n1", "n2", "n3", "0"]:
-        assert node_label in response.text
-    assert "1 kΩ" in response.text
-    assert "1.5 kΩ" in response.text
-    assert "2.2 kΩ" in response.text
-    assert "manual_svg_bridge_network" in response.text
-    for component_id in ["R1", "R2", "R3", "R4", "R5", "V1"]:
-        assert response.text.count(component_id) >= 1
-
-
-def test_second_bridge_schematic_contains_clear_component_and_node_labels():
-    response = _schematic(bridge_network_alt_problem())
-
-    assert response.status_code == 200
-    for label in ["R1", "R2", "R3", "R4", "R5", "V1"]:
-        assert label in response.text
-    for node_label in ["src", "a", "b", "0"]:
-        assert node_label in response.text
-    assert "1.2 kΩ" in response.text
-    assert "3.3 kΩ" in response.text
-    assert "manual_svg_bridge_network" in response.text
-
-
-def test_schematic_uses_template_for_goal_variant():
-    variant = generate_goal_variant(bridge_network_problem())
-    response = _schematic(variant)
-
-    assert response.status_code == 200
-    assert "manual_svg_bridge_network" in response.text
-    assert "fallback_graph" not in response.text
-    assert variant.topology_id == "bridge_network"
-
-
-def test_schematic_uses_template_for_second_bridge_goal_variant():
-    variant = generate_goal_variant(bridge_network_alt_problem())
-    response = _schematic(variant)
-
-    assert response.status_code == 200
-    assert "manual_svg_bridge_network" in response.text
-    assert "fallback_graph" not in response.text
-    assert "src" in response.text
-    assert "a" in response.text
-    assert "b" in response.text
-
-
-def test_schematic_uses_template_for_value_variant():
-    variant = generate_value_variant(bridge_network_alt_problem())
-    response = _schematic(variant)
-
-    assert response.status_code == 200
-    assert "manual_svg_bridge_network" in response.text
-    assert "fallback_graph" not in response.text
+    _assert_optcpv_svg(response, circuit)
+    for component_id in ["V1", "R1", "R2", "R3", "R4", "R5"]:
+        assert f'data-component-id="{component_id}"' in response.text
     assert "R5" in response.text
-    assert variant.topology_id == "bridge_network"
 
 
-def test_schematic_normalizes_variant_id_when_topology_id_missing():
-    variant = generate_value_variant(voltage_divider_problem())
-    variant.topology_id = None
-    response = _schematic(variant)
+def test_bme_schematic_keeps_component_metadata_without_citt_fallback():
+    circuit = BME_TEMPLATE_FACTORIES["bme_ecg_front_end"]().circuit_problem
+    response = _schematic(circuit)
 
-    assert response.status_code == 200
-    assert "schemdraw_voltage_divider" in response.text
-    assert "fallback_graph" not in response.text
+    _assert_optcpv_svg(response, circuit)
+    for component in circuit.components:
+        assert f'data-component-id="{component.id}"' in response.text
 
 
-def test_schematic_fallback_still_works_for_unknown_topology():
+def test_schematic_renders_variants_through_optcpv():
+    variants = [
+        generate_goal_variant(bridge_network_problem()),
+        generate_goal_variant(bridge_network_alt_problem()),
+        generate_value_variant(bridge_network_alt_problem()),
+        generate_value_variant(voltage_divider_problem()),
+    ]
+
+    for variant in variants:
+        _assert_optcpv_svg(_schematic(variant), variant)
+
+
+def test_schematic_unknown_topology_still_uses_optcpv_not_citt_fallback():
     circuit = CircuitProblem(
         id="custom_supported_network",
         title="Custom Supported Network",
@@ -150,34 +103,102 @@ def test_schematic_fallback_still_works_for_unknown_topology():
     )
     response = _schematic(circuit)
 
-    assert response.status_code == 200
-    assert response.text.lstrip().startswith("<svg")
-    assert "fallback_graph" in response.text
-    assert "R1" in response.text
-    assert "1 kΩ" in response.text
-
-
-def test_fallback_schematic_includes_probe_metadata_and_current_paths():
-    circuit = BME_TEMPLATE_FACTORIES["bme_ecg_front_end"]().circuit_problem
-    response = _schematic(circuit)
-
-    assert response.status_code == 200
-    assert "fallback_graph" in response.text
+    _assert_optcpv_svg(response, circuit)
     for component in circuit.components:
         assert f'data-component-id="{component.id}"' in response.text
-        if len(component.nodes) == 2:
-            assert f'class="current-path" data-component-id="{component.id}"' in response.text
-    for node in circuit.nodes:
-        assert f'data-node-id="{node}"' in response.text
 
 
-def test_schematic_template_error_returns_fallback_svg(monkeypatch):
-    def broken_renderer(circuit):
-        raise RuntimeError("schemdraw failed")
+def test_voltage_clamp_schematic_canonicalizes_lowercase_nets_for_optcpv_routes():
+    circuit = CircuitProblem(
+        id="tevc_lowercase",
+        title="Lowercase TEVC",
+        topology_id="two_electrode_voltage_clamp",
+        ground_node="gnd",
+        nodes=["gnd", "vc", "vm", "vo"],
+        components=[
+            Component(
+                id="DiffAmp",
+                type="op_amp_nonideal",
+                nodes=["vc", "vm", "vo", "gnd"],
+                value=100.0,
+                unit="gain",
+                open_loop_gain=100.0,
+            ),
+            Component(id="R_m", type="resistor", nodes=["vm", "gnd"], value=10.0, unit="ohm", label="R_m = 10 ohm"),
+            Component(id="R_o", type="resistor", nodes=["vo", "vm"], value=10.0, unit="ohm", label="R_o = 10 ohm"),
+        ],
+        goals=[Goal(id="vm_equilibrium", quantity="node_voltage", target="vm")],
+    )
+    response = _schematic(circuit)
 
-    monkeypatch.setattr(schematic_generator, "_render_bridge_manual_svg", broken_renderer)
-    response = _schematic(bridge_network_problem())
+    _assert_optcpv_svg(response, circuit)
+    assert 'data-component-id="VC"' in response.text
+    assert 'data-component-id="VM"' in response.text
+    assert 'data-component-id="VO"' in response.text
+    assert 'data-component-id="GND"' in response.text
+    assert 'data-net-name="Vm"' in response.text
+    assert 'data-net-name="vm"' not in response.text
+
+
+def test_schematic_rejects_removed_citt_renderer_option():
+    response = _schematic(voltage_divider_problem(), renderer="citt")
+
+    assert response.status_code == 422
+
+
+def test_schematic_endpoint_can_render_through_optcpv(monkeypatch):
+    def fake_from_citt_payload(payload):
+        assert payload["id"] == "voltage_divider"
+        assert payload["motif"] == "voltage_divider"
+        assert payload["output_node"] == "n2"
+        assert payload["components"][0]["label"].startswith("V1 = ")
+        return payload
+
+    def fake_draw_svg(payload):
+        assert payload["ground_node"] == "0"
+        return '<svg data-renderer="optcpv.raw"><g data-component-id="R1"></g></svg>'
+
+    def fake_draw_optimized_svg(*args, **kwargs):
+        raise AssertionError("raw OptCPV rendering should be the default")
+
+    monkeypatch.setattr(
+        optcpv_bridge,
+        "_load_bindings",
+        lambda: optcpv_bridge.OptCPVBindings(
+            from_citt_payload=fake_from_citt_payload,
+            draw_svg=fake_draw_svg,
+            draw_optimized_svg=fake_draw_optimized_svg,
+        ),
+    )
+
+    response = _schematic(voltage_divider_problem(), renderer="optcpv")
 
     assert response.status_code == 200
-    assert response.text.lstrip().startswith("<svg")
-    assert "fallback_graph_after_schemdraw_error" in response.text
+    assert 'data-renderer="optcpv.raw"' in response.text
+    assert 'data-component-id="R1"' in response.text
+
+
+def test_optcpv_schematic_error_is_returned_without_citt_fallback(monkeypatch, caplog):
+    def fake_from_citt_payload(payload):
+        return payload
+
+    def fake_draw_svg(payload):
+        raise RuntimeError("optcpv render exploded")
+
+    monkeypatch.setattr(
+        optcpv_bridge,
+        "_load_bindings",
+        lambda: optcpv_bridge.OptCPVBindings(
+            from_citt_payload=fake_from_citt_payload,
+            draw_svg=fake_draw_svg,
+            draw_optimized_svg=fake_draw_svg,
+        ),
+    )
+    caplog.set_level("ERROR", logger="app.main")
+
+    response = _schematic(voltage_divider_problem(), renderer="optcpv")
+
+    assert response.status_code == 502
+    assert response.json()["detail"].startswith("OptCPV schematic rendering failed")
+    assert "fallback_graph" not in response.text
+    assert "OptCPV schematic rendering failed." in caplog.text

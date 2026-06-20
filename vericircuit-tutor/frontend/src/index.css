@@ -4,40 +4,41 @@
 
 @layer base {
   :root {
-    --background: 210 33% 98%;
-    --foreground: 222 47% 11%;
+    --background: 160 32% 98%;
+    --foreground: 166 36% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --primary: 203 84% 32%;
+    --card-foreground: 166 36% 10%;
+    --primary: 158 96% 28%;
     --primary-foreground: 0 0% 100%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 44%;
-    --accent: 196 74% 92%;
-    --accent-foreground: 202 80% 24%;
+    --muted: 155 28% 94%;
+    --muted-foreground: 165 12% 39%;
+    --accent: 156 100% 92%;
+    --accent-foreground: 158 92% 17%;
     --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 203 84% 32%;
+    --border: 157 21% 87%;
+    --input: 157 21% 87%;
+    --ring: 156 100% 34%;
     --radius: 0.5rem;
+    --monk: 156 100% 50%;
   }
 
   .dark {
-    --background: 218 36% 9%;
-    --foreground: 210 40% 96%;
-    --card: 217 33% 13%;
-    --card-foreground: 210 40% 96%;
-    --primary: 201 88% 68%;
-    --primary-foreground: 216 42% 8%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 70%;
-    --accent: 203 56% 18%;
-    --accent-foreground: 201 88% 76%;
+    --background: 166 42% 7%;
+    --foreground: 156 33% 94%;
+    --card: 164 35% 10%;
+    --card-foreground: 156 33% 94%;
+    --primary: 156 100% 44%;
+    --primary-foreground: 166 42% 7%;
+    --muted: 164 31% 14%;
+    --muted-foreground: 156 16% 72%;
+    --accent: 160 52% 18%;
+    --accent-foreground: 156 100% 82%;
     --destructive: 0 72% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 217 33% 22%;
-    --input: 217 33% 22%;
-    --ring: 201 88% 68%;
+    --border: 163 26% 21%;
+    --input: 163 26% 21%;
+    --ring: 156 100% 50%;
   }
 
   * {
@@ -54,7 +55,27 @@
 
 @layer components {
   .workspace-panel {
-    @apply overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm;
+    @apply overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm shadow-emerald-950/5;
+  }
+
+  .workspace-tab {
+    @apply flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground active:translate-y-px;
+  }
+
+  .workspace-tab-active {
+    @apply bg-accent text-accent-foreground shadow-sm;
+  }
+
+  .soft-field {
+    @apply rounded-md border bg-background px-3 text-sm outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .soft-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-md text-sm font-semibold transition active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55;
+  }
+
+  .monk-glow {
+    box-shadow: 0 0 0 1px hsl(var(--monk) / 0.14), 0 12px 32px hsl(var(--monk) / 0.12);
   }
 
   .circuit-grid {
@@ -79,6 +100,15 @@
 
   .tutor-markdown p {
     @apply my-1;
+  }
+
+  .tutor-markdown-inline {
+    @apply inline min-w-0 text-inherit;
+    overflow-wrap: inherit;
+  }
+
+  .tutor-markdown-inline p {
+    @apply m-0 inline;
   }
 
   .tutor-markdown ul,
