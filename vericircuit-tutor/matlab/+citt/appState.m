@@ -22,4 +22,13 @@ state.LastSimulation = [];
 state.LastProbe = [];
 state.LabCsvPath = "";
 state.LastLabDelta = [];
+state.EvidencePackPath = config.EvidencePackPath;
+state.LastEvidencePack = [];
+state.LastRequirements = [];
+state.LastSweep = [];
+state.LastFaults = [];
+state.LastExplainability = [];
+state.LastAssessment = [];
+state.LastEconomics = [];
+state.LastScopeGuardrail = [];
 end

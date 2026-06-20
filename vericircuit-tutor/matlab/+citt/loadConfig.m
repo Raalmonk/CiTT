@@ -8,7 +8,8 @@ if exist(workDir, "dir") ~= 7
 end
 
 loadLocalEnv(matlabRoot);
-loadShellEnvIfMissing(["GEMINI_API_KEY", "GEMINI_MODEL", "CITT_AGENT_COMMAND"]);
+loadShellEnvIfMissing(["GEMINI_API_KEY", "GEMINI_MODEL", "CITT_AGENT_COMMAND", ...
+    "CITT_USE_LOCAL_SIMSCAPE_FALLBACK", "CITT_LOCAL_SIMSCAPE_FALLBACK"]);
 agenticToolkit = discoverAgenticToolkit();
 
 apiKey = string(getenv("GEMINI_API_KEY"));
@@ -23,7 +24,7 @@ config.MatlabAgenticToolkitPath = agenticToolkit.matlab_path;
 config.MatlabMcpServerPath = agenticToolkit.mcp_server_path;
 config.GeminiApiKey = apiKey;
 config.GeminiApiKeyName = apiKeyName;
-config.GeminiModel = getenvOrDefault("GEMINI_MODEL", "gemini-3.5-flash");
+config.GeminiModel = getenvOrDefault("GEMINI_MODEL", "gemini-3.1-pro-preview");
 config.AgentCommand = string(getenv("CITT_AGENT_COMMAND"));
 config.LastSpecPath = string(fullfile(workDir, "citt_last_circuit_spec.json"));
 config.AgentTaskPath = string(fullfile(workDir, "citt_agent_task.md"));
@@ -37,6 +38,21 @@ config.ModelCheckReportPath = string(fullfile(workDir, "citt_model_check_report.
 config.SimulationSummaryPath = string(fullfile(workDir, "citt_simulation_summary.json"));
 config.ProbeActionPlanPath = string(fullfile(workDir, "citt_probe_action_plan.json"));
 config.LabDeltaReportPath = string(fullfile(workDir, "citt_lab_delta_report.json"));
+config.EvidencePackPath = string(fullfile(workDir, "citt_evidence_pack.md"));
+config.RequirementReportPath = string(fullfile(workDir, "citt_requirement_report.json"));
+config.RequirementReportMarkdownPath = string(fullfile(workDir, "citt_requirement_report.md"));
+config.ParameterSweepReportPath = string(fullfile(workDir, "citt_parameter_sweep_report.json"));
+config.ParameterSweepMarkdownPath = string(fullfile(workDir, "citt_parameter_sweep_report.md"));
+config.FaultInjectionReportPath = string(fullfile(workDir, "citt_fault_injection_report.json"));
+config.FaultInjectionMarkdownPath = string(fullfile(workDir, "citt_fault_injection_report.md"));
+config.ExplainabilityMapPath = string(fullfile(workDir, "citt_explainability_map.json"));
+config.ExplainabilityMarkdownPath = string(fullfile(workDir, "citt_explainability_map.md"));
+config.AssessmentReportPath = string(fullfile(workDir, "citt_learning_assessment_report.json"));
+config.AssessmentMarkdownPath = string(fullfile(workDir, "citt_learning_assessment_report.md"));
+config.EconomicsPlanPath = string(fullfile(workDir, "citt_economics_plan.json"));
+config.EconomicsMarkdownPath = string(fullfile(workDir, "citt_economics_plan.md"));
+config.ScopeGuardrailPath = string(fullfile(workDir, "citt_scope_guardrail.json"));
+config.ScopeGuardrailMarkdownPath = string(fullfile(workDir, "citt_scope_guardrail.md"));
 end
 
 function toolkit = discoverAgenticToolkit()

@@ -62,7 +62,7 @@ end
 end
 
 function clis = findAgentClis()
-names = ["gemini", "codex", "claude"];
+names = ["gemini", "codex"];
 clis = struct([]);
 for i = 1:numel(names)
     cli = struct();
@@ -129,10 +129,10 @@ for i = 1:numel(report.agent_clis)
     hasCli = hasCli || report.agent_clis(i).available;
 end
 if ~hasCli && strlength(report.configured_agent_command) == 0
-    lines(end + 1) = "Configure Gemini CLI, Codex CLI, Claude CLI, or CITT_AGENT_COMMAND for automatic agent execution.";
+    lines(end + 1) = "Configure Gemini CLI, Codex CLI, or CITT_AGENT_COMMAND for automatic SATK agent execution.";
 end
 if isempty(lines)
-    lines = "Setup looks ready for the MATLAB-native CiTT flow.";
+    lines = "Setup looks ready for the MATLAB-native SATK agent flow.";
 end
 end
 

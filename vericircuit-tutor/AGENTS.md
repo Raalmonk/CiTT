@@ -12,13 +12,14 @@
 - Student input starts inside MATLAB: circuit image and/or short prompt.
 - Gemini is required for real image/prompt to structured circuit parsing.
 - `GEMINI_API_KEY` may come from the MATLAB process environment or local untracked `.env` files.
-- Default Gemini model is `gemini-3.5-flash`.
+- Default Gemini model is `gemini-3.1-pro-preview`.
 - Never commit real API keys. `vericircuit-tutor/matlab/.env` is local-only; use `.env.example` for placeholders.
 - Gemini parses the circuit spec only. It is not the numerical or engineering authority.
 - The generated SATK agent task must be Simscape-first and should request Simulink Agentic Toolkit tools such as `model_overview`, `model_read`, `model_edit`, `model_check`, `model_query_params`, and `model_resolve_params`.
-- Build Model must also generate runnable MATLAB build code at `matlab/work/citt_build_simscape_model.m`, execute it in the current MATLAB session, save `matlab/work/citt_generated_model.slx`, and open the model.
+- Build Model must invoke a SATK-compatible external agent CLI with `matlab/work/citt_agent_task.md`. The agent is responsible for using SATK/MCP tools to save `matlab/work/citt_generated_model.slx`, focus/probe maps, and the agent report.
+- The local Simscape builder is only an explicit emergency/demo fallback (`citt.buildLocalSimscapeFallback`), never the default Build Model path.
 - Do not block model drawing just because a value is symbolic, omitted, or irrelevant to the requested loop. Preserve it as a named Simscape parameter such as `V_c` or `CITT_R1_value`, and report that simulation/checking will need numeric values.
-- If SATK, MATLAB MCP, Simulink, or Simscape is missing, do not fake success. Fail fast. External agent CLIs are optional extensions, not the only model-drawing path.
+- If SATK, MATLAB MCP, Simulink, or Simscape is missing, do not fake success. Fail fast. If no external agent CLI is configured, enter manual-agent mode or use the explicit local fallback only when requested.
 
 ## MATLAB Implementation Rules
 

@@ -7,6 +7,8 @@ testFiles = {
     "test_simscape_model_generation"
     "test_teaching_plan_contract"
     "test_lab_delta"
+    "test_evidence_pack_export"
+    "test_competition_feature_pack"
 };
 
 results = struct([]);

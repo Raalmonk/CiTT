@@ -62,13 +62,16 @@ buildAgentTab(tabs);
 buildModelTab(tabs);
 buildTeachTab(tabs);
 buildProbeTab(tabs);
+buildVerificationTab(tabs);
+buildAssessmentTab(tabs);
+buildEvidenceTab(tabs);
 
 app.Handles = handles;
 app.State = state;
 refreshAll();
 
     function buildInputTab(parent)
-        tab = uitab(parent, "Title", "Read Circuit");
+        tab = uitab(parent, "Title", "Read");
         grid = uigridlayout(tab, [8 4]);
         grid.RowHeight = {32, 170, 34, 92, 38, 70, 28, "1x"};
         grid.ColumnWidth = {110, "1x", 170, 170};
@@ -131,7 +134,7 @@ refreshAll();
     end
 
     function buildAgentTab(parent)
-        tab = uitab(parent, "Title", "Build Model");
+        tab = uitab(parent, "Title", "Build");
         grid = uigridlayout(tab, [5 3]);
         grid.RowHeight = {180, 34, 34, "1x", 34};
         grid.ColumnWidth = {"1x", 170, 170};
@@ -179,7 +182,7 @@ refreshAll();
     end
 
     function buildModelTab(parent)
-        tab = uitab(parent, "Title", "Model Lab");
+        tab = uitab(parent, "Title", "Model");
         grid = uigridlayout(tab, [5 4]);
         grid.RowHeight = {34, 34, 34, "1x", 160};
         grid.ColumnWidth = {90, "1x", 150, 150};
@@ -285,7 +288,7 @@ refreshAll();
     end
 
     function buildProbeTab(parent)
-        tab = uitab(parent, "Title", "Probe & Compare");
+        tab = uitab(parent, "Title", "Probe");
         grid = uigridlayout(tab, [7 4]);
         grid.RowHeight = {34, 34, 34, "1x", 34, 34, 150};
         grid.ColumnWidth = {150, "1x", 160, 160};
@@ -336,6 +339,189 @@ refreshAll();
         handles.deltaOutput.FontName = "Menlo";
         handles.deltaOutput.Layout.Row = [6 7];
         handles.deltaOutput.Layout.Column = [1 4];
+    end
+
+    function buildVerificationTab(parent)
+        tab = uitab(parent, "Title", "Verify");
+        grid = uigridlayout(tab, [6 4]);
+        grid.RowHeight = {34, 34, 28, "1x", 28, 92};
+        grid.ColumnWidth = {150, "1x", 170, 170};
+        grid.Padding = [12 12 12 12];
+        grid.RowSpacing = 8;
+        grid.ColumnSpacing = 8;
+
+        uilabel(grid, "Text", "Explain action");
+        handles.explainSelector = uidropdown(grid, "Items", "");
+        handles.explainSelector.Layout.Row = 1;
+        handles.explainSelector.Layout.Column = 2;
+        handles.buildExplainabilityButton = uibutton(grid, "Text", "Map", ...
+            "ButtonPushedFcn", @(~, ~) onBuildExplainability());
+        handles.buildExplainabilityButton.Tooltip = "Build the explainability action map from focus and probe artifacts.";
+        handles.buildExplainabilityButton.Layout.Row = 1;
+        handles.buildExplainabilityButton.Layout.Column = 3;
+        handles.highlightExplainabilityButton = uibutton(grid, "Text", "Highlight", ...
+            "ButtonPushedFcn", @(~, ~) onHighlightExplainability());
+        handles.highlightExplainabilityButton.Tooltip = "Highlight the selected explainability action in Simulink.";
+        handles.highlightExplainabilityButton.Layout.Row = 1;
+        handles.highlightExplainabilityButton.Layout.Column = 4;
+
+        handles.requirementsButton = uibutton(grid, "Text", "Requirements", ...
+            "ButtonPushedFcn", @(~, ~) onRunRequirements());
+        handles.requirementsButton.Tooltip = "Export the requirement-to-simulation pass/fail table.";
+        handles.requirementsButton.FontWeight = "bold";
+        handles.requirementsButton.BackgroundColor = [0.145 0.486 0.353];
+        handles.requirementsButton.FontColor = [1 1 1];
+        handles.requirementsButton.Layout.Row = 2;
+        handles.requirementsButton.Layout.Column = 1;
+        handles.sweepButton = uibutton(grid, "Text", "Sweep", ...
+            "ButtonPushedFcn", @(~, ~) onRunSweep());
+        handles.sweepButton.Tooltip = "Run the RC tolerance sweep report.";
+        handles.sweepButton.Layout.Row = 2;
+        handles.sweepButton.Layout.Column = 2;
+        handles.faultButton = uibutton(grid, "Text", "Faults", ...
+            "ButtonPushedFcn", @(~, ~) onRunFaults());
+        handles.faultButton.Tooltip = "Export educational fault-injection scenarios.";
+        handles.faultButton.Layout.Row = 2;
+        handles.faultButton.Layout.Column = 3;
+        handles.openVerificationReportButton = uibutton(grid, "Text", "Open", ...
+            "ButtonPushedFcn", @(~, ~) onOpenLastVerificationReport());
+        handles.openVerificationReportButton.Tooltip = "Open the latest generated verification report.";
+        handles.openVerificationReportButton.Layout.Row = 2;
+        handles.openVerificationReportButton.Layout.Column = 4;
+
+        handles.verificationStatus = uilabel(grid);
+        handles.verificationStatus.FontName = "Helvetica";
+        handles.verificationStatus.Layout.Row = 3;
+        handles.verificationStatus.Layout.Column = [1 4];
+
+        handles.verificationOutput = uitextarea(grid);
+        handles.verificationOutput.Editable = "off";
+        handles.verificationOutput.FontName = "Menlo";
+        handles.verificationOutput.Layout.Row = 4;
+        handles.verificationOutput.Layout.Column = [1 4];
+
+        uilabel(grid, "Text", "Reports");
+        handles.verificationReports = uitextarea(grid);
+        handles.verificationReports.Editable = "off";
+        handles.verificationReports.FontName = "Menlo";
+        handles.verificationReports.Layout.Row = [5 6];
+        handles.verificationReports.Layout.Column = [2 4];
+    end
+
+    function buildAssessmentTab(parent)
+        tab = uitab(parent, "Title", "Plan");
+        grid = uigridlayout(tab, [7 4]);
+        grid.RowHeight = {34, 76, 76, 34, 28, "1x", 92};
+        grid.ColumnWidth = {130, "1x", 160, 160};
+        grid.Padding = [12 12 12 12];
+        grid.RowSpacing = 8;
+        grid.ColumnSpacing = 8;
+
+        uilabel(grid, "Text", "Concept");
+        handles.assessmentConceptField = uieditfield(grid, "text", ...
+            "Value", "cutoff frequency output node");
+        handles.assessmentConceptField.Layout.Row = 1;
+        handles.assessmentConceptField.Layout.Column = 2;
+        handles.hintLevelsField = uieditfield(grid, "numeric", "Value", 0, "Limits", [0 10]);
+        handles.hintLevelsField.Layout.Row = 1;
+        handles.hintLevelsField.Layout.Column = 3;
+        handles.assessmentButton = uibutton(grid, "Text", "Assess", ...
+            "ButtonPushedFcn", @(~, ~) onRunAssessment());
+        handles.assessmentButton.Tooltip = "Export learning-gain evidence from before/after answers.";
+        handles.assessmentButton.FontWeight = "bold";
+        handles.assessmentButton.BackgroundColor = [0.145 0.486 0.353];
+        handles.assessmentButton.FontColor = [1 1 1];
+        handles.assessmentButton.Layout.Row = 1;
+        handles.assessmentButton.Layout.Column = 4;
+
+        uilabel(grid, "Text", "Before");
+        handles.beforeAnswerText = uitextarea(grid);
+        handles.beforeAnswerText.Layout.Row = 2;
+        handles.beforeAnswerText.Layout.Column = [2 4];
+
+        uilabel(grid, "Text", "After");
+        handles.afterAnswerText = uitextarea(grid);
+        handles.afterAnswerText.Layout.Row = 3;
+        handles.afterAnswerText.Layout.Column = [2 4];
+
+        uilabel(grid, "Text", "Students");
+        handles.studentsField = uieditfield(grid, "numeric", "Value", 30, "Limits", [1 10000]);
+        handles.studentsField.Layout.Row = 4;
+        handles.studentsField.Layout.Column = 2;
+        handles.economicsButton = uibutton(grid, "Text", "Cost", ...
+            "ButtonPushedFcn", @(~, ~) onBuildEconomics());
+        handles.economicsButton.Tooltip = "Export the deployment cost and licensing plan.";
+        handles.economicsButton.Layout.Row = 4;
+        handles.economicsButton.Layout.Column = 3;
+        handles.scopeButton = uibutton(grid, "Text", "Scope", ...
+            "ButtonPushedFcn", @(~, ~) onBuildScopeGuardrail());
+        handles.scopeButton.Tooltip = "Export educational/regulatory scope guardrails.";
+        handles.scopeButton.Layout.Row = 4;
+        handles.scopeButton.Layout.Column = 4;
+
+        handles.assessmentStatus = uilabel(grid);
+        handles.assessmentStatus.FontName = "Helvetica";
+        handles.assessmentStatus.Layout.Row = 5;
+        handles.assessmentStatus.Layout.Column = [1 4];
+
+        handles.assessmentOutput = uitextarea(grid);
+        handles.assessmentOutput.Editable = "off";
+        handles.assessmentOutput.FontName = "Menlo";
+        handles.assessmentOutput.Layout.Row = 6;
+        handles.assessmentOutput.Layout.Column = [1 4];
+
+        uilabel(grid, "Text", "Reports");
+        handles.assessmentReports = uitextarea(grid);
+        handles.assessmentReports.Editable = "off";
+        handles.assessmentReports.FontName = "Menlo";
+        handles.assessmentReports.Layout.Row = 7;
+        handles.assessmentReports.Layout.Column = [2 4];
+    end
+
+    function buildEvidenceTab(parent)
+        tab = uitab(parent, "Title", "Export");
+        grid = uigridlayout(tab, [5 4]);
+        grid.RowHeight = {34, 34, "1x", 28, 104};
+        grid.ColumnWidth = {120, "1x", 170, 140};
+        grid.Padding = [12 12 12 12];
+        grid.RowSpacing = 8;
+        grid.ColumnSpacing = 8;
+
+        uilabel(grid, "Text", "Path");
+        handles.evidencePathField = uieditfield(grid, "text");
+        handles.evidencePathField.Layout.Row = 1;
+        handles.evidencePathField.Layout.Column = [2 4];
+
+        handles.exportEvidenceButton = uibutton(grid, "Text", "Export Pack", ...
+            "ButtonPushedFcn", @(~, ~) onExportEvidencePack());
+        handles.exportEvidenceButton.FontWeight = "bold";
+        handles.exportEvidenceButton.BackgroundColor = [0.145 0.486 0.353];
+        handles.exportEvidenceButton.FontColor = [1 1 1];
+        handles.exportEvidenceButton.Layout.Row = 2;
+        handles.exportEvidenceButton.Layout.Column = [2 3];
+
+        handles.openEvidenceButton = uibutton(grid, "Text", "Open", ...
+            "ButtonPushedFcn", @(~, ~) onOpenEvidencePack());
+        handles.openEvidenceButton.Tooltip = "Open the generated evidence pack.";
+        handles.openEvidenceButton.Layout.Row = 2;
+        handles.openEvidenceButton.Layout.Column = 4;
+
+        handles.evidenceOutput = uitextarea(grid);
+        handles.evidenceOutput.Editable = "off";
+        handles.evidenceOutput.FontName = "Menlo";
+        handles.evidenceOutput.Layout.Row = 3;
+        handles.evidenceOutput.Layout.Column = [1 4];
+
+        handles.evidenceStatus = uilabel(grid);
+        handles.evidenceStatus.FontName = "Helvetica";
+        handles.evidenceStatus.Layout.Row = 4;
+        handles.evidenceStatus.Layout.Column = [1 4];
+
+        handles.evidenceNotes = uitextarea(grid);
+        handles.evidenceNotes.Editable = "off";
+        handles.evidenceNotes.FontName = "Helvetica";
+        handles.evidenceNotes.Layout.Row = 5;
+        handles.evidenceNotes.Layout.Column = [1 4];
     end
 
     function onSelectImage()
@@ -448,7 +634,7 @@ refreshAll();
             state.AgentTaskPath = generated.task_path;
             refreshAll();
             handles.agentStatus.Text = "Build task ready";
-            setArea(handles.agentOutput, "Build task ready. Build Model will generate and run MATLAB Simscape code." + newline + generated.task_path);
+            setArea(handles.agentOutput, "Build task ready. Build Model will hand this task to an SATK-enabled external agent." + newline + generated.task_path);
             setPipeline("Build task ready. Next: Build Model.", 55);
         catch taskError
             setArea(handles.agentOutput, "Build preparation failed: " + string(taskError.message));
@@ -459,8 +645,8 @@ refreshAll();
 
     function onRunAgent()
         try
-            setBusy("Building Simscape model...", 68);
-            progress = startProgress("Building Model", "Gemini CLI and SATK are building the Simscape model. This can take a while.");
+            setBusy("Running SATK agent...", 68);
+            progress = startProgress("Building Model", "An SATK-enabled external agent is building and checking the Simscape model. This can take a while.");
             cleanup = onCleanup(@() finishProgress(progress));
             runResult = feval('citt.runAgentTask', state.AgentTaskPath, struct("SpecPath", state.SpecPath));
             state.AgentRun = runResult;
@@ -469,8 +655,21 @@ refreshAll();
             end
             refreshAll();
             setArea(handles.agentOutput, agentRunSummary(runResult));
-            handles.agentStatus.Text = "Model built";
-            setPipeline("Model built. Next: Check or Simulate.", 78);
+            if runResult.success
+                if fieldText(runResult, "mode") == "local_fallback"
+                    handles.agentStatus.Text = "Fallback model built";
+                    setPipeline("Fallback model built. Next: Check or Simulate.", 78);
+                else
+                    handles.agentStatus.Text = "Model built by SATK agent";
+                    setPipeline("Model built by agent. Next: Check or Simulate.", 78);
+                end
+            elseif fieldText(runResult, "mode") == "manual_agent"
+                handles.agentStatus.Text = "Manual agent required";
+                setPipeline("Manual agent task opened. Run it in an SATK-configured agent.", 58);
+            else
+                handles.agentStatus.Text = "Build incomplete";
+                setPipeline("Build incomplete. See Build Model output.", 58);
+            end
         catch runError
             handles.agentStatus.Text = "Build failed";
             setArea(handles.agentOutput, "Model build failed: " + string(runError.message));
@@ -644,6 +843,180 @@ refreshAll();
         end
     end
 
+    function onRunRequirements()
+        try
+            setBusy("Checking requirements...", 96);
+            checked = feval('citt.runRequirementChecks', state);
+            state.LastRequirements = checked;
+            handles.verificationStatus.Text = "Requirement check complete";
+            setArea(handles.verificationOutput, requirementRunSummary(checked));
+            refreshAll();
+            setPipeline("Requirement table ready.", 100);
+        catch requirementError
+            handles.verificationStatus.Text = "Requirement check failed";
+            setArea(handles.verificationOutput, "Requirement check failed: " + string(requirementError.message));
+        end
+        setIdle();
+    end
+
+    function onRunSweep()
+        try
+            setBusy("Running tolerance sweep...", 96);
+            swept = feval('citt.runParameterSweep', state);
+            state.LastSweep = swept;
+            handles.verificationStatus.Text = "Sweep complete";
+            setArea(handles.verificationOutput, sweepSummary(swept));
+            refreshAll();
+            setPipeline("Tolerance sweep ready.", 100);
+        catch sweepError
+            handles.verificationStatus.Text = "Sweep failed";
+            setArea(handles.verificationOutput, "Sweep failed: " + string(sweepError.message));
+        end
+        setIdle();
+    end
+
+    function onRunFaults()
+        try
+            setBusy("Building fault scenarios...", 96);
+            faults = feval('citt.runFaultInjection', state);
+            state.LastFaults = faults;
+            handles.verificationStatus.Text = "Fault scenarios ready";
+            setArea(handles.verificationOutput, faultSummary(faults));
+            refreshAll();
+            setPipeline("Fault injection report ready.", 100);
+        catch faultError
+            handles.verificationStatus.Text = "Fault generation failed";
+            setArea(handles.verificationOutput, "Fault generation failed: " + string(faultError.message));
+        end
+        setIdle();
+    end
+
+    function onBuildExplainability()
+        try
+            setBusy("Building explainability map...", 96);
+            explained = feval('citt.buildExplainabilityMap', state);
+            state.LastExplainability = explained;
+            handles.verificationStatus.Text = "Explainability map ready";
+            setArea(handles.verificationOutput, explainabilitySummary(explained));
+            updateExplainabilitySelector();
+            refreshAll();
+            setPipeline("Explainability map ready.", 100);
+        catch explainError
+            handles.verificationStatus.Text = "Explainability map failed";
+            setArea(handles.verificationOutput, "Explainability map failed: " + string(explainError.message));
+        end
+        setIdle();
+    end
+
+    function onHighlightExplainability()
+        actionId = string(handles.explainSelector.Value);
+        try
+            highlighted = feval('citt.highlightExplainabilityAction', ...
+                state.ModelPath, state.Config.ExplainabilityMapPath, actionId, state.FocusMapPath);
+            handles.verificationStatus.Text = highlighted.message;
+            setArea(handles.verificationOutput, feval('citt.util.jsonEncode', highlighted));
+        catch highlightError
+            handles.verificationStatus.Text = "Explainability highlight failed";
+            setArea(handles.verificationOutput, "Explainability highlight failed: " + string(highlightError.message));
+        end
+    end
+
+    function onOpenLastVerificationReport()
+        path = lastVerificationMarkdownPath();
+        if strlength(path) == 0 || exist(path, "file") ~= 2
+            setArea(handles.verificationOutput, "No verification report exists yet.");
+            return
+        end
+        edit(char(path));
+    end
+
+    function onRunAssessment()
+        request = struct();
+        request.concept = string(handles.assessmentConceptField.Value);
+        request.before_answer = textAreaText(handles.beforeAnswerText);
+        request.after_answer = textAreaText(handles.afterAnswerText);
+        request.hint_levels_used = handles.hintLevelsField.Value;
+        try
+            setBusy("Scoring learning gain...", 96);
+            assessed = feval('citt.runLearningAssessment', request);
+            state.LastAssessment = assessed;
+            handles.assessmentStatus.Text = "Assessment complete";
+            setArea(handles.assessmentOutput, assessmentSummary(assessed));
+            refreshAll();
+            setPipeline("Assessment evidence ready.", 100);
+        catch assessmentError
+            handles.assessmentStatus.Text = "Assessment failed";
+            setArea(handles.assessmentOutput, "Assessment failed: " + string(assessmentError.message));
+        end
+        setIdle();
+    end
+
+    function onBuildEconomics()
+        try
+            setBusy("Building cost plan...", 96);
+            plan = feval('citt.buildEconomicsPlan', struct("Students", handles.studentsField.Value));
+            state.LastEconomics = plan;
+            handles.assessmentStatus.Text = "Cost plan ready";
+            setArea(handles.assessmentOutput, economicsSummary(plan));
+            refreshAll();
+            setPipeline("Economics plan ready.", 100);
+        catch economicsError
+            handles.assessmentStatus.Text = "Cost plan failed";
+            setArea(handles.assessmentOutput, "Cost plan failed: " + string(economicsError.message));
+        end
+        setIdle();
+    end
+
+    function onBuildScopeGuardrail()
+        try
+            setBusy("Building scope guardrail...", 96);
+            guardrail = feval('citt.buildScopeGuardrail', state);
+            state.LastScopeGuardrail = guardrail;
+            handles.assessmentStatus.Text = "Scope guardrail ready";
+            setArea(handles.assessmentOutput, scopeSummary(guardrail));
+            refreshAll();
+            setPipeline("Scope guardrail ready.", 100);
+        catch scopeError
+            handles.assessmentStatus.Text = "Scope guardrail failed";
+            setArea(handles.assessmentOutput, "Scope guardrail failed: " + string(scopeError.message));
+        end
+        setIdle();
+    end
+
+    function onExportEvidencePack()
+        state.EvidencePackPath = string(handles.evidencePathField.Value);
+        try
+            setBusy("Exporting evidence pack...", 100);
+            progress = startProgress("Evidence Pack", "CiTT is collecting the current spec, model, checks, maps, probe data, and Lab Delta evidence.");
+            cleanup = onCleanup(@() finishProgress(progress));
+            exported = feval('citt.exportEvidencePack', state, struct("OutputPath", state.EvidencePackPath));
+            state.LastEvidencePack = exported;
+            refreshAll();
+            handles.evidenceStatus.Text = "Evidence pack exported";
+            setArea(handles.evidenceOutput, evidencePackSummary(exported));
+            setArea(handles.evidenceNotes, exported.functional_proof_draft);
+            setPipeline("Evidence pack exported.", 100);
+        catch evidenceError
+            handles.evidenceStatus.Text = "Evidence pack export failed";
+            setArea(handles.evidenceOutput, "Evidence Pack failed: " + string(evidenceError.message));
+            setPipeline("Evidence pack failed. See output.", 92);
+        end
+        setIdle();
+    end
+
+    function onOpenEvidencePack()
+        state.EvidencePackPath = string(handles.evidencePathField.Value);
+        try
+            if exist(state.EvidencePackPath, "file") ~= 2
+                setArea(handles.evidenceOutput, "No evidence pack exists yet. Click Export Evidence Pack first.");
+                return
+            end
+            edit(char(state.EvidencePackPath));
+        catch openError
+            setArea(handles.evidenceOutput, "Could not open evidence pack: " + string(openError.message));
+        end
+    end
+
     function showCurrentStep()
         if isempty(state.TeachingPlan)
             setArea(handles.currentStepDisplay, "No teaching plan yet.");
@@ -673,6 +1046,16 @@ refreshAll();
         handles.probeSelector.Value = values(1);
     end
 
+    function updateExplainabilitySelector()
+        values = explainabilityValues();
+        if isempty(values)
+            values = "";
+        end
+        values = values(:)';
+        handles.explainSelector.Items = values;
+        handles.explainSelector.Value = values(1);
+    end
+
     function values = focusValues()
         values = strings(0, 1);
         if ~isempty(state.TeachingPlan)
@@ -699,19 +1082,45 @@ refreshAll();
         values = unique(values);
     end
 
+    function values = explainabilityValues()
+        values = strings(0, 1);
+        if ~isempty(state.LastExplainability) && isfield(state.LastExplainability, "actions")
+            actions = state.LastExplainability.actions;
+        elseif exist(state.Config.ExplainabilityMapPath, "file") == 2
+            try
+                data = jsondecode(fileread(state.Config.ExplainabilityMapPath));
+                actions = data.actions;
+            catch
+                actions = struct([]);
+            end
+        else
+            actions = struct([]);
+        end
+        for i = 1:numel(actions)
+            if isfield(actions(i), "action_id")
+                values(end + 1) = string(actions(i).action_id); %#ok<AGROW>
+            end
+        end
+        values = unique(values);
+    end
+
     function refreshAll()
         statusLabel.Text = compactStatus(state);
         handles.imageField.Value = char(state.ImagePath);
         handles.modelPathField.Value = char(state.ModelPath);
         handles.labCsvField.Value = char(state.LabCsvPath);
+        handles.evidencePathField.Value = char(state.EvidencePackPath);
         setArea(handles.setupReport, setupOverviewText(state.LastSetupReport));
         handles.agentStatus.Text = "Task file: " + state.AgentTaskPath;
         handles.modelStatus.Text = "Model: " + state.ModelPath;
         setArea(handles.modelPathsDisplay, pathStatusText(state));
         setArea(handles.inputStatus, inputStatusText(state));
         setArea(handles.specDisplay, currentSpecPreview(state));
+        setArea(handles.verificationReports, verificationReportText(state));
+        setArea(handles.assessmentReports, assessmentReportText(state));
         updatePipelineFromState(state);
         updateFocusSelectors();
+        updateExplainabilitySelector();
     end
 
     function text = compactStatus(currentState)
@@ -733,8 +1142,11 @@ refreshAll();
 
     function text = setupOverviewText(setup)
         agentText = "needs CLI";
+        if strlength(strtrim(setup.configured_agent_command)) > 0
+            agentText = "ready: CITT_AGENT_COMMAND";
+        end
         for i = 1:numel(setup.agent_clis)
-            if setup.agent_clis(i).available
+            if agentText == "needs CLI" && setup.agent_clis(i).available
                 agentText = "ready: " + setup.agent_clis(i).name;
                 break
             end
@@ -767,7 +1179,32 @@ refreshAll();
             "Last parsed circuit spec: " + currentState.SpecPath
             "Focus map: " + currentState.FocusMapPath
             "Probe map: " + currentState.ProbeMapPath
+            "Evidence pack: " + currentState.EvidencePackPath
         ], newline);
+    end
+
+    function text = verificationReportText(currentState)
+        text = strjoin([
+            "Folder: " + currentState.Config.WorkDir
+            "Requirements: " + fileNameOnly(currentState.Config.RequirementReportMarkdownPath)
+            "Sweep: " + fileNameOnly(currentState.Config.ParameterSweepMarkdownPath)
+            "Faults: " + fileNameOnly(currentState.Config.FaultInjectionMarkdownPath)
+            "Explainability: " + fileNameOnly(currentState.Config.ExplainabilityMarkdownPath)
+        ], newline);
+    end
+
+    function text = assessmentReportText(currentState)
+        text = strjoin([
+            "Folder: " + currentState.Config.WorkDir
+            "Assessment: " + fileNameOnly(currentState.Config.AssessmentMarkdownPath)
+            "Cost: " + fileNameOnly(currentState.Config.EconomicsMarkdownPath)
+            "Scope: " + fileNameOnly(currentState.Config.ScopeGuardrailMarkdownPath)
+        ], newline);
+    end
+
+    function name = fileNameOnly(pathValue)
+        [~, namePart, ext] = fileparts(char(pathValue));
+        name = string(namePart) + string(ext);
     end
 
     function text = textAreaText(area)
@@ -1082,9 +1519,22 @@ refreshAll();
     end
 
     function text = agentRunSummary(runResult)
+        mode = fieldText(runResult, "mode");
+        if mode == "manual_agent"
+            headline = "External SATK agent not launched.";
+        elseif mode == "local_fallback"
+            headline = "Agent build unavailable. Running local Simscape fallback.";
+        elseif runResult.success
+            headline = "External SATK agent build complete.";
+        else
+            headline = "External SATK agent build incomplete.";
+        end
+
         text = strjoin([
-            "Simscape build complete."
-            "Generated code: " + emptyText(fieldText(runResult, "generated_code_path"), "not written")
+            headline
+            "Mode: " + emptyText(mode, "unknown")
+            "Agent: " + emptyText(fieldText(runResult, "agent_name"), "unknown")
+            "Local fallback code: " + emptyText(fieldText(runResult, "generated_code_path"), "not written")
             "Model: " + emptyText(runResult.produced_model_path, "not found")
             "Focus map: " + emptyText(runResult.produced_focus_map_path, "not found")
             "Probe map: " + emptyText(runResult.produced_probe_map_path, "not found")
@@ -1123,6 +1573,145 @@ refreshAll();
             ""
             "Output variables"
             listValue(simulated.output_variables)
+        ], newline);
+    end
+
+    function text = requirementRunSummary(report)
+        s = report.summary;
+        text = strjoin([
+            "Requirement check complete."
+            "JSON: " + report.report_path
+            "Markdown: " + report.markdown_path
+            "PASS " + string(s.pass) + ...
+                " | WARN " + string(s.warn) + ...
+                " | FAIL " + string(s.fail) + ...
+                " | NOT_RUN " + string(s.not_run) + ...
+                " | NOT_EVALUATED " + string(s.not_evaluated)
+            ""
+            "Rows"
+            reportRowsText(report.rows, ["requirement", "result", "status"], 14)
+        ], newline);
+    end
+
+    function text = sweepSummary(report)
+        text = strjoin([
+            "Parameter sweep complete."
+            "JSON: " + report.report_path
+            "Markdown: " + report.markdown_path
+            "Nominal cutoff: " + fieldText(report.summary, "nominal_cutoff_hz") + " Hz"
+            "Worst range: " + fieldText(report.summary, "worst_case_cutoff_range_hz") + " Hz"
+            "Most sensitive: " + report.summary.most_sensitive_parameter
+            "Suggestion: " + report.summary.suggested_design_change
+        ], newline);
+    end
+
+    function text = faultSummary(report)
+        text = strjoin([
+            "Fault injection report ready."
+            "JSON: " + report.report_path
+            "Markdown: " + report.markdown_path
+            "Fault scenarios: " + string(numel(report.rows))
+            ""
+            reportRowsText(report.rows, ["fault", "observed_effect", "status"], 10)
+        ], newline);
+    end
+
+    function text = explainabilitySummary(report)
+        text = strjoin([
+            "Explainability map ready."
+            "JSON: " + report.report_path
+            "Markdown: " + report.markdown_path
+            "Actions: " + string(numel(report.actions))
+            ""
+            reportRowsText(report.actions, ["action_id", "action_type", "label"], 14)
+        ], newline);
+    end
+
+    function text = assessmentSummary(report)
+        text = strjoin([
+            "Assessment complete."
+            "JSON: " + report.report_path
+            "Markdown: " + report.markdown_path
+            "Concept: " + report.concept
+            "Before score: " + string(report.before.score)
+            "After score: " + string(report.after.score)
+            "Learning gain: " + string(report.learning_gain)
+            "Final correctness: " + string(report.final_correctness)
+            "Misconception: " + report.misconception_detected
+        ], newline);
+    end
+
+    function text = economicsSummary(report)
+        text = strjoin([
+            "Economics plan ready."
+            "JSON: " + report.report_path
+            "Markdown: " + report.markdown_path
+            "Students: " + string(report.deployment.students)
+            "Estimated API cost: $" + sprintf("%.2f", report.total_estimated_api_cost_usd)
+            "Optional hardware/team: $" + sprintf("%.2f", report.total_optional_hardware_per_team_usd)
+        ], newline);
+    end
+
+    function text = scopeSummary(report)
+        text = strjoin([
+            "Scope guardrail ready."
+            "JSON: " + report.report_path
+            "Markdown: " + report.markdown_path
+            "Category: " + report.potential_regulatory_category
+            "Patient-connected trigger: " + string(report.patient_connected_trigger_detected)
+            "Risk rows: " + string(numel(report.risks))
+        ], newline);
+    end
+
+    function text = reportRowsText(rows, fieldNames, maxRows)
+        if isempty(rows)
+            text = "none";
+            return
+        end
+        limit = min(numel(rows), maxRows);
+        lines = strings(limit, 1);
+        for i = 1:limit
+            parts = strings(1, numel(fieldNames));
+            for j = 1:numel(fieldNames)
+                parts(j) = fieldText(rows(i), fieldNames(j));
+            end
+            lines(i) = "- " + strjoin(parts, " | ");
+        end
+        if numel(rows) > limit
+            lines(end + 1) = "- ... " + string(numel(rows) - limit) + " more";
+        end
+        text = strjoin(lines, newline);
+    end
+
+    function path = lastVerificationMarkdownPath()
+        candidates = [
+            state.Config.ExplainabilityMarkdownPath
+            state.Config.FaultInjectionMarkdownPath
+            state.Config.ParameterSweepMarkdownPath
+            state.Config.RequirementReportMarkdownPath
+        ];
+        path = "";
+        for i = 1:numel(candidates)
+            if exist(candidates(i), "file") == 2
+                path = candidates(i);
+                return
+            end
+        end
+    end
+
+    function text = evidencePackSummary(exported)
+        summary = exported.status_summary;
+        text = strjoin([
+            "Evidence pack exported."
+            "Pack: " + exported.pack_path
+            "Requirements: PASS " + string(summary.pass) + ...
+                " | WARN " + string(summary.warn) + ...
+                " | FAIL " + string(summary.fail) + ...
+                " | NOT_RUN " + string(summary.not_run)
+            "Risk rows: " + string(numel(exported.risks))
+            "Limitations: " + string(numel(exported.limitations))
+            ""
+            "Functional proof draft is shown below and included in the Markdown pack."
         ], newline);
     end
 

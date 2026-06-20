@@ -3,7 +3,7 @@ function test_real_config()
 
 addpath(fileparts(fileparts(mfilename("fullpath"))));
 config = feval('citt.loadConfig');
-assert(config.GeminiModel == "gemini-3.5-flash");
+assert(config.GeminiModel == "gemini-3.1-pro-preview");
 
 report = feval('citt.checkSetup');
 assert(isfield(report, "gemini_key_found"));
