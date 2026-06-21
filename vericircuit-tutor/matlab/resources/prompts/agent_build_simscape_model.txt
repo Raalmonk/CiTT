@@ -7,6 +7,8 @@ Prefer MATLAB MCP/SATK tools for model inspection and edits. In Gemini CLI, the 
 Modeling rules:
 - Build a Simscape-first model.
 - Use Simscape Electrical blocks for sources, resistors, capacitors, inductors, op amps, sensors, and references when available.
+- If the spec names a real op-amp part such as LM741/UA741, do not replace it with an ideal op-amp without modeling or documenting nonidealities. Add explicit Simscape elements for input bias current, input offset voltage, finite input resistance, finite open-loop gain, output swing, and slew-rate/bandwidth when relevant to the requested output.
+- For LM741-like voltage followers, represent input bias current as small DC current sources at the op-amp inputs and add a focus/probe note explaining the V_error = I_bias * R_source mechanism.
 - Include Electrical Reference and Solver Configuration blocks.
 - Use physical connections so the model remains schematic-like.
 - Add sensors or logging for every requested output.

@@ -73,10 +73,10 @@ function classification = classifyAnswer(step, studentAnswer, options)
 if isfield(options, "UseGemini") && ~logical(options.UseGemini)
     error("CiTT:GeminiRequired", "Socratic teaching requires Gemini in real-run mode.");
 end
-classification = classifyWithGemini(step, studentAnswer);
+classification = classifyWithGemini(step, studentAnswer, options);
 end
 
-function classification = classifyWithGemini(step, studentAnswer)
+function classification = classifyWithGemini(step, studentAnswer, options)
 config = feval('citt.loadConfig');
 if strlength(config.GeminiApiKey) == 0
     error("CiTT:GeminiKeyMissing", "No Gemini key for Socratic classification.");
@@ -97,11 +97,25 @@ prompt = strjoin([
     ""
     "Student answer encoded as JSON:"
     string(feval('citt.util.jsonEncode', struct("answer", string(studentAnswer))))
+    ""
+    "If an image is attached, use it only to understand the student's sketch, equation, or marked circuit region."
 ], newline);
+
+parts = {struct("text", char(prompt))};
+answerImagePath = "";
+if isfield(options, "AnswerImagePath")
+    answerImagePath = string(options.AnswerImagePath);
+end
+if strlength(strtrim(answerImagePath)) > 0
+    image = feval('citt.util.readImageBytes', answerImagePath);
+    parts{end + 1} = struct("inline_data", struct( ...
+        "mime_type", char(image.mime_type), ...
+        "data", char(image.base64)));
+end
 
 content = struct();
 content.role = "user";
-content.parts = {struct("text", char(prompt))};
+content.parts = parts;
 body = struct();
 body.contents = {content};
 body.generationConfig = struct("response_mime_type", "application/json");

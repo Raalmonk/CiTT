@@ -84,6 +84,14 @@ if hasAny(cmd, ["check model", "model check", "update diagram", "检查模型", 
     return
 end
 
+if hasAny(cmd, ["bode", "frequency response", "freq response", "频响", "波特图", "频率响应"])
+    result.action = "bode_analysis";
+    result.details = feval('citt.runBodeAnalysis', context);
+    result.success = result.details.success;
+    result.message = "Bode analysis complete.";
+    return
+end
+
 if hasAny(cmd, ["lab error", "error analysis", "analyze error", "analyse error", ...
         "lab delta", "实验误差", "误差分析", "分析误差"])
     result.action = "analyze_lab_error";

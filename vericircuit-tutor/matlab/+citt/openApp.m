@@ -7,33 +7,62 @@ state.LastSetupReport = feval('citt.checkSetup');
 app = struct();
 app.Figure = uifigure( ...
     "Name", "CiTT Circuit Tutor", ...
-    "Position", [80 80 1180 760]);
+    "Position", [70 60 1240 800]);
 app.Figure.Color = [0.965 0.976 0.969];
 app.Figure.CloseRequestFcn = @(src, ~) onCloseApp(src);
 
 main = uigridlayout(app.Figure, [2 1]);
-main.RowHeight = {82, "1x"};
+main.RowHeight = {108, "1x"};
 main.Padding = [18 14 18 16];
 main.RowSpacing = 12;
 
 handles = struct();
 agentPollTimer = [];
+activeWorkflowPage = "read";
+palette = struct();
+palette.primary = [0.145 0.486 0.353];
+palette.primaryDark = [0.07 0.18 0.14];
+palette.surface = [0.986 0.992 0.987];
+palette.soft = [0.92 0.949 0.933];
+palette.text = [0.08 0.16 0.13];
 
-header = uigridlayout(main, [2 3]);
-header.ColumnWidth = {"1x", 180, 250};
-header.RowHeight = {36, 24};
+header = uigridlayout(main, [3 4]);
+header.ColumnWidth = {"1x", 220, 220, 220};
+header.RowHeight = {30, 26, 32};
 header.Padding = [0 0 0 0];
-header.RowSpacing = 6;
+header.RowSpacing = 5;
 header.ColumnSpacing = 12;
 header.Layout.Row = 1;
 
 titleLabel = uilabel(header);
-titleLabel.Text = "CiTT";
-titleLabel.FontSize = 24;
+titleLabel.Text = "CiTT Circuit Tutor";
+titleLabel.FontSize = 23;
 titleLabel.FontWeight = "bold";
 titleLabel.Tooltip = "Circuit insight, teaching, and Simscape model building inside MATLAB.";
 titleLabel.Layout.Row = [1 2];
 titleLabel.Layout.Column = 1;
+
+stageGrid = uigridlayout(header, [1 5]);
+stageGrid.ColumnWidth = {"1x", "1x", "1x", "1.25x", "1.2x"};
+stageGrid.Padding = [0 0 0 0];
+stageGrid.ColumnSpacing = 5;
+stageGrid.Layout.Row = 3;
+stageGrid.Layout.Column = 1;
+handles.stageRead = makeStageChip(stageGrid, "Read", "read");
+handles.stageRead.Layout.Row = 1;
+handles.stageRead.Layout.Column = 1;
+handles.stageBuild = makeStageChip(stageGrid, "Build", "build");
+handles.stageBuild.Layout.Row = 1;
+handles.stageBuild.Layout.Column = 2;
+handles.stageTeach = makeStageChip(stageGrid, "Teach", "teach");
+handles.stageTeach.Layout.Row = 1;
+handles.stageTeach.Layout.Column = 3;
+handles.stageProbe = makeStageChip(stageGrid, "Probe", "probe");
+handles.stageProbe.Layout.Row = 1;
+handles.stageProbe.Layout.Column = 4;
+handles.stageEvidence = makeStageChip(stageGrid, "Evidence", "evidence");
+handles.stageEvidence.Layout.Row = 1;
+handles.stageEvidence.Layout.Column = 5;
 
 statusLabel = uilabel(header);
 statusLabel.HorizontalAlignment = "right";
@@ -41,504 +70,955 @@ statusLabel.FontSize = 13;
 statusLabel.FontWeight = "bold";
 statusLabel.Text = compactStatus(state);
 statusLabel.Layout.Row = 1;
-statusLabel.Layout.Column = [2 3];
+statusLabel.Layout.Column = [2 4];
 
 pipelineLabel = uilabel(header);
 pipelineLabel.HorizontalAlignment = "right";
 pipelineLabel.FontSize = 12;
 pipelineLabel.Text = "Ready for circuit input";
 pipelineLabel.Layout.Row = 2;
-pipelineLabel.Layout.Column = 2;
+pipelineLabel.Layout.Column = [2 4];
 
 pipelineGauge = uigauge(header, "linear");
 pipelineGauge.Limits = [0 100];
 pipelineGauge.Value = 0;
-pipelineGauge.Layout.Row = 2;
-pipelineGauge.Layout.Column = 3;
+pipelineGauge.Layout.Row = 3;
+pipelineGauge.Layout.Column = [2 3];
 
-tabs = uitabgroup(main);
-tabs.Layout.Row = 2;
+handles.nextActionButton = uibutton(header, "Text", "Next: Read with Gemini", ...
+    "ButtonPushedFcn", @(~, ~) onNextAction());
+handles.nextActionButton.FontWeight = "bold";
+handles.nextActionButton.BackgroundColor = [0.145 0.486 0.353];
+handles.nextActionButton.FontColor = [1 1 1];
+handles.nextActionButton.Layout.Row = 3;
+handles.nextActionButton.Layout.Column = 4;
 
-buildInputTab(tabs);
-buildAgentTab(tabs);
-buildModelTab(tabs);
-buildTeachTab(tabs);
-buildProbeTab(tabs);
-buildVerificationTab(tabs);
-buildAssessmentTab(tabs);
-buildEvidenceTab(tabs);
+contentHost = uigridlayout(main, [1 1]);
+contentHost.Layout.Row = 2;
+contentHost.Padding = [0 0 0 0];
+contentHost.RowSpacing = 0;
+contentHost.ColumnSpacing = 0;
+
+buildInputTab(contentHost);
+buildBuildAndModelTab(contentHost);
+buildTeachTab(contentHost);
+buildProbeTab(contentHost);
+buildEvidenceTab(contentHost);
+selectWorkflowTab("read");
 
 app.Handles = handles;
 app.State = state;
 refreshAll();
 
     function buildInputTab(parent)
-        tab = uitab(parent, "Title", "Read");
-        grid = uigridlayout(tab, [8 4]);
-        grid.RowHeight = {32, 170, 34, 92, 38, 70, 28, "1x"};
-        grid.ColumnWidth = {110, "1x", 170, 170};
+        tab = makeWorkflowPage(parent);
+        handles.readTab = tab;
+        grid = uigridlayout(tab, [2 3]);
+        grid.RowHeight = {"1x", 150};
+        grid.ColumnWidth = {"1.15x", "1x", "1x"};
         grid.Padding = [18 16 18 16];
-        grid.RowSpacing = 10;
-        grid.ColumnSpacing = 10;
+        grid.RowSpacing = 12;
+        grid.ColumnSpacing = 12;
+        enableScroll(grid);
 
-        heading = uilabel(grid, "Text", "Start with a circuit image or a short prompt");
-        heading.FontSize = 17;
+        inputCard = makeCard(grid, "Circuit Input");
+        inputCard.Layout.Row = 1;
+        inputCard.Layout.Column = 1;
+        inputGrid = uigridlayout(inputCard, [7 3]);
+        inputGrid.RowHeight = {24, "1x", 30, 74, 34, 42, 44};
+        inputGrid.ColumnWidth = {58, "1x", 108};
+        inputGrid.Padding = [12 10 12 12];
+        inputGrid.RowSpacing = 8;
+        inputGrid.ColumnSpacing = 8;
+        enableScroll(inputGrid);
+
+        heading = uilabel(inputGrid, "Text", "Start with a circuit image or prompt");
+        heading.FontSize = 15;
         heading.FontWeight = "bold";
         heading.Layout.Row = 1;
-        heading.Layout.Column = [1 4];
+        heading.Layout.Column = [1 3];
 
         dropHtml = fullfile(state.Config.MatlabRoot, "resources", "ui", "image_dropzone.html");
-        handles.dropZone = uihtml(grid, ...
+        handles.dropZone = uihtml(inputGrid, ...
             "HTMLSource", dropHtml, ...
             "DataChangedFcn", @(src, ~) onImageDropped(src));
         handles.dropZone.Layout.Row = 2;
-        handles.dropZone.Layout.Column = [1 4];
+        handles.dropZone.Layout.Column = [1 3];
 
-        uilabel(grid, "Text", "Image");
-        handles.imageField = uieditfield(grid, "text");
+        uilabel(inputGrid, "Text", "Image");
+        handles.imageField = uieditfield(inputGrid, "text");
         handles.imageField.Layout.Row = 3;
-        handles.imageField.Layout.Column = [2 3];
-        handles.selectImageButton = uibutton(grid, "Text", "Browse", ...
+        handles.imageField.Layout.Column = 2;
+        handles.selectImageButton = uibutton(inputGrid, "Text", "Browse", ...
             "ButtonPushedFcn", @(~, ~) onSelectImage());
         handles.selectImageButton.Layout.Row = 3;
-        handles.selectImageButton.Layout.Column = 4;
+        handles.selectImageButton.Layout.Column = 3;
+        styleSecondary(handles.selectImageButton);
 
-        uilabel(grid, "Text", "Prompt");
-        handles.promptText = uitextarea(grid);
+        uilabel(inputGrid, "Text", "Prompt");
+        handles.promptText = uitextarea(inputGrid);
         handles.promptText.Value = {""};
+        handles.promptText.ValueChangedFcn = @(~, ~) updateLatexPreviews();
         handles.promptText.Layout.Row = 4;
-        handles.promptText.Layout.Column = [2 4];
+        handles.promptText.Layout.Column = [2 3];
 
-        handles.parseButton = uibutton(grid, "Text", "Read with Gemini", ...
+        handles.parseButton = uibutton(inputGrid, "Text", "Read with Gemini", ...
             "ButtonPushedFcn", @(~, ~) onParseWithGemini());
-        handles.parseButton.FontWeight = "bold";
-        handles.parseButton.BackgroundColor = [0.145 0.486 0.353];
-        handles.parseButton.FontColor = [1 1 1];
+        stylePrimary(handles.parseButton);
         handles.parseButton.Layout.Row = 5;
-        handles.parseButton.Layout.Column = [2 3];
-        handles.openSpecButton = uibutton(grid, "Text", "Open JSON", ...
+        handles.parseButton.Layout.Column = [1 2];
+        handles.openSpecButton = uibutton(inputGrid, "Text", "Open Spec", ...
             "ButtonPushedFcn", @(~, ~) onOpenSpec());
         handles.openSpecButton.Layout.Row = 5;
-        handles.openSpecButton.Layout.Column = 4;
+        handles.openSpecButton.Layout.Column = 3;
+        styleSecondary(handles.openSpecButton);
 
-        handles.inputStatus = uitextarea(grid);
-        handles.inputStatus.Editable = "off";
-        handles.inputStatus.FontName = "Helvetica";
-        handles.inputStatus.Layout.Row = 6;
-        handles.inputStatus.Layout.Column = [1 4];
+        handles.promptLatexPreview = makeLatexPreview(inputGrid, "LaTeX preview");
+        handles.promptLatexPreview.Layout.Row = 6;
+        handles.promptLatexPreview.Layout.Column = [1 3];
 
-        uilabel(grid, "Text", "Spec preview");
-        handles.specDisplay = uitextarea(grid);
-        handles.specDisplay.Editable = "off";
-        handles.specDisplay.FontName = "Menlo";
-        handles.specDisplay.Layout.Row = 8;
-        handles.specDisplay.Layout.Column = [1 4];
+        handles.inputStatus = makeSoftArea(inputGrid, "Helvetica");
+        handles.inputStatus.Layout.Row = 7;
+        handles.inputStatus.Layout.Column = [1 3];
+
+        summaryCard = makeCard(grid, "Circuit Summary");
+        summaryCard.Layout.Row = 1;
+        summaryCard.Layout.Column = 2;
+        summaryGrid = uigridlayout(summaryCard, [1 1]);
+        summaryGrid.Padding = [12 10 12 12];
+        handles.specDisplay = makeSoftArea(summaryGrid, "Helvetica");
+        handles.specDisplay.Layout.Row = 1;
+        handles.specDisplay.Layout.Column = 1;
+
+        readinessCard = makeCard(grid, "Assumptions and Clarifications");
+        readinessCard.Layout.Row = 1;
+        readinessCard.Layout.Column = 3;
+        readinessGrid = uigridlayout(readinessCard, [1 1]);
+        readinessGrid.Padding = [12 10 12 12];
+        handles.readinessDisplay = makeSoftArea(readinessGrid, "Helvetica");
+        handles.readinessDisplay.Layout.Row = 1;
+        handles.readinessDisplay.Layout.Column = 1;
+
+        advancedCard = makeCard(grid, "Trace Notes");
+        advancedCard.Layout.Row = 2;
+        advancedCard.Layout.Column = [1 3];
+        advancedGrid = uigridlayout(advancedCard, [1 1]);
+        advancedGrid.Padding = [12 10 12 12];
+        handles.readAdvancedDisplay = makeOutputArea(advancedGrid);
+        handles.readAdvancedDisplay.Layout.Row = 1;
+        handles.readAdvancedDisplay.Layout.Column = 1;
     end
 
-    function buildAgentTab(parent)
-        tab = uitab(parent, "Title", "Build");
-        grid = uigridlayout(tab, [5 3]);
-        grid.RowHeight = {180, 34, 34, "1x", 34};
-        grid.ColumnWidth = {"1x", 170, 170};
-        grid.Padding = [12 12 12 12];
-        grid.RowSpacing = 8;
-        grid.ColumnSpacing = 8;
+    function buildBuildAndModelTab(parent)
+        tab = makeWorkflowPage(parent);
+        handles.buildTab = tab;
+        grid = uigridlayout(tab, [4 5]);
+        grid.RowHeight = {58, 82, "1x", 116};
+        grid.ColumnWidth = {"1x", "1x", "1x", "1x", 238};
+        grid.Padding = [18 16 18 16];
+        grid.RowSpacing = 12;
+        grid.ColumnSpacing = 12;
+        enableScroll(grid);
 
-        handles.setupReport = uitextarea(grid);
-        handles.setupReport.Editable = "off";
-        handles.setupReport.FontName = "Helvetica";
+        setupCard = makeCard(grid, "Ready Checks");
+        setupCard.Layout.Row = 1;
+        setupCard.Layout.Column = [1 5];
+        setupGrid = uigridlayout(setupCard, [1 5]);
+        setupGrid.ColumnWidth = {"1x", "1x", "1x", "1x", "1.2x"};
+        setupGrid.Padding = [12 8 12 10];
+        setupGrid.ColumnSpacing = 8;
+        handles.geminiChip = makeStatusChip(setupGrid, "Gemini");
+        handles.geminiChip.Layout.Row = 1;
+        handles.geminiChip.Layout.Column = 1;
+        handles.satkChip = makeStatusChip(setupGrid, "SATK");
+        handles.satkChip.Layout.Row = 1;
+        handles.satkChip.Layout.Column = 2;
+        handles.mcpChip = makeStatusChip(setupGrid, "MCP");
+        handles.mcpChip.Layout.Row = 1;
+        handles.mcpChip.Layout.Column = 3;
+        handles.simscapeChip = makeStatusChip(setupGrid, "Simscape");
+        handles.simscapeChip.Layout.Row = 1;
+        handles.simscapeChip.Layout.Column = 4;
+        handles.agentChip = makeStatusChip(setupGrid, "Agent");
+        handles.agentChip.Layout.Row = 1;
+        handles.agentChip.Layout.Column = 5;
+
+        handles.buildStepSpec = makeStepCard(grid, "Circuit Read", 2, 1);
+        handles.buildStepTask = makeStepCard(grid, "Build Brief", 2, 2);
+        handles.buildStepAgent = makeStepCard(grid, "Builder", 2, 3);
+        handles.buildStepModel = makeStepCard(grid, "Model", 2, 4);
+        handles.buildStepCheck = makeStepCard(grid, "Check", 2, 5);
+
+        detailTabs = uitabgroup(grid);
+        detailTabs.Layout.Row = [3 4];
+        detailTabs.Layout.Column = [1 4];
+
+        agentTab = uitab(detailTabs, "Title", "Build Log");
+        agentGrid = uigridlayout(agentTab, [2 1]);
+        agentGrid.RowHeight = {26, "1x"};
+        agentGrid.Padding = [10 10 10 10];
+        handles.agentStatus = uilabel(agentGrid);
+        handles.agentStatus.FontName = "Helvetica";
+        handles.agentStatus.FontWeight = "bold";
+        handles.agentStatus.Layout.Row = 1;
+        handles.agentStatus.Layout.Column = 1;
+        handles.agentOutput = makeOutputArea(agentGrid);
+        handles.agentOutput.Layout.Row = 2;
+        handles.agentOutput.Layout.Column = 1;
+
+        modelTab = uitab(detailTabs, "Title", "Model Lab");
+        modelGrid = uigridlayout(modelTab, [2 1]);
+        modelGrid.RowHeight = {26, "1x"};
+        modelGrid.Padding = [10 10 10 10];
+        handles.modelStatus = uilabel(modelGrid);
+        handles.modelStatus.FontName = "Helvetica";
+        handles.modelStatus.FontWeight = "bold";
+        handles.modelStatus.Layout.Row = 1;
+        handles.modelStatus.Layout.Column = 1;
+        handles.modelOutput = makeOutputArea(modelGrid);
+        handles.modelOutput.Layout.Row = 2;
+        handles.modelOutput.Layout.Column = 1;
+
+        detailsTab = uitab(detailTabs, "Title", "Setup");
+        detailsGrid = uigridlayout(detailsTab, [2 1]);
+        detailsGrid.RowHeight = {"1x", 104};
+        detailsGrid.Padding = [10 10 10 10];
+        detailsGrid.RowSpacing = 8;
+        handles.setupReport = makeSoftArea(detailsGrid, "Helvetica");
         handles.setupReport.Layout.Row = 1;
-        handles.setupReport.Layout.Column = [1 3];
+        handles.setupReport.Layout.Column = 1;
+        handles.modelPathsDisplay = makeOutputArea(detailsGrid);
+        handles.modelPathsDisplay.Layout.Row = 2;
+        handles.modelPathsDisplay.Layout.Column = 1;
 
-        handles.generateTaskButton = uibutton(grid, "Text", "Prepare Build", ...
+        actionCard = makeCard(grid, "Build Controls");
+        actionCard.Layout.Row = [3 4];
+        actionCard.Layout.Column = 5;
+        actionGrid = uigridlayout(actionCard, [10 2]);
+        actionGrid.RowHeight = {22, 34, 30, 22, 30, 34, 34, 22, 30, 34};
+        actionGrid.ColumnWidth = {"1x", "1x"};
+        actionGrid.Padding = [12 10 12 12];
+        actionGrid.RowSpacing = 6;
+        actionGrid.ColumnSpacing = 8;
+
+        agentLabel = uilabel(actionGrid, "Text", "Build model");
+        agentLabel.FontWeight = "bold";
+        agentLabel.Layout.Row = 1;
+        agentLabel.Layout.Column = [1 2];
+        handles.generateTaskButton = uibutton(actionGrid, "Text", "Prepare Model", ...
             "ButtonPushedFcn", @(~, ~) onGenerateAgentTask());
         handles.generateTaskButton.Layout.Row = 2;
         handles.generateTaskButton.Layout.Column = 1;
-        handles.runAgentButton = uibutton(grid, "Text", "Build Model", ...
+        styleSecondary(handles.generateTaskButton);
+        handles.runAgentButton = uibutton(actionGrid, "Text", "Build Model", ...
             "ButtonPushedFcn", @(~, ~) onRunAgent());
-        handles.runAgentButton.FontWeight = "bold";
-        handles.runAgentButton.BackgroundColor = [0.145 0.486 0.353];
-        handles.runAgentButton.FontColor = [1 1 1];
         handles.runAgentButton.Layout.Row = 2;
         handles.runAgentButton.Layout.Column = 2;
-        handles.openTaskButton = uibutton(grid, "Text", "View Task", ...
+        stylePrimary(handles.runAgentButton);
+        handles.openTaskButton = uibutton(actionGrid, "Text", "Open Task", ...
             "ButtonPushedFcn", @(~, ~) onOpenTask());
-        handles.openTaskButton.Layout.Row = 2;
-        handles.openTaskButton.Layout.Column = 3;
+        handles.openTaskButton.Layout.Row = 3;
+        handles.openTaskButton.Layout.Column = [1 2];
+        styleSecondary(handles.openTaskButton);
 
-        handles.agentStatus = uilabel(grid);
-        handles.agentStatus.FontName = "Helvetica";
-        handles.agentStatus.Layout.Row = 3;
-        handles.agentStatus.Layout.Column = [1 3];
-
-        handles.agentOutput = uitextarea(grid);
-        handles.agentOutput.Editable = "off";
-        handles.agentOutput.FontName = "Menlo";
-        handles.agentOutput.Layout.Row = 4;
-        handles.agentOutput.Layout.Column = [1 3];
-
-        handles.refreshSetupButton = uibutton(grid, "Text", "Refresh Setup", ...
-            "ButtonPushedFcn", @(~, ~) onRefreshSetup());
-        handles.refreshSetupButton.Layout.Row = 5;
-        handles.refreshSetupButton.Layout.Column = 3;
-    end
-
-    function buildModelTab(parent)
-        tab = uitab(parent, "Title", "Model");
-        grid = uigridlayout(tab, [6 4]);
-        grid.RowHeight = {34, 34, 34, 34, "1x", 160};
-        grid.ColumnWidth = {90, "1x", 150, 150};
-        grid.Padding = [12 12 12 12];
-        grid.RowSpacing = 8;
-        grid.ColumnSpacing = 8;
-
-        uilabel(grid, "Text", "Model path");
-        handles.modelPathField = uieditfield(grid, "text");
-        handles.modelPathField.Layout.Row = 1;
-        handles.modelPathField.Layout.Column = 2;
-        handles.openModelButton = uibutton(grid, "Text", "Open", ...
+        modelLabel = uilabel(actionGrid, "Text", "Model");
+        modelLabel.FontWeight = "bold";
+        modelLabel.Layout.Row = 4;
+        modelLabel.Layout.Column = [1 2];
+        handles.modelPathField = uieditfield(actionGrid, "text");
+        handles.modelPathField.Layout.Row = 5;
+        handles.modelPathField.Layout.Column = [1 2];
+        handles.openModelButton = uibutton(actionGrid, "Text", "Open Model", ...
             "ButtonPushedFcn", @(~, ~) onOpenModel());
-        handles.openModelButton.Layout.Row = 1;
-        handles.openModelButton.Layout.Column = 3;
-        handles.selectModelButton = uibutton(grid, "Text", "Choose .slx", ...
+        handles.openModelButton.Layout.Row = 6;
+        handles.openModelButton.Layout.Column = 1;
+        styleSecondary(handles.openModelButton);
+        handles.selectModelButton = uibutton(actionGrid, "Text", "Choose .slx", ...
             "ButtonPushedFcn", @(~, ~) onSelectModel());
-        handles.selectModelButton.Layout.Row = 1;
-        handles.selectModelButton.Layout.Column = 4;
-
-        handles.checkModelButton = uibutton(grid, "Text", "Check", ...
+        handles.selectModelButton.Layout.Row = 6;
+        handles.selectModelButton.Layout.Column = 2;
+        styleSecondary(handles.selectModelButton);
+        handles.checkModelButton = uibutton(actionGrid, "Text", "Check Model", ...
             "ButtonPushedFcn", @(~, ~) onCheckModel());
-        handles.checkModelButton.Layout.Row = 2;
-        handles.checkModelButton.Layout.Column = 3;
-        handles.runSimulationButton = uibutton(grid, "Text", "Simulate", ...
+        handles.checkModelButton.Layout.Row = 7;
+        handles.checkModelButton.Layout.Column = 1;
+        styleSecondary(handles.checkModelButton);
+
+        labLabel = uilabel(actionGrid, "Text", "Lab command");
+        labLabel.FontWeight = "bold";
+        labLabel.Layout.Row = 8;
+        labLabel.Layout.Column = 1;
+        handles.bodeButton = uibutton(actionGrid, "Text", "Bode Plot", ...
+            "ButtonPushedFcn", @(~, ~) onRunBodeAnalysis());
+        handles.bodeButton.Tooltip = "Generate available Bode/frequency-response evidence from spec, op-amp profile, or Simulink linearization I/O.";
+        handles.bodeButton.Layout.Row = 8;
+        handles.bodeButton.Layout.Column = 2;
+        styleSecondary(handles.bodeButton);
+        handles.runSimulationButton = uibutton(actionGrid, "Text", "Run Simulation", ...
             "ButtonPushedFcn", @(~, ~) onRunSimulation());
-        handles.runSimulationButton.Layout.Row = 2;
-        handles.runSimulationButton.Layout.Column = 4;
-
-        uilabel(grid, "Text", "Command");
-        handles.commandField = uieditfield(grid, "text");
-        handles.commandField.Tooltip = "Examples: open Data Inspector, clear highlights, highlight feedback loop, probe clamp current.";
-        handles.commandField.Layout.Row = 3;
-        handles.commandField.Layout.Column = [2 3];
-        handles.runCommandButton = uibutton(grid, "Text", "Run Command", ...
+        handles.runSimulationButton.Layout.Row = 7;
+        handles.runSimulationButton.Layout.Column = 2;
+        styleSecondary(handles.runSimulationButton);
+        handles.commandField = uieditfield(actionGrid, "text");
+        handles.commandField.Tooltip = "Examples: open Data Inspector, bode plot, clear highlights, highlight feedback loop, probe clamp current.";
+        handles.commandField.Layout.Row = 9;
+        handles.commandField.Layout.Column = [1 2];
+        handles.runCommandButton = uibutton(actionGrid, "Text", "Run Command", ...
             "ButtonPushedFcn", @(~, ~) onRunCommand());
-        handles.runCommandButton.Layout.Row = 3;
-        handles.runCommandButton.Layout.Column = 4;
+        handles.runCommandButton.Layout.Row = 10;
+        handles.runCommandButton.Layout.Column = 1;
+        styleSecondary(handles.runCommandButton);
 
-        handles.modelStatus = uilabel(grid);
-        handles.modelStatus.FontName = "Helvetica";
-        handles.modelStatus.Layout.Row = 4;
-        handles.modelStatus.Layout.Column = [1 4];
-
-        handles.modelOutput = uitextarea(grid);
-        handles.modelOutput.Editable = "off";
-        handles.modelOutput.FontName = "Menlo";
-        handles.modelOutput.Layout.Row = 5;
-        handles.modelOutput.Layout.Column = [1 4];
-
-        handles.modelPathsDisplay = uitextarea(grid);
-        handles.modelPathsDisplay.Editable = "off";
-        handles.modelPathsDisplay.FontName = "Menlo";
-        handles.modelPathsDisplay.Layout.Row = 6;
-        handles.modelPathsDisplay.Layout.Column = [1 4];
+        handles.refreshSetupButton = uibutton(actionGrid, "Text", "Refresh Setup", ...
+            "ButtonPushedFcn", @(~, ~) onRefreshSetup());
+        handles.refreshSetupButton.Layout.Row = 10;
+        handles.refreshSetupButton.Layout.Column = 2;
+        styleSecondary(handles.refreshSetupButton);
     end
 
     function buildTeachTab(parent)
-        tab = uitab(parent, "Title", "Teach");
-        grid = uigridlayout(tab, [7 4]);
-        grid.RowHeight = {34, "1x", 82, 34, 34, 34, 100};
-        grid.ColumnWidth = {160, "1x", 150, 150};
-        grid.Padding = [12 12 12 12];
-        grid.RowSpacing = 8;
-        grid.ColumnSpacing = 8;
+        tab = makeWorkflowPage(parent);
+        handles.teachTab = tab;
+        grid = uigridlayout(tab, [1 3]);
+        grid.RowHeight = {"1x"};
+        grid.ColumnWidth = {240, "1x", 240};
+        grid.Padding = [18 16 18 16];
+        grid.RowSpacing = 12;
+        grid.ColumnSpacing = 12;
+        enableScroll(grid);
 
-        handles.startTeachingButton = uibutton(grid, "Text", "Start Teaching", ...
+        stepsCard = makeCard(grid, "Lesson Steps");
+        stepsCard.Layout.Row = 1;
+        stepsCard.Layout.Column = 1;
+        stepsGrid = uigridlayout(stepsCard, [3 1]);
+        stepsGrid.RowHeight = {36, "1x", 42};
+        stepsGrid.Padding = [12 10 12 12];
+        stepsGrid.RowSpacing = 8;
+        handles.startTeachingButton = uibutton(stepsGrid, "Text", "Start Teaching", ...
             "ButtonPushedFcn", @(~, ~) onStartTeaching());
-        handles.startTeachingButton.FontWeight = "bold";
+        stylePrimary(handles.startTeachingButton);
         handles.startTeachingButton.Layout.Row = 1;
         handles.startTeachingButton.Layout.Column = 1;
-        handles.focusSelector = uidropdown(grid, "Items", "");
-        handles.focusSelector.Layout.Row = 1;
-        handles.focusSelector.Layout.Column = 2;
-        handles.highlightButton = uibutton(grid, "Text", "Highlight", ...
-            "ButtonPushedFcn", @(~, ~) onHighlightCurrent());
-        handles.highlightButton.Layout.Row = 1;
-        handles.highlightButton.Layout.Column = 3;
-        handles.zoomButton = uibutton(grid, "Text", "Zoom", ...
-            "ButtonPushedFcn", @(~, ~) onZoomCurrent());
-        handles.zoomButton.Layout.Row = 1;
-        handles.zoomButton.Layout.Column = 4;
+        handles.lessonStepsDisplay = makeSoftArea(stepsGrid, "Helvetica");
+        handles.lessonStepsDisplay.Layout.Row = 2;
+        handles.lessonStepsDisplay.Layout.Column = 1;
+        stepsNote = uilabel(stepsGrid, "Text", "Answer, hint, focus, reveal");
+        stepsNote.FontSize = 11;
+        stepsNote.FontColor = [0.31 0.36 0.33];
+        try
+            stepsNote.WordWrap = "on";
+        catch
+        end
+        stepsNote.Layout.Row = 3;
+        stepsNote.Layout.Column = 1;
 
-        handles.currentStepDisplay = uitextarea(grid);
-        handles.currentStepDisplay.Editable = "off";
-        handles.currentStepDisplay.FontName = "Menlo";
-        handles.currentStepDisplay.Layout.Row = 2;
-        handles.currentStepDisplay.Layout.Column = [1 4];
+        questionCard = makeCard(grid, "Socratic Question");
+        questionCard.Layout.Row = 1;
+        questionCard.Layout.Column = 2;
+        questionGrid = uigridlayout(questionCard, [8 3]);
+        questionGrid.RowHeight = {34, "1x", 22, 82, 30, 42, 34, 96};
+        questionGrid.ColumnWidth = {86, "1x", 128};
+        questionGrid.Padding = [12 10 12 12];
+        questionGrid.RowSpacing = 8;
+        questionGrid.ColumnSpacing = 8;
+        enableScroll(questionGrid);
+        handles.currentStepDisplay = makeSoftArea(questionGrid, "Helvetica");
+        handles.currentStepDisplay.Layout.Row = [1 2];
+        handles.currentStepDisplay.Layout.Column = [1 3];
 
-        handles.studentAnswer = uitextarea(grid);
-        handles.studentAnswer.Layout.Row = 3;
-        handles.studentAnswer.Layout.Column = [1 4];
+        answerLabel = uilabel(questionGrid, "Text", "Student answer");
+        answerLabel.FontWeight = "bold";
+        answerLabel.Layout.Row = 3;
+        answerLabel.Layout.Column = [1 3];
+        handles.studentAnswer = uitextarea(questionGrid);
+        handles.studentAnswer.ValueChangedFcn = @(~, ~) updateLatexPreviews();
+        handles.studentAnswer.Layout.Row = 4;
+        handles.studentAnswer.Layout.Column = [1 3];
 
-        handles.nextHintButton = uibutton(grid, "Text", "Next Hint", ...
+        uilabel(questionGrid, "Text", "Image");
+        handles.studentImageField = uieditfield(questionGrid, "text");
+        handles.studentImageField.Layout.Row = 5;
+        handles.studentImageField.Layout.Column = 2;
+        handles.selectStudentImageButton = uibutton(questionGrid, "Text", "Browse", ...
+            "ButtonPushedFcn", @(~, ~) onSelectTeachingImage());
+        handles.selectStudentImageButton.Layout.Row = 5;
+        handles.selectStudentImageButton.Layout.Column = 3;
+        styleSecondary(handles.selectStudentImageButton);
+
+        handles.studentLatexPreview = makeLatexPreview(questionGrid, "LaTeX preview");
+        handles.studentLatexPreview.Layout.Row = 6;
+        handles.studentLatexPreview.Layout.Column = [1 3];
+
+        handles.nextHintButton = uibutton(questionGrid, "Text", "Next Hint", ...
             "ButtonPushedFcn", @(~, ~) onNextHint());
-        handles.nextHintButton.Layout.Row = 4;
-        handles.nextHintButton.Layout.Column = 3;
-        handles.revealButton = uibutton(grid, "Text", "Reveal", ...
+        handles.nextHintButton.Layout.Row = 7;
+        handles.nextHintButton.Layout.Column = [1 2];
+        styleSecondary(handles.nextHintButton);
+        handles.revealButton = uibutton(questionGrid, "Text", "Reveal", ...
             "ButtonPushedFcn", @(~, ~) onReveal());
-        handles.revealButton.Layout.Row = 4;
-        handles.revealButton.Layout.Column = 4;
+        handles.revealButton.Layout.Row = 7;
+        handles.revealButton.Layout.Column = 3;
+        styleSecondary(handles.revealButton);
 
-        handles.teachStatus = uilabel(grid);
+        handles.teachOutput = makeSoftArea(questionGrid, "Helvetica");
+        handles.teachOutput.Layout.Row = 8;
+        handles.teachOutput.Layout.Column = [1 3];
+
+        focusCard = makeCard(grid, "Model Focus Actions");
+        focusCard.Layout.Row = 1;
+        focusCard.Layout.Column = 3;
+        focusGrid = uigridlayout(focusCard, [8 1]);
+        focusGrid.RowHeight = {24, 32, 38, 38, 24, 26, "1x", 34};
+        focusGrid.Padding = [12 10 12 12];
+        focusGrid.RowSpacing = 8;
+        focusLabel = uilabel(focusGrid, "Text", "Focus");
+        focusLabel.FontWeight = "bold";
+        focusLabel.Layout.Row = 1;
+        focusLabel.Layout.Column = 1;
+        handles.focusSelector = uidropdown(focusGrid, "Items", "");
+        handles.focusSelector.Layout.Row = 2;
+        handles.focusSelector.Layout.Column = 1;
+        handles.highlightButton = uibutton(focusGrid, "Text", "Highlight in Model", ...
+            "ButtonPushedFcn", @(~, ~) onHighlightCurrent());
+        handles.highlightButton.Layout.Row = 3;
+        handles.highlightButton.Layout.Column = 1;
+        stylePrimary(handles.highlightButton);
+        handles.zoomButton = uibutton(focusGrid, "Text", "Zoom to Focus", ...
+            "ButtonPushedFcn", @(~, ~) onZoomCurrent());
+        handles.zoomButton.Layout.Row = 4;
+        handles.zoomButton.Layout.Column = 1;
+        styleSecondary(handles.zoomButton);
+        statusLabelTeach = uilabel(focusGrid, "Text", "Tutor status");
+        statusLabelTeach.FontWeight = "bold";
+        statusLabelTeach.Layout.Row = 5;
+        statusLabelTeach.Layout.Column = 1;
+        handles.teachStatus = uilabel(focusGrid);
+        handles.teachStatus.Text = "Waiting for teaching plan";
         handles.teachStatus.FontName = "Helvetica";
-        handles.teachStatus.Layout.Row = 5;
-        handles.teachStatus.Layout.Column = [1 4];
-
-        handles.teachOutput = uitextarea(grid);
-        handles.teachOutput.Editable = "off";
-        handles.teachOutput.FontName = "Menlo";
-        handles.teachOutput.Layout.Row = [6 7];
-        handles.teachOutput.Layout.Column = [1 4];
+        handles.teachStatus.Layout.Row = 6;
+        handles.teachStatus.Layout.Column = 1;
+        focusHelp = uitextarea(focusGrid);
+        focusHelp.Editable = "off";
+        focusHelp.FontName = "Helvetica";
+        focusHelp.Value = [
+            "Use Highlight and Zoom after the student commits an answer."
+            "This links the lesson step to the generated model."
+            ];
+        focusHelp.Layout.Row = 7;
+        focusHelp.Layout.Column = 1;
+        handles.clearTeachingButton = uibutton(focusGrid, "Text", "Clear Highlights", ...
+            "ButtonPushedFcn", @(~, ~) onRunNaturalClearHighlights());
+        handles.clearTeachingButton.Layout.Row = 8;
+        handles.clearTeachingButton.Layout.Column = 1;
+        styleSecondary(handles.clearTeachingButton);
     end
 
     function buildProbeTab(parent)
-        tab = uitab(parent, "Title", "Probe");
-        grid = uigridlayout(tab, [7 4]);
-        grid.RowHeight = {34, 34, 34, "1x", 34, 34, 150};
-        grid.ColumnWidth = {150, "1x", 160, 160};
-        grid.Padding = [12 12 12 12];
-        grid.RowSpacing = 8;
-        grid.ColumnSpacing = 8;
+        tab = makeWorkflowPage(parent);
+        handles.probeTab = tab;
+        grid = uigridlayout(tab, [2 2]);
+        grid.RowHeight = {205, "1x"};
+        grid.ColumnWidth = {"1x", "1x"};
+        grid.Padding = [18 16 18 16];
+        grid.RowSpacing = 12;
+        grid.ColumnSpacing = 12;
+        enableScroll(grid);
 
-        uilabel(grid, "Text", "Focus / probe");
-        handles.probeSelector = uidropdown(grid, "Items", "");
+        probeCard = makeCard(grid, "Probe the Model");
+        probeCard.Layout.Row = 1;
+        probeCard.Layout.Column = 1;
+        probeGrid = uigridlayout(probeCard, [4 4]);
+        probeGrid.RowHeight = {28, 34, 34, "1x"};
+        probeGrid.ColumnWidth = {96, "1x", 124, 124};
+        probeGrid.Padding = [12 10 12 12];
+        probeGrid.RowSpacing = 8;
+        probeGrid.ColumnSpacing = 8;
+        uilabel(probeGrid, "Text", "Focus / probe");
+        handles.probeSelector = uidropdown(probeGrid, "Items", "");
         handles.probeSelector.Layout.Row = 1;
-        handles.probeSelector.Layout.Column = 2;
-        handles.addProbeButton = uibutton(grid, "Text", "Place Probe", ...
+        handles.probeSelector.Layout.Column = [2 4];
+        handles.addProbeButton = uibutton(probeGrid, "Text", "Place Probe", ...
             "ButtonPushedFcn", @(~, ~) onAddProbe());
-        handles.addProbeButton.Layout.Row = 1;
-        handles.addProbeButton.Layout.Column = 3;
-        handles.analyzeLabErrorButton = uibutton(grid, "Text", "Analyze Error", ...
-            "ButtonPushedFcn", @(~, ~) onAnalyzeLabError());
-        handles.analyzeLabErrorButton.Tooltip = "Diagnose lab-vs-simulation error using the CSV, probe map, spec assumptions, model check, and simulation status.";
-        handles.analyzeLabErrorButton.Layout.Row = 1;
-        handles.analyzeLabErrorButton.Layout.Column = 4;
-
-        uilabel(grid, "Text", "Lab CSV");
-        handles.labCsvField = uieditfield(grid, "text");
-        handles.labCsvField.Layout.Row = 2;
-        handles.labCsvField.Layout.Column = 2;
-        handles.selectCsvButton = uibutton(grid, "Text", "Select CSV", ...
-            "ButtonPushedFcn", @(~, ~) onSelectCsv());
-        handles.selectCsvButton.Layout.Row = 2;
-        handles.selectCsvButton.Layout.Column = 3;
-        handles.compareDeltaButton = uibutton(grid, "Text", "Compare", ...
-            "ButtonPushedFcn", @(~, ~) onCompareLabDelta());
-        handles.compareDeltaButton.Layout.Row = 2;
-        handles.compareDeltaButton.Layout.Column = 4;
-
-        handles.probeStatus = uilabel(grid);
+        handles.addProbeButton.Layout.Row = 2;
+        handles.addProbeButton.Layout.Column = [2 3];
+        stylePrimary(handles.addProbeButton);
+        handles.probeStatus = uilabel(probeGrid);
         handles.probeStatus.FontName = "Helvetica";
+        handles.probeStatus.FontWeight = "bold";
         handles.probeStatus.Layout.Row = 3;
         handles.probeStatus.Layout.Column = [1 4];
+        probeHelp = uitextarea(probeGrid);
+        probeHelp.Editable = "off";
+        probeHelp.FontName = "Helvetica";
+        probeHelp.Value = [
+            "Probe the controlled output, feedback path, or measured node before changing parameters."
+            "CiTT will use the generated probe map, then highlight or add logging in Simulink."
+            ];
+        probeHelp.Layout.Row = 4;
+        probeHelp.Layout.Column = [1 4];
 
-        handles.probeOutput = uitextarea(grid);
-        handles.probeOutput.Editable = "off";
-        handles.probeOutput.FontName = "Menlo";
-        handles.probeOutput.Layout.Row = 4;
-        handles.probeOutput.Layout.Column = [1 4];
-
-        handles.deltaStatus = uilabel(grid);
+        deltaCard = makeCard(grid, "Explain Lab Delta");
+        deltaCard.Layout.Row = 1;
+        deltaCard.Layout.Column = 2;
+        deltaGrid = uigridlayout(deltaCard, [5 4]);
+        deltaGrid.RowHeight = {28, 28, 34, 28, "1x"};
+        deltaGrid.ColumnWidth = {76, "1x", 124, 124};
+        deltaGrid.Padding = [12 10 12 12];
+        deltaGrid.RowSpacing = 8;
+        deltaGrid.ColumnSpacing = 8;
+        uilabel(deltaGrid, "Text", "Lab CSV");
+        handles.labCsvField = uieditfield(deltaGrid, "text");
+        handles.labCsvField.Layout.Row = 1;
+        handles.labCsvField.Layout.Column = 2;
+        handles.selectCsvButton = uibutton(deltaGrid, "Text", "Select CSV", ...
+            "ButtonPushedFcn", @(~, ~) onSelectCsv());
+        handles.selectCsvButton.Layout.Row = 1;
+        handles.selectCsvButton.Layout.Column = 3;
+        styleSecondary(handles.selectCsvButton);
+        handles.compareDeltaButton = uibutton(deltaGrid, "Text", "Compare", ...
+            "ButtonPushedFcn", @(~, ~) onCompareLabDelta());
+        handles.compareDeltaButton.Layout.Row = 1;
+        handles.compareDeltaButton.Layout.Column = 4;
+        styleSecondary(handles.compareDeltaButton);
+        uilabel(deltaGrid, "Text", "Op-amp");
+        handles.opAmpPartField = uieditfield(deltaGrid, "text", ...
+            "Value", char(fieldText(state, "OpAmpPart")));
+        handles.opAmpPartField.Tooltip = "Optional op-amp part number for nonideal lab-error diagnosis, for example LM741.";
+        handles.opAmpPartField.Layout.Row = 2;
+        handles.opAmpPartField.Layout.Column = [2 4];
+        handles.analyzeLabErrorButton = uibutton(deltaGrid, "Text", "Analyze Error", ...
+            "ButtonPushedFcn", @(~, ~) onAnalyzeLabError());
+        handles.analyzeLabErrorButton.Tooltip = "Diagnose lab-vs-simulation error using the CSV, probe map, spec assumptions, model check, and simulation status.";
+        handles.analyzeLabErrorButton.Layout.Row = 3;
+        handles.analyzeLabErrorButton.Layout.Column = [3 4];
+        stylePrimary(handles.analyzeLabErrorButton);
+        handles.deltaStatus = uilabel(deltaGrid);
         handles.deltaStatus.FontName = "Helvetica";
-        handles.deltaStatus.Layout.Row = 5;
+        handles.deltaStatus.FontWeight = "bold";
+        handles.deltaStatus.Layout.Row = 4;
         handles.deltaStatus.Layout.Column = [1 4];
+        deltaHelp = uitextarea(deltaGrid);
+        deltaHelp.Editable = "off";
+        deltaHelp.FontName = "Helvetica";
+        deltaHelp.Value = [
+            "Compare lab data against simulation, then identify likely causes and the next experiment."
+            "Use this after the first probe so the delta is tied to model evidence."
+            ];
+        deltaHelp.Layout.Row = 5;
+        deltaHelp.Layout.Column = [1 4];
 
-        handles.deltaOutput = uitextarea(grid);
-        handles.deltaOutput.Editable = "off";
-        handles.deltaOutput.FontName = "Menlo";
-        handles.deltaOutput.Layout.Row = [6 7];
-        handles.deltaOutput.Layout.Column = [1 4];
+        resultTabs = uitabgroup(grid);
+        resultTabs.Layout.Row = 2;
+        resultTabs.Layout.Column = [1 2];
+        probeResultTab = uitab(resultTabs, "Title", "Probe Result");
+        probeResultGrid = uigridlayout(probeResultTab, [1 1]);
+        probeResultGrid.Padding = [10 10 10 10];
+        handles.probeOutput = makeSoftArea(probeResultGrid, "Helvetica");
+        handles.probeOutput.Layout.Row = 1;
+        handles.probeOutput.Layout.Column = 1;
+        deltaResultTab = uitab(resultTabs, "Title", "Lab Delta");
+        deltaResultGrid = uigridlayout(deltaResultTab, [1 1]);
+        deltaResultGrid.Padding = [10 10 10 10];
+        handles.deltaOutput = makeSoftArea(deltaResultGrid, "Helvetica");
+        handles.deltaOutput.Layout.Row = 1;
+        handles.deltaOutput.Layout.Column = 1;
     end
 
-    function buildVerificationTab(parent)
-        tab = uitab(parent, "Title", "Verify");
-        grid = uigridlayout(tab, [6 4]);
-        grid.RowHeight = {34, 34, 28, "1x", 28, 92};
-        grid.ColumnWidth = {150, "1x", 170, 170};
-        grid.Padding = [12 12 12 12];
-        grid.RowSpacing = 8;
-        grid.ColumnSpacing = 8;
+    function buildEvidenceTab(parent)
+        tab = makeWorkflowPage(parent);
+        handles.evidenceTab = tab;
+        grid = uigridlayout(tab, [4 4]);
+        grid.RowHeight = {76, 154, 192, "1x"};
+        grid.ColumnWidth = {"1x", "1x", "1x", "1x"};
+        grid.Padding = [18 16 18 16];
+        grid.RowSpacing = 12;
+        grid.ColumnSpacing = 12;
+        enableScroll(grid);
 
-        uilabel(grid, "Text", "Explain action");
-        handles.explainSelector = uidropdown(grid, "Items", "");
-        handles.explainSelector.Layout.Row = 1;
-        handles.explainSelector.Layout.Column = 2;
-        handles.buildExplainabilityButton = uibutton(grid, "Text", "Map", ...
+        packCard = makeCard(grid, "Competition Package");
+        packCard.Layout.Row = 1;
+        packCard.Layout.Column = [1 4];
+        packGrid = uigridlayout(packCard, [2 6]);
+        packGrid.RowHeight = {28, 34};
+        packGrid.ColumnWidth = {90, "1x", 150, 150, 150, 130};
+        packGrid.Padding = [12 8 12 10];
+        packGrid.RowSpacing = 6;
+        packGrid.ColumnSpacing = 8;
+        uilabel(packGrid, "Text", "Pack path");
+        handles.evidencePathField = uieditfield(packGrid, "text");
+        handles.evidencePathField.Layout.Row = 1;
+        handles.evidencePathField.Layout.Column = [2 6];
+        handles.evidenceStatus = uilabel(packGrid);
+        handles.evidenceStatus.FontName = "Helvetica";
+        handles.evidenceStatus.FontWeight = "bold";
+        handles.evidenceStatus.Layout.Row = 2;
+        handles.evidenceStatus.Layout.Column = [1 3];
+        handles.exportEvidenceButton = uibutton(packGrid, "Text", "Export BMES Evidence Pack", ...
+            "ButtonPushedFcn", @(~, ~) onExportEvidencePack());
+        handles.exportEvidenceButton.Layout.Row = 2;
+        handles.exportEvidenceButton.Layout.Column = [4 5];
+        stylePrimary(handles.exportEvidenceButton);
+        handles.openEvidenceButton = uibutton(packGrid, "Text", "Open Pack", ...
+            "ButtonPushedFcn", @(~, ~) onOpenEvidencePack());
+        handles.openEvidenceButton.Tooltip = "Open the generated evidence pack.";
+        handles.openEvidenceButton.Layout.Row = 2;
+        handles.openEvidenceButton.Layout.Column = 6;
+        styleSecondary(handles.openEvidenceButton);
+
+        proofCard = makeCard(grid, "Functional Proof");
+        proofCard.Layout.Row = 2;
+        proofCard.Layout.Column = 1;
+        proofGrid = uigridlayout(proofCard, [5 1]);
+        proofGrid.RowHeight = {34, 34, 26, "1x", 28};
+        proofGrid.Padding = [12 10 12 12];
+        proofGrid.RowSpacing = 8;
+        handles.requirementsButton = uibutton(proofGrid, "Text", "Requirements", ...
+            "ButtonPushedFcn", @(~, ~) onRunRequirements());
+        handles.requirementsButton.Tooltip = "Export the requirement-to-simulation pass/fail table.";
+        handles.requirementsButton.Layout.Row = 1;
+        handles.requirementsButton.Layout.Column = 1;
+        stylePrimary(handles.requirementsButton);
+        handles.openVerificationReportButton = uibutton(proofGrid, "Text", "Open Report", ...
+            "ButtonPushedFcn", @(~, ~) onOpenLastVerificationReport());
+        handles.openVerificationReportButton.Tooltip = "Open the latest generated verification report.";
+        handles.openVerificationReportButton.Layout.Row = 2;
+        handles.openVerificationReportButton.Layout.Column = 1;
+        styleSecondary(handles.openVerificationReportButton);
+        handles.verificationStatus = uilabel(proofGrid);
+        handles.verificationStatus.FontName = "Helvetica";
+        handles.verificationStatus.FontWeight = "bold";
+        handles.verificationStatus.Layout.Row = 3;
+        handles.verificationStatus.Layout.Column = 1;
+        proofText = uitextarea(proofGrid);
+        proofText.Editable = "off";
+        proofText.FontName = "Helvetica";
+        proofText.Value = [
+            "Shows prototype proof with requirement pass/fail evidence."
+            "Use after model check and simulation."
+            ];
+        proofText.Layout.Row = 4;
+        proofText.Layout.Column = 1;
+
+        perfCard = makeCard(grid, "Performance and Limitations");
+        perfCard.Layout.Row = 2;
+        perfCard.Layout.Column = [2 3];
+        perfGrid = uigridlayout(perfCard, [4 4]);
+        perfGrid.RowHeight = {34, 34, 34, "1x"};
+        perfGrid.ColumnWidth = {"1x", 112, 112, 112};
+        perfGrid.Padding = [12 10 12 12];
+        perfGrid.RowSpacing = 8;
+        perfGrid.ColumnSpacing = 8;
+        handles.sweepButton = uibutton(perfGrid, "Text", "Sweep", ...
+            "ButtonPushedFcn", @(~, ~) onRunSweep());
+        handles.sweepButton.Tooltip = "Run the RC tolerance sweep report.";
+        handles.sweepButton.Layout.Row = 1;
+        handles.sweepButton.Layout.Column = 1;
+        styleSecondary(handles.sweepButton);
+        handles.faultButton = uibutton(perfGrid, "Text", "Faults", ...
+            "ButtonPushedFcn", @(~, ~) onRunFaults());
+        handles.faultButton.Tooltip = "Export educational fault-injection scenarios.";
+        handles.faultButton.Layout.Row = 1;
+        handles.faultButton.Layout.Column = 2;
+        styleSecondary(handles.faultButton);
+        handles.buildExplainabilityButton = uibutton(perfGrid, "Text", "Map", ...
             "ButtonPushedFcn", @(~, ~) onBuildExplainability());
         handles.buildExplainabilityButton.Tooltip = "Build the explainability action map from focus and probe artifacts.";
         handles.buildExplainabilityButton.Layout.Row = 1;
         handles.buildExplainabilityButton.Layout.Column = 3;
-        handles.highlightExplainabilityButton = uibutton(grid, "Text", "Highlight", ...
+        styleSecondary(handles.buildExplainabilityButton);
+        handles.highlightExplainabilityButton = uibutton(perfGrid, "Text", "Highlight", ...
             "ButtonPushedFcn", @(~, ~) onHighlightExplainability());
         handles.highlightExplainabilityButton.Tooltip = "Highlight the selected explainability action in Simulink.";
         handles.highlightExplainabilityButton.Layout.Row = 1;
         handles.highlightExplainabilityButton.Layout.Column = 4;
+        styleSecondary(handles.highlightExplainabilityButton);
+        uilabel(perfGrid, "Text", "Explain action");
+        handles.explainSelector = uidropdown(perfGrid, "Items", "");
+        handles.explainSelector.Layout.Row = 2;
+        handles.explainSelector.Layout.Column = [2 4];
+        perfText = uitextarea(perfGrid);
+        perfText.Editable = "off";
+        perfText.FontName = "Helvetica";
+        perfText.Value = [
+            "Collect sweep, fault, and explainability evidence."
+            "These reports show actual performance, limitations, and traceability."
+            ];
+        perfText.Layout.Row = [3 4];
+        perfText.Layout.Column = [1 4];
 
-        handles.requirementsButton = uibutton(grid, "Text", "Requirements", ...
-            "ButtonPushedFcn", @(~, ~) onRunRequirements());
-        handles.requirementsButton.Tooltip = "Export the requirement-to-simulation pass/fail table.";
-        handles.requirementsButton.FontWeight = "bold";
-        handles.requirementsButton.BackgroundColor = [0.145 0.486 0.353];
-        handles.requirementsButton.FontColor = [1 1 1];
-        handles.requirementsButton.Layout.Row = 2;
-        handles.requirementsButton.Layout.Column = 1;
-        handles.sweepButton = uibutton(grid, "Text", "Sweep", ...
-            "ButtonPushedFcn", @(~, ~) onRunSweep());
-        handles.sweepButton.Tooltip = "Run the RC tolerance sweep report.";
-        handles.sweepButton.Layout.Row = 2;
-        handles.sweepButton.Layout.Column = 2;
-        handles.faultButton = uibutton(grid, "Text", "Faults", ...
-            "ButtonPushedFcn", @(~, ~) onRunFaults());
-        handles.faultButton.Tooltip = "Export educational fault-injection scenarios.";
-        handles.faultButton.Layout.Row = 2;
-        handles.faultButton.Layout.Column = 3;
-        handles.openVerificationReportButton = uibutton(grid, "Text", "Open", ...
-            "ButtonPushedFcn", @(~, ~) onOpenLastVerificationReport());
-        handles.openVerificationReportButton.Tooltip = "Open the latest generated verification report.";
-        handles.openVerificationReportButton.Layout.Row = 2;
-        handles.openVerificationReportButton.Layout.Column = 4;
+        econCard = makeCard(grid, "Economic and Scope");
+        econCard.Layout.Row = 2;
+        econCard.Layout.Column = 4;
+        econGrid = uigridlayout(econCard, [5 2]);
+        econGrid.RowHeight = {28, 34, 34, 34, "1x"};
+        econGrid.ColumnWidth = {76, "1x"};
+        econGrid.Padding = [12 10 12 12];
+        econGrid.RowSpacing = 8;
+        uilabel(econGrid, "Text", "Students");
+        handles.studentsField = uieditfield(econGrid, "numeric", "Value", 30, "Limits", [1 10000]);
+        handles.studentsField.Layout.Row = 1;
+        handles.studentsField.Layout.Column = 2;
+        handles.economicsButton = uibutton(econGrid, "Text", "Cost Plan", ...
+            "ButtonPushedFcn", @(~, ~) onBuildEconomics());
+        handles.economicsButton.Tooltip = "Export the deployment cost and licensing plan.";
+        handles.economicsButton.Layout.Row = 2;
+        handles.economicsButton.Layout.Column = [1 2];
+        styleSecondary(handles.economicsButton);
+        handles.scopeButton = uibutton(econGrid, "Text", "Scope Guardrail", ...
+            "ButtonPushedFcn", @(~, ~) onBuildScopeGuardrail());
+        handles.scopeButton.Tooltip = "Export educational/regulatory scope guardrails.";
+        handles.scopeButton.Layout.Row = 3;
+        handles.scopeButton.Layout.Column = [1 2];
+        styleSecondary(handles.scopeButton);
+        econText = uitextarea(econGrid);
+        econText.Editable = "off";
+        econText.FontName = "Helvetica";
+        econText.Value = [
+            "Budget, market fit, educational scope, and regulatory guardrails."
+            ];
+        econText.Layout.Row = [4 5];
+        econText.Layout.Column = [1 2];
 
-        handles.verificationStatus = uilabel(grid);
-        handles.verificationStatus.FontName = "Helvetica";
-        handles.verificationStatus.Layout.Row = 3;
-        handles.verificationStatus.Layout.Column = [1 4];
-
-        handles.verificationOutput = uitextarea(grid);
-        handles.verificationOutput.Editable = "off";
-        handles.verificationOutput.FontName = "Menlo";
-        handles.verificationOutput.Layout.Row = 4;
-        handles.verificationOutput.Layout.Column = [1 4];
-
-        uilabel(grid, "Text", "Reports");
-        handles.verificationReports = uitextarea(grid);
-        handles.verificationReports.Editable = "off";
-        handles.verificationReports.FontName = "Menlo";
-        handles.verificationReports.Layout.Row = [5 6];
-        handles.verificationReports.Layout.Column = [2 4];
-    end
-
-    function buildAssessmentTab(parent)
-        tab = uitab(parent, "Title", "Plan");
-        grid = uigridlayout(tab, [7 4]);
-        grid.RowHeight = {34, 76, 76, 34, 28, "1x", 92};
-        grid.ColumnWidth = {130, "1x", 160, 160};
-        grid.Padding = [12 12 12 12];
-        grid.RowSpacing = 8;
-        grid.ColumnSpacing = 8;
-
-        uilabel(grid, "Text", "Concept");
-        handles.assessmentConceptField = uieditfield(grid, "text", ...
+        learningCard = makeCard(grid, "Learning Evidence");
+        learningCard.Layout.Row = 3;
+        learningCard.Layout.Column = [1 2];
+        learningGrid = uigridlayout(learningCard, [5 4]);
+        learningGrid.RowHeight = {30, 56, 56, 26, 34};
+        learningGrid.ColumnWidth = {72, "1x", 96, 112};
+        learningGrid.Padding = [12 10 12 12];
+        learningGrid.RowSpacing = 8;
+        learningGrid.ColumnSpacing = 8;
+        uilabel(learningGrid, "Text", "Concept");
+        handles.assessmentConceptField = uieditfield(learningGrid, "text", ...
             "Value", "cutoff frequency output node");
         handles.assessmentConceptField.Layout.Row = 1;
         handles.assessmentConceptField.Layout.Column = 2;
-        handles.hintLevelsField = uieditfield(grid, "numeric", "Value", 0, "Limits", [0 10]);
+        handles.hintLevelsField = uieditfield(learningGrid, "numeric", "Value", 0, "Limits", [0 10]);
         handles.hintLevelsField.Layout.Row = 1;
         handles.hintLevelsField.Layout.Column = 3;
-        handles.assessmentButton = uibutton(grid, "Text", "Assess", ...
+        handles.assessmentButton = uibutton(learningGrid, "Text", "Assess", ...
             "ButtonPushedFcn", @(~, ~) onRunAssessment());
         handles.assessmentButton.Tooltip = "Export learning-gain evidence from before/after answers.";
-        handles.assessmentButton.FontWeight = "bold";
-        handles.assessmentButton.BackgroundColor = [0.145 0.486 0.353];
-        handles.assessmentButton.FontColor = [1 1 1];
         handles.assessmentButton.Layout.Row = 1;
         handles.assessmentButton.Layout.Column = 4;
-
-        uilabel(grid, "Text", "Before");
-        handles.beforeAnswerText = uitextarea(grid);
+        stylePrimary(handles.assessmentButton);
+        uilabel(learningGrid, "Text", "Before");
+        handles.beforeAnswerText = uitextarea(learningGrid);
         handles.beforeAnswerText.Layout.Row = 2;
         handles.beforeAnswerText.Layout.Column = [2 4];
-
-        uilabel(grid, "Text", "After");
-        handles.afterAnswerText = uitextarea(grid);
+        uilabel(learningGrid, "Text", "After");
+        handles.afterAnswerText = uitextarea(learningGrid);
         handles.afterAnswerText.Layout.Row = 3;
         handles.afterAnswerText.Layout.Column = [2 4];
-
-        uilabel(grid, "Text", "Students");
-        handles.studentsField = uieditfield(grid, "numeric", "Value", 30, "Limits", [1 10000]);
-        handles.studentsField.Layout.Row = 4;
-        handles.studentsField.Layout.Column = 2;
-        handles.economicsButton = uibutton(grid, "Text", "Cost", ...
-            "ButtonPushedFcn", @(~, ~) onBuildEconomics());
-        handles.economicsButton.Tooltip = "Export the deployment cost and licensing plan.";
-        handles.economicsButton.Layout.Row = 4;
-        handles.economicsButton.Layout.Column = 3;
-        handles.scopeButton = uibutton(grid, "Text", "Scope", ...
-            "ButtonPushedFcn", @(~, ~) onBuildScopeGuardrail());
-        handles.scopeButton.Tooltip = "Export educational/regulatory scope guardrails.";
-        handles.scopeButton.Layout.Row = 4;
-        handles.scopeButton.Layout.Column = 4;
-
-        handles.assessmentStatus = uilabel(grid);
+        handles.assessmentStatus = uilabel(learningGrid);
         handles.assessmentStatus.FontName = "Helvetica";
-        handles.assessmentStatus.Layout.Row = 5;
+        handles.assessmentStatus.FontWeight = "bold";
+        handles.assessmentStatus.Layout.Row = 4;
         handles.assessmentStatus.Layout.Column = [1 4];
+        learningNote = uilabel(learningGrid, "Text", "Summarizes before/after reasoning and hint use for learning-gain evidence.");
+        learningNote.FontSize = 11;
+        learningNote.FontColor = [0.31 0.36 0.33];
+        learningNote.Layout.Row = 5;
+        learningNote.Layout.Column = [1 4];
 
-        handles.assessmentOutput = uitextarea(grid);
-        handles.assessmentOutput.Editable = "off";
-        handles.assessmentOutput.FontName = "Menlo";
-        handles.assessmentOutput.Layout.Row = 6;
-        handles.assessmentOutput.Layout.Column = [1 4];
+        finalCard = makeCard(grid, "Final Package Contents");
+        finalCard.Layout.Row = 3;
+        finalCard.Layout.Column = [3 4];
+        finalGrid = uigridlayout(finalCard, [1 1]);
+        finalGrid.Padding = [12 10 12 12];
+        handles.evidenceNotes = makeSoftArea(finalGrid, "Helvetica");
+        handles.evidenceNotes.Layout.Row = 1;
+        handles.evidenceNotes.Layout.Column = 1;
 
-        uilabel(grid, "Text", "Reports");
-        handles.assessmentReports = uitextarea(grid);
-        handles.assessmentReports.Editable = "off";
-        handles.assessmentReports.FontName = "Menlo";
-        handles.assessmentReports.Layout.Row = 7;
-        handles.assessmentReports.Layout.Column = [2 4];
+        detailTabs = uitabgroup(grid);
+        detailTabs.Layout.Row = 4;
+        detailTabs.Layout.Column = [1 4];
+
+        verificationTab = uitab(detailTabs, "Title", "Proof Reports");
+        verificationGrid = uigridlayout(verificationTab, [1 1]);
+        verificationGrid.Padding = [10 10 10 10];
+        handles.verificationOutput = makeOutputArea(verificationGrid);
+        handles.verificationOutput.Layout.Row = 1;
+        handles.verificationOutput.Layout.Column = 1;
+
+        assessmentTab = uitab(detailTabs, "Title", "Plan Reports");
+        assessmentGrid = uigridlayout(assessmentTab, [1 1]);
+        assessmentGrid.Padding = [10 10 10 10];
+        handles.assessmentOutput = makeOutputArea(assessmentGrid);
+        handles.assessmentOutput.Layout.Row = 1;
+        handles.assessmentOutput.Layout.Column = 1;
+
+        packTab = uitab(detailTabs, "Title", "Evidence Pack");
+        evidenceGrid = uigridlayout(packTab, [1 1]);
+        evidenceGrid.Padding = [10 10 10 10];
+        handles.evidenceOutput = makeOutputArea(evidenceGrid);
+        handles.evidenceOutput.Layout.Row = 1;
+        handles.evidenceOutput.Layout.Column = 1;
+
+        reportsTab = uitab(detailTabs, "Title", "Artifact Index");
+        reportsGrid = uigridlayout(reportsTab, [1 2]);
+        reportsGrid.ColumnWidth = {"1x", "1x"};
+        reportsGrid.Padding = [10 10 10 10];
+        reportsGrid.ColumnSpacing = 10;
+        handles.verificationReports = makeOutputArea(reportsGrid);
+        handles.verificationReports.Layout.Row = 1;
+        handles.verificationReports.Layout.Column = 1;
+        handles.assessmentReports = makeOutputArea(reportsGrid);
+        handles.assessmentReports.Layout.Row = 1;
+        handles.assessmentReports.Layout.Column = 2;
     end
 
-    function buildEvidenceTab(parent)
-        tab = uitab(parent, "Title", "Export");
-        grid = uigridlayout(tab, [5 4]);
-        grid.RowHeight = {34, 34, "1x", 28, 104};
-        grid.ColumnWidth = {120, "1x", 170, 140};
-        grid.Padding = [12 12 12 12];
-        grid.RowSpacing = 8;
-        grid.ColumnSpacing = 8;
+    function page = makeWorkflowPage(parent)
+        page = uipanel(parent, "BorderType", "none");
+        page.Layout.Row = 1;
+        page.Layout.Column = 1;
+        page.Visible = "off";
+        try
+            page.BackgroundColor = app.Figure.Color;
+        catch
+        end
+    end
 
-        uilabel(grid, "Text", "Path");
-        handles.evidencePathField = uieditfield(grid, "text");
-        handles.evidencePathField.Layout.Row = 1;
-        handles.evidencePathField.Layout.Column = [2 4];
+    function enableScroll(container)
+        try
+            container.Scrollable = "on";
+        catch
+        end
+    end
 
-        handles.exportEvidenceButton = uibutton(grid, "Text", "Export Pack", ...
-            "ButtonPushedFcn", @(~, ~) onExportEvidencePack());
-        handles.exportEvidenceButton.FontWeight = "bold";
-        handles.exportEvidenceButton.BackgroundColor = [0.145 0.486 0.353];
-        handles.exportEvidenceButton.FontColor = [1 1 1];
-        handles.exportEvidenceButton.Layout.Row = 2;
-        handles.exportEvidenceButton.Layout.Column = [2 3];
+    function panel = makeCard(parent, titleText)
+        panel = uipanel(parent, "Title", char(titleText));
+        try
+            panel.BackgroundColor = palette.surface;
+            panel.BorderType = "line";
+            panel.FontWeight = "bold";
+            panel.ForegroundColor = palette.text;
+        catch
+        end
+    end
 
-        handles.openEvidenceButton = uibutton(grid, "Text", "Open", ...
-            "ButtonPushedFcn", @(~, ~) onOpenEvidencePack());
-        handles.openEvidenceButton.Tooltip = "Open the generated evidence pack.";
-        handles.openEvidenceButton.Layout.Row = 2;
-        handles.openEvidenceButton.Layout.Column = 4;
+    function area = makeSoftArea(parent, fontName)
+        area = uitextarea(parent);
+        area.Editable = "off";
+        area.FontName = fontName;
+        area.Value = {""};
+        try
+            area.BackgroundColor = [1 1 1];
+            area.FontSize = 12;
+        catch
+        end
+    end
 
-        handles.evidenceOutput = uitextarea(grid);
-        handles.evidenceOutput.Editable = "off";
-        handles.evidenceOutput.FontName = "Menlo";
-        handles.evidenceOutput.Layout.Row = 3;
-        handles.evidenceOutput.Layout.Column = [1 4];
+    function area = makeOutputArea(parent)
+        area = makeSoftArea(parent, "Menlo");
+    end
 
-        handles.evidenceStatus = uilabel(grid);
-        handles.evidenceStatus.FontName = "Helvetica";
-        handles.evidenceStatus.Layout.Row = 4;
-        handles.evidenceStatus.Layout.Column = [1 4];
+    function label = makeLatexPreview(parent, fallbackText)
+        label = uilabel(parent, "Text", char(fallbackText));
+        label.HorizontalAlignment = "center";
+        label.VerticalAlignment = "center";
+        label.FontSize = 13;
+        try
+            label.Interpreter = "latex";
+            label.WordWrap = "on";
+            label.BackgroundColor = [0.96 0.985 0.972];
+            label.FontColor = palette.primaryDark;
+        catch
+        end
+    end
 
-        handles.evidenceNotes = uitextarea(grid);
-        handles.evidenceNotes.Editable = "off";
-        handles.evidenceNotes.FontName = "Helvetica";
-        handles.evidenceNotes.Layout.Row = 5;
-        handles.evidenceNotes.Layout.Column = [1 4];
+    function label = makeStepCard(parent, titleText, row, column)
+        panel = makeCard(parent, titleText);
+        panel.Layout.Row = row;
+        panel.Layout.Column = column;
+        stepGrid = uigridlayout(panel, [2 1]);
+        stepGrid.RowHeight = {22, "1x"};
+        stepGrid.Padding = [10 8 10 10];
+        stepGrid.RowSpacing = 4;
+        titleLabelLocal = uilabel(stepGrid, "Text", titleText);
+        titleLabelLocal.FontSize = 11;
+        titleLabelLocal.FontWeight = "bold";
+        titleLabelLocal.FontColor = [0.145 0.286 0.235];
+        titleLabelLocal.Layout.Row = 1;
+        titleLabelLocal.Layout.Column = 1;
+        label = uilabel(stepGrid, "Text", "Not started");
+        label.FontSize = 12;
+        label.FontWeight = "bold";
+        label.HorizontalAlignment = "center";
+        label.Layout.Row = 2;
+        label.Layout.Column = 1;
+        try
+            label.WordWrap = "on";
+            setTone(label, "gray");
+        catch
+        end
+    end
+
+    function label = makeStatusChip(parent, initialText)
+        label = uilabel(parent, "Text", char(initialText));
+        label.HorizontalAlignment = "center";
+        label.FontWeight = "bold";
+        label.FontSize = 11;
+        try
+            label.WordWrap = "on";
+        catch
+        end
+        setTone(label, "gray");
+    end
+
+    function label = makeStageChip(parent, initialText, destination)
+        label = uibutton(parent, "Text", char(initialText), ...
+            "ButtonPushedFcn", @(~, ~) selectWorkflowTab(destination));
+        label.FontWeight = "bold";
+        label.FontSize = 11;
+        try
+            label.HorizontalAlignment = "center";
+        catch
+        end
+        setTone(label, "gray");
+    end
+
+    function stylePrimary(button)
+        button.FontWeight = "bold";
+        button.BackgroundColor = palette.primary;
+        button.FontColor = [1 1 1];
+    end
+
+    function styleSecondary(button)
+        try
+            button.BackgroundColor = palette.soft;
+            button.FontColor = palette.primaryDark;
+        catch
+        end
+    end
+
+    function setTone(component, tone)
+        [bg, fg] = toneColors(tone);
+        try
+            component.BackgroundColor = bg;
+            component.FontColor = fg;
+        catch
+        end
+    end
+
+    function [bg, fg] = toneColors(tone)
+        switch string(tone)
+            case "green"
+                bg = [0.82 0.93 0.86];
+                fg = [0.04 0.24 0.13];
+            case "yellow"
+                bg = [0.99 0.91 0.68];
+                fg = [0.32 0.22 0.04];
+            case "red"
+                bg = [0.96 0.82 0.82];
+                fg = [0.38 0.07 0.07];
+            case "blue"
+                bg = [0.83 0.90 0.98];
+                fg = [0.05 0.18 0.36];
+            otherwise
+                bg = [0.91 0.93 0.92];
+                fg = [0.22 0.27 0.24];
+        end
     end
 
     function onSelectImage()
@@ -548,6 +1028,16 @@ refreshAll();
         end
         state.ImagePath = string(fullfile(folder, file));
         refreshAll();
+    end
+
+    function onSelectTeachingImage()
+        [file, folder] = uigetfile({"*.png;*.jpg;*.jpeg;*.gif;*.webp", "Student images"; "*.*", "All files"});
+        if isequal(file, 0)
+            return
+        end
+        state.TeachingImagePath = string(fullfile(folder, file));
+        handles.studentImageField.Value = char(state.TeachingImagePath);
+        setArea(handles.teachOutput, "Student image attached for the next hint or reveal." + newline + state.TeachingImagePath);
     end
 
     function onImageDropped(src)
@@ -618,6 +1108,66 @@ refreshAll();
         end
     end
 
+    function onNextAction()
+        syncInputsFromUi();
+        [~, action, destination] = nextActionForState(state);
+        selectWorkflowTab(destination);
+        switch action
+            case "read"
+                onParseWithGemini();
+            case "prepare"
+                onGenerateAgentTask();
+            case "build"
+                onRunAgent();
+            case "check"
+                onCheckModel();
+            case "teach"
+                onStartTeaching();
+            case "export"
+                onExportEvidencePack();
+            otherwise
+                refreshAll();
+        end
+    end
+
+    function syncInputsFromUi()
+        try
+            state.ImagePath = string(handles.imageField.Value);
+            state.PromptText = textAreaText(handles.promptText);
+            state.ModelPath = string(handles.modelPathField.Value);
+            state.LabCsvPath = string(handles.labCsvField.Value);
+            state.EvidencePackPath = string(handles.evidencePathField.Value);
+            if isfield(handles, "studentImageField")
+                state.TeachingImagePath = string(handles.studentImageField.Value);
+            end
+        catch
+        end
+    end
+
+    function selectWorkflowTab(destination)
+        destination = string(destination);
+        activeWorkflowPage = destination;
+        pageNames = ["read", "build", "teach", "probe", "evidence"];
+        pageHandles = {
+            handles.readTab
+            handles.buildTab
+            handles.teachTab
+            handles.probeTab
+            handles.evidenceTab
+        };
+        for pageIndex = 1:numel(pageHandles)
+            try
+                if pageNames(pageIndex) == destination
+                    pageHandles{pageIndex}.Visible = "on";
+                else
+                    pageHandles{pageIndex}.Visible = "off";
+                end
+            catch
+            end
+        end
+        updateStageRail(state);
+    end
+
     function text = parseNextStepText(parsed)
         spec = parsed.spec;
         blockingIssues = specBlockingIssues(spec);
@@ -636,7 +1186,7 @@ refreshAll();
             text = strjoin([
                 "Circuit read successfully."
                 emptyText(notes, "Symbolic or omitted values will be kept as model parameters.")
-                "Next: open Build Model, then click Prepare Build."
+                "Next: open Build, then click Prepare Build."
                 "Spec saved at: " + parsed.spec_path
             ], newline);
         end
@@ -651,7 +1201,7 @@ refreshAll();
             state.AgentTaskPath = generated.task_path;
             refreshAll();
             handles.agentStatus.Text = "Build task ready";
-            setArea(handles.agentOutput, "Build task ready. Build Model will hand this task to an SATK-enabled external agent." + newline + generated.task_path);
+            setArea(handles.agentOutput, "Build brief ready. Build Model will hand this task to the configured SATK agent." + newline + generated.task_path);
             setPipeline("Build task ready. Next: Build Model.", 55);
         catch taskError
             setArea(handles.agentOutput, "Build preparation failed: " + string(taskError.message));
@@ -681,7 +1231,7 @@ refreshAll();
         catch runError
             handles.agentStatus.Text = "Build failed";
             setArea(handles.agentOutput, "Model build failed: " + string(runError.message));
-            setPipeline("Build failed. See Build Model output.", 55);
+            setPipeline("Build failed. See Agent Output.", 55);
         end
         setIdle();
     end
@@ -725,7 +1275,7 @@ refreshAll();
             stopAgentPollTimer();
             handles.agentStatus.Text = "Agent status failed";
             setArea(handles.agentOutput, "Could not poll external agent: " + string(pollError.message));
-            setPipeline("Agent status failed. See Build Model output.", 58);
+            setPipeline("Agent status failed. See Agent Output.", 58);
             setIdle();
         end
     end
@@ -754,7 +1304,7 @@ refreshAll();
             setPipeline("Manual agent task opened. Run it in an SATK-configured agent.", 58);
         else
             handles.agentStatus.Text = "Build incomplete";
-            setPipeline("Build incomplete. See Build Model output.", 58);
+            setPipeline("Build incomplete. See Agent Output.", 58);
         end
     end
 
@@ -831,6 +1381,23 @@ refreshAll();
         setIdle();
     end
 
+    function onRunBodeAnalysis()
+        state.ModelPath = string(handles.modelPathField.Value);
+        try
+            setBusy("Building Bode analysis...", 92);
+            bode = feval('citt.runBodeAnalysis', state);
+            state.LastBode = bode;
+            handles.modelStatus.Text = "Bode analysis complete";
+            setArea(handles.modelOutput, bodeSummary(bode));
+            setPipeline("Bode analysis ready.", 94);
+        catch bodeError
+            handles.modelStatus.Text = "Bode analysis failed";
+            setArea(handles.modelOutput, "Bode analysis failed: " + string(bodeError.message));
+            setPipeline("Bode analysis failed. Check spec values or I/O points.", 84);
+        end
+        setIdle();
+    end
+
     function onRunCommand()
         state.ModelPath = string(handles.modelPathField.Value);
         commandText = string(handles.commandField.Value);
@@ -872,12 +1439,14 @@ refreshAll();
             onStartTeaching();
         end
         try
+            syncInputsFromUi();
+            validateTeachingImage();
             setBusy("Reading student answer...", 92);
             progress = startProgress("Socratic Hint", "Gemini is classifying the answer and preparing one local hint.");
             cleanup = onCleanup(@() finishProgress(progress));
-            answer = textAreaText(handles.studentAnswer);
+            answer = teachingSubmissionText();
             turn = feval('citt.runSocraticTurn', state.TeachingPlan, state.TeachingStepIndex, answer, ...
-                struct("Action", "hint", "HintLevel", state.HintLevel));
+                struct("Action", "hint", "HintLevel", state.HintLevel, "AnswerImagePath", state.TeachingImagePath));
             state.HintLevel = turn.next_hint_level;
             handles.teachStatus.Text = "Classification: " + turn.classification;
             setArea(handles.teachOutput, turn.message);
@@ -891,32 +1460,51 @@ refreshAll();
         if isempty(state.TeachingPlan)
             onStartTeaching();
         end
-        turn = feval('citt.runSocraticTurn', state.TeachingPlan, state.TeachingStepIndex, textAreaText(handles.studentAnswer), ...
-            struct("Action", "reveal"));
-        handles.teachStatus.Text = "Reveal shown for " + turn.step_id;
-        setArea(handles.teachOutput, turn.message);
+        try
+            syncInputsFromUi();
+            validateTeachingImage();
+            turn = feval('citt.runSocraticTurn', state.TeachingPlan, state.TeachingStepIndex, teachingSubmissionText(), ...
+                struct("Action", "reveal", "AnswerImagePath", state.TeachingImagePath));
+            handles.teachStatus.Text = "Reveal shown for " + turn.step_id;
+            setArea(handles.teachOutput, turn.message);
+        catch revealError
+            setArea(handles.teachOutput, "Reveal failed: " + string(revealError.message));
+        end
     end
 
     function onHighlightCurrent()
         focusId = string(handles.focusSelector.Value);
         highlighted = feval('citt.highlightFocus', state.ModelPath, state.FocusMapPath, focusId);
         handles.teachStatus.Text = "Highlighted: " + string(highlighted.success);
-        setArea(handles.teachOutput, feval('citt.util.jsonEncode', highlighted));
+        setArea(handles.teachOutput, focusActionSummary("Highlight", highlighted));
     end
 
     function onZoomCurrent()
         focusId = string(handles.focusSelector.Value);
         zoomed = feval('citt.zoomToFocus', state.ModelPath, state.FocusMapPath, focusId);
         handles.teachStatus.Text = zoomed.message;
-        setArea(handles.teachOutput, feval('citt.util.jsonEncode', zoomed));
+        setArea(handles.teachOutput, focusActionSummary("Zoom", zoomed));
+    end
+
+    function onRunNaturalClearHighlights()
+        try
+            cleared = feval('citt.clearHighlights', state.ModelPath);
+            handles.teachStatus.Text = "Highlights cleared";
+            setArea(handles.teachOutput, "Model focus cleared." + newline + "Model: " + fieldText(cleared, "model_name"));
+        catch clearError
+            handles.teachStatus.Text = "Clear failed";
+            setArea(handles.teachOutput, "Could not clear highlights: " + string(clearError.message));
+        end
     end
 
     function onAddProbe()
         targetId = string(handles.probeSelector.Value);
         probed = feval('citt.addProbe', state.ModelPath, targetId, state.ProbeMapPath, state.SpecPath);
         state.LastProbe = probed;
+        refreshAll();
         handles.probeStatus.Text = "Probe plan success: " + string(probed.success);
-        setArea(handles.probeOutput, feval('citt.util.jsonEncode', probed));
+        setArea(handles.probeOutput, probePlanSummary(probed));
+        setPipeline("Probe ready. Next: compare lab delta or export evidence.", 100);
     end
 
     function onSelectCsv()
@@ -930,12 +1518,14 @@ refreshAll();
 
     function onCompareLabDelta()
         state.LabCsvPath = string(handles.labCsvField.Value);
+        state.OpAmpPart = string(handles.opAmpPartField.Value);
         try
             delta = feval('citt.compareLabDelta', struct(), struct(), state.LabCsvPath, struct("Context", state));
             state.LastLabDelta = delta;
             handles.deltaStatus.Text = "Lab error rows: " + string(numel(delta.rows)) + ...
                 " | causes: " + string(numel(delta.likely_causes));
             setArea(handles.deltaOutput, labErrorSummary(delta));
+            setPipeline("Lab delta comparison ready.", 100);
         catch deltaError
             setArea(handles.deltaOutput, "Lab Delta failed: " + string(deltaError.message));
         end
@@ -943,6 +1533,7 @@ refreshAll();
 
     function onAnalyzeLabError()
         state.LabCsvPath = string(handles.labCsvField.Value);
+        state.OpAmpPart = string(handles.opAmpPartField.Value);
         try
             setBusy("Analyzing lab error...", 94);
             analyzed = feval('citt.analyzeLabError', state.LabCsvPath, state);
@@ -1139,14 +1730,17 @@ refreshAll();
         end
         step = state.TeachingPlan.steps(state.TeachingStepIndex);
         text = strjoin([
-            "Step: " + string(step.id)
-            "Title: " + string(step.title)
+            "Step " + string(state.TeachingStepIndex) + ": " + string(step.title)
+            ""
+            "Question:"
+            string(step.student_question)
+            ""
             "Focus: " + string(step.focus_id)
             "Concept: " + string(step.concept)
-            "Question: " + string(step.student_question)
         ], newline);
         setArea(handles.currentStepDisplay, text);
         setArea(handles.teachOutput, string(step.student_question));
+        setArea(handles.lessonStepsDisplay, teachingStepsText(state));
     end
 
     function updateFocusSelectors()
@@ -1255,21 +1849,465 @@ refreshAll();
 
     function refreshAll()
         statusLabel.Text = compactStatus(state);
+        [nextLabel, ~, ~] = nextActionForState(state);
+        handles.nextActionButton.Text = nextLabel;
         handles.imageField.Value = char(state.ImagePath);
         handles.modelPathField.Value = char(state.ModelPath);
         handles.labCsvField.Value = char(state.LabCsvPath);
+        if isfield(handles, "studentImageField")
+            handles.studentImageField.Value = char(fieldText(state, "TeachingImagePath"));
+        end
+        if isfield(handles, "opAmpPartField")
+            handles.opAmpPartField.Value = char(fieldText(state, "OpAmpPart"));
+        end
         handles.evidencePathField.Value = char(state.EvidencePackPath);
+        updateSetupChips(state.LastSetupReport);
         setArea(handles.setupReport, setupOverviewText(state.LastSetupReport));
         handles.agentStatus.Text = "Task file: " + state.AgentTaskPath;
         handles.modelStatus.Text = "Model: " + state.ModelPath;
         setArea(handles.modelPathsDisplay, pathStatusText(state));
         setArea(handles.inputStatus, inputStatusText(state));
         setArea(handles.specDisplay, currentSpecPreview(state));
+        setArea(handles.readinessDisplay, readinessSummaryText(state));
+        setArea(handles.readAdvancedDisplay, readAdvancedText(state));
+        updateBuildStepCards(state);
+        setArea(handles.lessonStepsDisplay, teachingStepsText(state));
+        setArea(handles.evidenceNotes, evidenceContentsText(state));
         setArea(handles.verificationReports, verificationReportText(state));
         setArea(handles.assessmentReports, assessmentReportText(state));
+        updateStageRail(state);
         updatePipelineFromState(state);
         updateFocusSelectors();
         updateExplainabilitySelector();
+        updateLatexPreviews();
+    end
+
+    function [label, action, destination] = nextActionForState(currentState)
+        spec = currentSpecStruct(currentState);
+        hasInput = strlength(strtrim(currentState.ImagePath)) > 0 || ...
+            strlength(strtrim(currentState.PromptText)) > 0;
+        if isempty(spec) && ~hasInput && exist(currentState.SpecPath, "file") ~= 2
+            label = "Next: Add Input";
+            action = "select";
+            destination = "read";
+            return
+        end
+        if isempty(spec) && exist(currentState.SpecPath, "file") ~= 2
+            label = "Next: Read with Gemini";
+            action = "read";
+            destination = "read";
+            return
+        end
+        if ~isempty(spec)
+            readiness = feval('citt.classifyBuildReadiness', spec);
+            if ~readiness.build_ready
+                label = "Next: Clarify Read";
+                action = "select";
+                destination = "read";
+                return
+            end
+        end
+        if ~agentTaskExists(currentState)
+            label = "Next: Prepare Build";
+            action = "prepare";
+            destination = "build";
+            return
+        end
+        if ~modelExists(currentState)
+            label = "Next: Build Model";
+            action = "build";
+            destination = "build";
+            return
+        end
+        if isempty(currentState.LastModelCheck)
+            label = "Next: Check Model";
+            action = "check";
+            destination = "build";
+            return
+        end
+        if isempty(currentState.TeachingPlan)
+            label = "Next: Start Teaching";
+            action = "teach";
+            destination = "teach";
+            return
+        end
+        if isempty(currentState.LastProbe)
+            label = "Next: Probe Model";
+            action = "select";
+            destination = "probe";
+            return
+        end
+        if isempty(currentState.LastLabDelta)
+            label = "Next: Explain Delta";
+            action = "select";
+            destination = "probe";
+            return
+        end
+        label = "Next: Export BMES Pack";
+        action = "export";
+        destination = "evidence";
+    end
+
+    function tf = agentTaskExists(currentState)
+        tf = strlength(currentState.AgentTaskPath) > 0 && exist(currentState.AgentTaskPath, "file") == 2;
+    end
+
+    function tf = modelExists(currentState)
+        tf = strlength(currentState.ModelPath) > 0 && exist(currentState.ModelPath, "file") == 2;
+    end
+
+    function spec = currentSpecStruct(currentState)
+        spec = [];
+        if ~isempty(currentState.Spec)
+            spec = currentState.Spec;
+            return
+        end
+        if strlength(currentState.SpecPath) > 0 && exist(currentState.SpecPath, "file") == 2
+            try
+                spec = jsondecode(fileread(currentState.SpecPath));
+            catch
+                spec = [];
+            end
+        end
+    end
+
+    function updateSetupChips(setup)
+        if isempty(setup)
+            setStatusChip(handles.geminiChip, "Gemini", false, "not checked");
+            setStatusChip(handles.satkChip, "SATK", false, "not checked");
+            setStatusChip(handles.mcpChip, "MCP", false, "not checked");
+            setStatusChip(handles.simscapeChip, "Simscape", false, "not checked");
+            setStatusChip(handles.agentChip, "Agent", false, "not checked");
+            return
+        end
+        setStatusChip(handles.geminiChip, "Gemini", setup.gemini_key_found, setup.gemini_model);
+        setStatusChip(handles.satkChip, "SATK", setup.satk_initialize_available, readyNeeds(setup.satk_initialize_available));
+        setStatusChip(handles.mcpChip, "MCP", setup.matlab_mcp_available, readyNeeds(setup.matlab_mcp_available));
+        setStatusChip(handles.simscapeChip, "Simscape", setup.simscape_available, readyNeeds(setup.simscape_available));
+        setStatusChip(handles.agentChip, "Agent", setupAgentReady(setup), setupAgentText(setup));
+    end
+
+    function setStatusChip(label, name, ready, detail)
+        if ready
+            statusText = "ready";
+            tone = "green";
+        else
+            statusText = "needs setup";
+            tone = "yellow";
+        end
+        detail = string(detail);
+        if strlength(strtrim(detail)) == 0
+            detail = statusText;
+        end
+        label.Text = string(name) + ": " + detail;
+        setTone(label, tone);
+    end
+
+    function ready = setupAgentReady(setup)
+        ready = false;
+        if isfield(setup, "configured_agent_command") && strlength(strtrim(setup.configured_agent_command)) > 0
+            ready = true;
+            return
+        end
+        if isfield(setup, "agent_clis")
+            for i = 1:numel(setup.agent_clis)
+                if isfield(setup.agent_clis(i), "available") && setup.agent_clis(i).available
+                    ready = true;
+                    return
+                end
+            end
+        end
+    end
+
+    function text = setupAgentText(setup)
+        text = "needs CLI";
+        if isfield(setup, "configured_agent_command") && strlength(strtrim(setup.configured_agent_command)) > 0
+            text = "ready: CITT_AGENT_COMMAND";
+            return
+        end
+        if isfield(setup, "agent_clis")
+            for i = 1:numel(setup.agent_clis)
+                if isfield(setup.agent_clis(i), "available") && setup.agent_clis(i).available
+                    text = "ready: " + setup.agent_clis(i).name;
+                    return
+                end
+            end
+        end
+    end
+
+    function text = readinessSummaryText(currentState)
+        spec = currentSpecStruct(currentState);
+        if isempty(spec)
+            text = strjoin([
+                "Build readiness: NOT STARTED"
+                ""
+                "Blocking issues"
+                "- none yet"
+                ""
+                "Modeling assumptions"
+                "- none yet"
+                ""
+                "Next action: Read with Gemini"
+            ], newline);
+            return
+        end
+
+        readiness = feval('citt.classifyBuildReadiness', spec);
+        notes = specBuildNotes(spec);
+        if readiness.build_ready && strlength(strtrim(notes)) > 0
+            badge = "PARAMETERIZED";
+        elseif readiness.build_ready
+            badge = "READY";
+        else
+            badge = "NEEDS CLARIFICATION";
+        end
+
+        if readiness.build_ready
+            nextText = "Prepare Build";
+        else
+            nextText = "Clarify prompt, then read again";
+        end
+
+        text = strjoin([
+            "Build readiness: " + badge
+            ""
+            "Blocking issues"
+            emptyListText(readiness.blocking_text)
+            ""
+            "Modeling assumptions"
+            emptyListText(notes)
+            ""
+            "Next action: " + nextText
+        ], newline);
+    end
+
+    function text = readAdvancedText(currentState)
+        spec = currentSpecStruct(currentState);
+        if isempty(spec)
+            specDetails = strjoin([
+                "Suggested Simscape blocks"
+                "- none yet"
+                ""
+                "Assumptions"
+                "- none yet"
+            ], newline);
+        else
+            specDetails = strjoin([
+                "Suggested Simscape blocks"
+                listValue(getSpecValue(spec, "suggested_simscape_blocks"))
+                ""
+                "Assumptions"
+                listValue(getSpecValue(spec, "assumptions"))
+            ], newline);
+        end
+        text = strjoin([
+            "Raw JSON is available through Open Spec."
+            "Image: " + emptyText(currentState.ImagePath, "not selected")
+            "Spec file: " + currentState.SpecPath
+            ""
+            specDetails
+            ""
+            "Prompt"
+            emptyText(currentState.PromptText, "none")
+        ], newline);
+    end
+
+    function updateBuildStepCards(currentState)
+        spec = currentSpecStruct(currentState);
+        if isempty(spec)
+            setStepStatus(handles.buildStepSpec, "Waiting for Read", "gray");
+        else
+            setStepStatus(handles.buildStepSpec, "Ready" + newline + fileNameOnly(currentState.SpecPath), "green");
+        end
+
+        if agentTaskExists(currentState)
+            setStepStatus(handles.buildStepTask, "Ready" + newline + fileNameOnly(currentState.AgentTaskPath), "green");
+        else
+            setStepStatus(handles.buildStepTask, "Prepare Model", "blue");
+        end
+
+        if ~isempty(currentState.AgentRun)
+            mode = fieldText(currentState.AgentRun, "mode");
+            if mode == "external_agent_pending"
+                setStepStatus(handles.buildStepAgent, "Running", "blue");
+            elseif isfield(currentState.AgentRun, "success") && currentState.AgentRun.success
+                setStepStatus(handles.buildStepAgent, "Complete", "green");
+            elseif mode == "manual_agent"
+                setStepStatus(handles.buildStepAgent, "Manual agent needed", "yellow");
+            else
+                setStepStatus(handles.buildStepAgent, "Needs attention", "red");
+            end
+        else
+            setStepStatus(handles.buildStepAgent, "Not started", "gray");
+        end
+
+        if modelExists(currentState)
+            setStepStatus(handles.buildStepModel, "Available" + newline + fileNameOnly(currentState.ModelPath), "green");
+        else
+            setStepStatus(handles.buildStepModel, "Waiting for model", "gray");
+        end
+
+        if ~isempty(currentState.LastModelCheck)
+            setStepStatus(handles.buildStepCheck, "Complete", "green");
+        elseif modelExists(currentState)
+            setStepStatus(handles.buildStepCheck, "Ready to check", "blue");
+        else
+            setStepStatus(handles.buildStepCheck, "Waiting for model", "gray");
+        end
+    end
+
+    function setStepStatus(label, text, tone)
+        label.Text = string(text);
+        setTone(label, tone);
+    end
+
+    function updateStageRail(currentState)
+        selected = pageIndexForName(activeWorkflowPage);
+        completed = workflowStageIndex(currentState);
+        stageLabels = {
+            handles.stageRead
+            handles.stageBuild
+            handles.stageTeach
+            handles.stageProbe
+            handles.stageEvidence
+        };
+        names = ["Read", "Build", "Teach", "Probe", "Evidence"];
+        for i = 1:numel(stageLabels)
+            stageLabels{i}.Text = names(i);
+            if i == selected
+                setTone(stageLabels{i}, "blue");
+            elseif i < completed
+                setTone(stageLabels{i}, "green");
+            else
+                setTone(stageLabels{i}, "gray");
+            end
+        end
+    end
+
+    function index = pageIndexForName(pageName)
+        names = ["read", "build", "teach", "probe", "evidence"];
+        match = find(names == string(pageName), 1);
+        if isempty(match)
+            index = 1;
+        else
+            index = match;
+        end
+    end
+
+    function index = workflowStageIndex(currentState)
+        if ~isempty(currentState.LastEvidencePack)
+            index = 5;
+        elseif ~isempty(currentState.LastProbe) || ~isempty(currentState.LastLabDelta)
+            index = 4;
+        elseif ~isempty(currentState.TeachingPlan)
+            index = 3;
+        elseif ~isempty(currentState.AgentRun) || agentTaskExists(currentState) || modelExists(currentState) || ~isempty(currentState.LastModelCheck)
+            index = 2;
+        else
+            index = 1;
+        end
+    end
+
+    function text = teachingStepsText(currentState)
+        if isempty(currentState.TeachingPlan)
+            text = strjoin([
+                "1. Identify command input"
+                "2. Trace feedback path"
+                "3. Explain output measurement"
+                "4. Check modeling assumption"
+                "5. Interpret simulation result"
+                ""
+                "Start Teaching will replace this with the generated lesson plan."
+            ], newline);
+            return
+        end
+
+        steps = currentState.TeachingPlan.steps;
+        lines = strings(numel(steps), 1);
+        for i = 1:numel(steps)
+            marker = string(i) + ". ";
+            if i == currentState.TeachingStepIndex
+                marker = "Current: ";
+            end
+            lines(i) = marker + string(steps(i).title) + newline + "   focus: " + string(steps(i).focus_id);
+        end
+        text = strjoin(lines, newline);
+    end
+
+    function text = evidenceContentsText(currentState)
+        if ~isempty(currentState.LastEvidencePack)
+            text = strjoin([
+                "Last exported evidence pack"
+                "Pack: " + fieldText(currentState.LastEvidencePack, "pack_path")
+                ""
+                "Functional proof draft appears in the Markdown pack."
+            ], newline);
+            return
+        end
+
+        text = strjoin([
+            "This pack collects:"
+            "- circuit image and parsed spec"
+            "- generated Simscape model path"
+            "- model check and simulation status"
+            "- requirement pass/fail table"
+            "- sweep, fault, and explainability reports"
+            "- learning assessment"
+            "- risk/scope guardrail"
+            "- economics plan"
+        ], newline);
+    end
+
+    function text = focusActionSummary(actionName, result)
+        successText = fieldText(result, "success");
+        if strlength(successText) == 0
+            successText = "done";
+        end
+        messageText = fieldText(result, "message");
+        if strlength(messageText) == 0
+            messageText = fieldText(result, "focus_id");
+        end
+        text = strjoin([
+            actionName + " complete."
+            "Status: " + successText
+            "Message: " + emptyText(messageText, "model focus updated")
+            ""
+            "Ask the student to explain what changed in the highlighted model region."
+        ], newline);
+    end
+
+    function text = probePlanSummary(result)
+        text = strjoin([
+            "Probe placed or highlighted."
+            "Probe: " + emptyText(fieldText(result, "target_id"), "selected focus")
+            "Model: " + emptyText(fieldText(result, "model_path"), "current model")
+            ""
+            "What this probe tells us"
+            emptyListText(joinValue(result.instructions))
+            ""
+            "Automated model actions"
+            emptyListText(joinValue(result.automated_actions))
+            ""
+            "Warnings"
+            emptyListText(joinValue(result.warnings))
+            ""
+            "Next question: if this value differs from expectation, which part of the feedback path explains the error?"
+        ], newline);
+    end
+
+    function text = emptyListText(value)
+        value = string(value);
+        if strlength(strtrim(value)) == 0
+            text = "- none";
+            return
+        end
+        lines = splitlines(value);
+        lines = lines(strlength(strtrim(lines)) > 0);
+        if isempty(lines)
+            text = "- none";
+        else
+            text = strjoin("- " + lines(:), newline);
+        end
     end
 
     function text = compactStatus(currentState)
@@ -1328,6 +2366,7 @@ refreshAll();
             "Last parsed circuit spec: " + currentState.SpecPath
             "Focus map: " + currentState.FocusMapPath
             "Probe map: " + currentState.ProbeMapPath
+            "Bode report: " + currentState.Config.BodeMarkdownPath
             "Evidence pack: " + currentState.EvidencePackPath
         ], newline);
     end
@@ -1363,6 +2402,82 @@ refreshAll();
 
     function setArea(area, text)
         area.Value = cellstr(splitlines(string(text)));
+    end
+
+    function updateLatexPreviews()
+        try
+            if isfield(handles, "promptLatexPreview")
+                handles.promptLatexPreview.Text = latexPreviewText(textAreaText(handles.promptText));
+            end
+            if isfield(handles, "studentLatexPreview")
+                handles.studentLatexPreview.Text = latexPreviewText(textAreaText(handles.studentAnswer));
+            end
+        catch
+        end
+    end
+
+    function preview = latexPreviewText(rawText)
+        rawText = string(rawText);
+        formula = extractLatexFormula(rawText);
+        if strlength(strtrim(formula)) == 0
+            preview = "\mathrm{LaTeX\ preview}";
+        else
+            preview = "$" + formula + "$";
+        end
+    end
+
+    function formula = extractLatexFormula(rawText)
+        text = char(string(rawText));
+        token = regexp(text, '\$\$(.*?)\$\$', 'tokens', 'once');
+        if isempty(token)
+            token = regexp(text, '\$(.*?)\$', 'tokens', 'once');
+        end
+        if isempty(token)
+            token = regexp(text, '\\\[(.*?)\\\]', 'tokens', 'once');
+        end
+        if ~isempty(token)
+            formula = string(strtrim(token{1}));
+            return
+        end
+
+        lines = splitlines(string(rawText));
+        formula = "";
+        for i = 1:numel(lines)
+            candidate = strtrim(lines(i));
+            if contains(candidate, "=") || contains(candidate, char(92)) || contains(candidate, "^") || contains(candidate, "_")
+                formula = stripFormulaDelimiters(candidate);
+                return
+            end
+        end
+    end
+
+    function formula = stripFormulaDelimiters(candidate)
+        formula = string(candidate);
+        formula = regexprep(formula, '^\s*\$\$?', '');
+        formula = regexprep(formula, '\$\$?\s*$', '');
+        formula = regexprep(formula, '^\s*\\\[', '');
+        formula = regexprep(formula, '\\\]\s*$', '');
+        formula = strtrim(formula);
+    end
+
+    function validateTeachingImage()
+        imagePath = strtrim(string(fieldText(state, "TeachingImagePath")));
+        if strlength(imagePath) > 0 && exist(imagePath, "file") ~= 2
+            error("CiTT:TeachingImageMissing", "Teaching image not found: %s", imagePath);
+        end
+    end
+
+    function answer = teachingSubmissionText()
+        answer = textAreaText(handles.studentAnswer);
+        imagePath = strtrim(string(fieldText(state, "TeachingImagePath")));
+        if strlength(imagePath) > 0
+            answer = strjoin([
+                string(answer)
+                ""
+                "[Student attached image]"
+                imagePath
+            ], newline);
+        end
     end
 
     function savedPath = saveDroppedImage(data)
@@ -1479,6 +2594,9 @@ refreshAll();
             if nargin >= 2 && ~isempty(value)
                 pipelineGauge.Value = max(0, min(100, double(value)));
             end
+            [nextLabel, ~, ~] = nextActionForState(state);
+            handles.nextActionButton.Text = nextLabel;
+            updateStageRail(state);
             drawnow limitrate;
         catch
         end
@@ -1547,36 +2665,28 @@ refreshAll();
         components = getSpecValue(spec, "components");
         outputs = getSpecValue(spec, "requested_outputs");
         analysis = getSpecText(spec, "likely_analysis", "not specified");
-        assumptions = getSpecValue(spec, "assumptions");
-        suggestedBlocks = getSpecValue(spec, "suggested_simscape_blocks");
         blockingIssues = specBlockingIssues(spec);
         notes = specBuildNotes(spec);
 
         if strlength(blockingIssues) > 0
-            readiness = "Needs topology/region clarification before model build";
+            readiness = "NEEDS CLARIFICATION";
+            nextText = "Clarify prompt";
+        elseif strlength(strtrim(notes)) > 0
+            readiness = "PARAMETERIZED";
+            nextText = "Prepare Build";
         else
-            readiness = "Ready for Build Model > Prepare Build. Missing values become parameters";
+            readiness = "READY";
+            nextText = "Prepare Build";
         end
 
         text = strjoin([
             "Circuit: " + circuitType
-            "Status: " + readiness
+            "Readiness: " + readiness
+            "Requested output: " + emptyText(joinValue(outputs), "not specified")
             "Likely analysis: " + analysis
             "Components: " + string(countItems(components))
-            "Nodes: " + joinValue(nodes)
-            "Requested outputs: " + joinValue(outputs)
-            ""
-            "Assumptions"
-            listValue(assumptions)
-            ""
-            "Suggested Simscape blocks"
-            listValue(suggestedBlocks)
-            ""
-            "Build notes"
-            emptyText(notes, "none")
-            ""
-            "Blocking issues"
-            emptyText(blockingIssues, "none")
+            "Nodes: " + emptyText(joinValue(nodes), "not specified")
+            "Next action: " + nextText
         ], newline);
     end
 
@@ -1737,6 +2847,24 @@ refreshAll();
         ], newline);
     end
 
+    function text = bodeSummary(report)
+        text = strjoin([
+            "Bode analysis complete."
+            "JSON: " + fieldText(report, "report_path")
+            "Markdown: " + fieldText(report, "markdown_path")
+            "Plot: " + emptyText(fieldText(report, "plot_path"), "not generated")
+            ""
+            "Curves"
+            reportRowsText(report.curves, ["label", "source", "input", "output", "cutoff_frequency_hz"], 10)
+            ""
+            "Messages"
+            listValue(report.messages)
+            ""
+            "Next action"
+            fieldText(report, "next_action")
+        ], newline);
+    end
+
     function text = labErrorSummary(report)
         text = strjoin([
             "Lab error analysis complete."
@@ -1749,6 +2877,9 @@ refreshAll();
             ""
             "Likely causes"
             reportRowsText(report.likely_causes, ["severity", "label", "evidence", "next_action"], 10)
+            ""
+            "Nonideal profiles"
+            nonidealProfilesText(report)
             ""
             "Next actions"
             listValue(report.prioritized_next_actions)
@@ -1863,6 +2994,15 @@ refreshAll();
             lines(end + 1) = "- ... " + string(numel(rows) - limit) + " more";
         end
         text = strjoin(lines, newline);
+    end
+
+    function text = nonidealProfilesText(report)
+        if ~isstruct(report) || ~isfield(report, "nonideal_profiles")
+            text = "none";
+            return
+        end
+        text = reportRowsText(report.nonideal_profiles, ...
+            ["part_number", "input_bias_current_typ_A", "input_offset_voltage_typ_V", "input_resistance_typ_ohm"], 6);
     end
 
     function path = lastVerificationMarkdownPath()

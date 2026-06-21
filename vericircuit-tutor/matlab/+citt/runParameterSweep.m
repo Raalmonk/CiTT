@@ -185,12 +185,12 @@ text = lower(strtrim(valueText(raw)));
 if strlength(text) == 0
     return
 end
-tokens = regexp(char(text), '([-+]?\d*\.?\d+(e[-+]?\d+)?)\s*([a-zµ]*)', 'tokens', 'once');
+tokens = regexp(char(text), '([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*([a-zµ]*)', 'tokens', 'once');
 if isempty(tokens)
     return
 end
 base = str2double(tokens{1});
-suffix = string(tokens{3});
+suffix = string(tokens{2});
 suffix = replace(suffix, "µ", "u");
 factor = 1;
 if startsWith(suffix, "meg")

@@ -21,6 +21,8 @@ rejectBlockingSpec(spec);
 promptPath = fullfile(config.MatlabRoot, "resources", "prompts", "agent_build_simscape_model.txt");
 basePrompt = string(fileread(promptPath));
 specJson = string(feval('citt.util.jsonEncode', spec));
+nonidealProfiles = feval('citt.opAmpNonidealProfile', spec);
+nonidealSection = nonidealProfileSection(nonidealProfiles);
 
 taskText = strjoin([
     "# CiTT Simscape Model Build Task"
@@ -70,6 +72,8 @@ taskText = strjoin([
     ""
     "## Probe Map Contract"
     "Each probe map item must include: probe_id, focus_id, label, target_type, model_paths, block_paths, quantity, unit, suggested_sensor_or_logging, instructions."
+    ""
+    nonidealSection
     ""
     "## Additional CiTT Prompt"
     string(basePrompt)
@@ -137,6 +141,25 @@ elseif isstruct(value)
 else
     text = string(value);
 end
+end
+
+function lines = nonidealProfileSection(profiles)
+if isempty(profiles)
+    lines = "## Nonideal Device Profiles" + newline + ...
+        "No recognized part-number profile was detected. If the spec names a real op-amp part, preserve its nonideal behavior rather than silently replacing it with an ideal op-amp.";
+    return
+end
+
+parts = [
+    "## Nonideal Device Profiles"
+    "The circuit spec names a real op-amp part. Model these nonidealities explicitly when they can affect the requested teaching/probe path."
+    "Do not use the Foundation Library ideal Op-Amp alone for these devices."
+    "If SATK cannot express every nonideality directly, add the closest Simscape Electrical sources/resistors/controlled sources and document any omission in the agent report."
+    "```json"
+    string(feval('citt.util.jsonEncode', profiles))
+    "```"
+];
+lines = strjoin(parts, newline);
 end
 
 function writeText(path, text)

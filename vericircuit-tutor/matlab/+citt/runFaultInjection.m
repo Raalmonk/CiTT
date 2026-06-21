@@ -160,12 +160,12 @@ end
 function value = parseSi(raw, unitFamily)
 value = [];
 text = lower(strtrim(valueText(raw)));
-tokens = regexp(char(text), '([-+]?\d*\.?\d+(e[-+]?\d+)?)\s*([a-zµ]*)', 'tokens', 'once');
+tokens = regexp(char(text), '([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*([a-zµ]*)', 'tokens', 'once');
 if isempty(tokens)
     return
 end
 base = str2double(tokens{1});
-suffix = replace(string(tokens{3}), "µ", "u");
+suffix = replace(string(tokens{2}), "µ", "u");
 factor = 1;
 if startsWith(suffix, "meg")
     factor = 1e6;
