@@ -11,6 +11,7 @@ state.SpecPath = config.LastSpecPath;
 state.AgentTaskPath = config.AgentTaskPath;
 state.AgentRun = [];
 state.ModelPath = config.GeneratedModelPath;
+state.ModelSnapshotPath = config.ModelSnapshotPath;
 state.FocusMapPath = config.FocusMapPath;
 state.ProbeMapPath = config.ProbeMapPath;
 state.TeachingPlan = [];

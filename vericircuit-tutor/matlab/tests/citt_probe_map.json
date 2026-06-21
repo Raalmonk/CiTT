@@ -1,0 +1,68 @@
+[
+  {
+    "probe_id": "probe_i_rms",
+    "focus_id": "impedance_calculation",
+    "label": "RMS Current",
+    "target_type": "block",
+    "model_paths": [
+      "citt_generated_model/Current Sensor"
+    ],
+    "block_paths": [
+      "citt_generated_model/Current Sensor"
+    ],
+    "quantity": "RMS Current",
+    "unit": "A",
+    "suggested_sensor_or_logging": "Simscape Current Sensor connected in series with R1 and C1",
+    "instructions": "Measure the current flowing through the series RC circuit. Use an RMS block to calculate the RMS value of the current signal."
+  },
+  {
+    "probe_id": "probe_i_peak",
+    "focus_id": "impedance_calculation",
+    "label": "Peak Current",
+    "target_type": "block",
+    "model_paths": [
+      "citt_generated_model/Current Sensor"
+    ],
+    "block_paths": [
+      "citt_generated_model/Current Sensor"
+    ],
+    "quantity": "Peak Current",
+    "unit": "A",
+    "suggested_sensor_or_logging": "Simscape Current Sensor connected in series with R1 and C1",
+    "instructions": "Determine the peak value of the current waveform from the current sensor output."
+  },
+  {
+    "probe_id": "probe_i_pp",
+    "focus_id": "impedance_calculation",
+    "label": "Peak-to-Peak Current",
+    "target_type": "block",
+    "model_paths": [
+      "citt_generated_model/Current Sensor"
+    ],
+    "block_paths": [
+      "citt_generated_model/Current Sensor"
+    ],
+    "quantity": "Peak-to-Peak Current",
+    "unit": "A",
+    "suggested_sensor_or_logging": "Simscape Current Sensor connected in series with R1 and C1",
+    "instructions": "Calculate peak-to-peak current by measuring the difference between the maximum and minimum values of the current waveform."
+  },
+  {
+    "probe_id": "probe_phase",
+    "focus_id": "phase_angle",
+    "label": "Phase Relationship",
+    "target_type": "block",
+    "model_paths": [
+      "citt_generated_model/Current Sensor",
+      "citt_generated_model/Voltage Sensor"
+    ],
+    "block_paths": [
+      "citt_generated_model/Current Sensor",
+      "citt_generated_model/Voltage Sensor"
+    ],
+    "quantity": "Phase Difference",
+    "unit": "degrees",
+    "suggested_sensor_or_logging": "Simscape Current Sensor and Voltage Sensor logged simultaneously",
+    "instructions": "Compare the zero-crossing times or peak times of the source voltage and the series current to find the phase angle shift."
+  }
+]

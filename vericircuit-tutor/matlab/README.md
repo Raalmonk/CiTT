@@ -31,7 +31,7 @@ Required for the real flow:
 - Simscape, preferably Simscape Electrical
 - Simulink Agentic Toolkit initialized with `satk_initialize`
 - MATLAB MCP Server
-- A SATK-configured agent CLI via `CITT_AGENT_COMMAND`, Gemini CLI, or Codex CLI
+- A SATK-configured agent CLI via `CITT_AGENT_COMMAND`, Codex CLI, or Gemini CLI
 
 If MATLAB was opened from the Dock and cannot see shell environment variables, create a local untracked file:
 
@@ -45,6 +45,6 @@ with:
 GEMINI_API_KEY=your_key_here
 ```
 
-Build Model writes `matlab/work/citt_agent_task.md`, hands it to `CITT_AGENT_COMMAND`, Gemini CLI, or Codex CLI, then validates that the agent produced `matlab/work/citt_generated_model.slx`, focus map, probe map, and report. In the MATLAB UI, the external agent is launched asynchronously so MATLAB remains free for MCP/SATK tool calls; CiTT polls `matlab/work/citt_agent_stdout.log` and artifact freshness until the run finishes. If no agent CLI is available, CiTT opens the task markdown for manual-agent mode. The deterministic local Simscape builder is available only as an explicit emergency/demo fallback with `CITT_USE_LOCAL_SIMSCAPE_FALLBACK=1`.
+Build Model writes `matlab/work/citt_agent_task.md`, hands it to `CITT_AGENT_COMMAND`, Codex CLI, or Gemini CLI, then validates that the agent produced `matlab/work/citt_generated_model.slx`, focus map, probe map, and report. In the MATLAB UI, the external agent is launched asynchronously so MATLAB remains free for MCP/SATK tool calls; CiTT polls `matlab/work/citt_agent_stdout.log` and artifact freshness until the run finishes. If no agent CLI is available, CiTT opens the task markdown for manual-agent mode. The deterministic local Simscape builder is available only as an explicit emergency/demo fallback with `CITT_USE_LOCAL_SIMSCAPE_FALLBACK=1`.
 
-Gemini CLI agent runs retry transient API failures such as `503 Service Unavailable` by default. Tune with `CITT_AGENT_MAX_ATTEMPTS` and `CITT_AGENT_RETRY_DELAY_SECONDS` if the Flash endpoint is noisy.
+External agent runs retry transient API failures such as `503 Service Unavailable` by default. Tune with `CITT_AGENT_MAX_ATTEMPTS` and `CITT_AGENT_RETRY_DELAY_SECONDS` if the selected agent endpoint is noisy.

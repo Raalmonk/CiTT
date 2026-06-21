@@ -17,7 +17,8 @@ result.model_name = "";
 result.created = false;
 result.message = "";
 
-if exist(modelPath, "file") == 2
+fileCode = exist(modelPath, "file");
+if fileCode == 2 || fileCode == 4
     [~, modelName, ~] = fileparts(modelPath);
     load_system(char(modelPath));
     open_system(char(modelName));

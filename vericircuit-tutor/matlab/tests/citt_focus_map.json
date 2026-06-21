@@ -1,0 +1,50 @@
+[
+  {
+    "focus_id": "impedance_calculation",
+    "label": "Capacitive Reactance",
+    "explanation": "At 50 Hz, a 1 F capacitor has an extremely low reactance (Xc approx 0.00318 Ohms), making the circuit highly resistive.",
+    "model_paths": [
+      "citt_generated_model/C1"
+    ],
+    "block_paths": [
+      "citt_generated_model/C1"
+    ],
+    "line_handles_or_descriptions": [
+      "Connection from R1 to C1 and C1 to ground/reference"
+    ],
+    "related_components": [
+      "C1"
+    ],
+    "related_nodes": [
+      "N2",
+      "N0"
+    ],
+    "teaching_question": "What is the capacitive reactance of a 1 Farad capacitor at 50 Hz, and how does it compare to the 100 Ohm resistor?"
+  },
+  {
+    "focus_id": "phase_angle",
+    "label": "Phase Difference",
+    "explanation": "Since R is much larger than Xc, the phase shift is very close to 0 degrees (current and voltage almost in phase).",
+    "model_paths": [
+      "citt_generated_model/R1",
+      "citt_generated_model/C1"
+    ],
+    "block_paths": [
+      "citt_generated_model/R1",
+      "citt_generated_model/C1"
+    ],
+    "line_handles_or_descriptions": [
+      "Connections between V1, R1, and C1"
+    ],
+    "related_components": [
+      "R1",
+      "C1"
+    ],
+    "related_nodes": [
+      "N1",
+      "N2",
+      "N0"
+    ],
+    "teaching_question": "How does the massive difference between resistance and reactance affect the phase angle between total voltage and current?"
+  }
+]

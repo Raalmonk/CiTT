@@ -122,7 +122,8 @@ if isfield(focus, "targets")
         end
     end
 end
-paths = unique(paths);
+paths = paths(~isFileSystemModelPath(paths));
+paths = unique(paths, "stable");
 end
 
 function paths = appendFieldPaths(paths, entry, fieldName)
@@ -143,7 +144,7 @@ end
 
 function tryOpenModel(modelPath, focus)
 try
-    if strlength(string(modelPath)) > 0 && exist(modelPath, "file") == 2
+    if strlength(string(modelPath)) > 0 && isExistingFile(modelPath)
         load_system(char(modelPath));
         [~, modelName, ~] = fileparts(modelPath);
         open_system(char(modelName));
@@ -154,5 +155,19 @@ try
         open_system(char(paths(1)));
     end
 catch
+end
+end
+
+function tf = isExistingFile(pathValue)
+code = exist(string(pathValue), "file");
+tf = code == 2 || code == 4;
+end
+
+function tf = isFileSystemModelPath(paths)
+paths = string(paths);
+tf = false(size(paths));
+for i = 1:numel(paths)
+    [~, ~, ext] = fileparts(char(paths(i)));
+    tf(i) = isExistingFile(paths(i)) || any(lower(string(ext)) == [".slx", ".mdl"]);
 end
 end

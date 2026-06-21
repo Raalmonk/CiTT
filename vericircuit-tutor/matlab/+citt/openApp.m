@@ -87,7 +87,7 @@ handles.pipelineProgress.Layout.Row = 3;
 handles.pipelineProgress.Layout.Column = [2 3];
 setTone(handles.pipelineProgress, "gray");
 
-handles.nextActionButton = uibutton(header, "Text", "Next: Read with Gemini", ...
+handles.nextActionButton = uibutton(header, "Text", "Next: Read Circuit", ...
     "ButtonPushedFcn", @(~, ~) onNextAction());
 handles.nextActionButton.FontWeight = "bold";
 handles.nextActionButton.BackgroundColor = [0.145 0.486 0.353];
@@ -164,7 +164,7 @@ refreshAll();
         handles.promptText.Layout.Row = 4;
         handles.promptText.Layout.Column = [2 3];
 
-        handles.parseButton = uibutton(inputGrid, "Text", "Read with Gemini", ...
+        handles.parseButton = uibutton(inputGrid, "Text", "Read Circuit", ...
             "ButtonPushedFcn", @(~, ~) onParseWithGemini());
         stylePrimary(handles.parseButton);
         handles.parseButton.Layout.Row = 5;
@@ -1060,8 +1060,8 @@ refreshAll();
             savedPath = saveDroppedImage(data);
             state.ImagePath = savedPath;
             handles.imageField.Value = char(savedPath);
-            setPipeline("Image ready. Next: Read with Gemini.", 12);
-            setArea(handles.inputStatus, "Image ready. Click Read with Gemini when you are ready." + newline + savedPath);
+            setPipeline("Image ready. Next: Read Circuit.", 12);
+            setArea(handles.inputStatus, "Image ready. Click Read Circuit when you are ready." + newline + savedPath);
         catch dropError
             setArea(handles.inputStatus, "Could not save dropped image: " + string(dropError.message));
             setPipeline("Image drop failed. Try another file.", 0);
@@ -1072,8 +1072,8 @@ refreshAll();
         state.ImagePath = string(handles.imageField.Value);
         state.PromptText = textAreaText(handles.promptText);
         try
-            setBusy("Reading circuit with Gemini...", 25);
-            progress = startProgress("Reading Circuit", "Gemini is parsing the image and prompt into a model spec.");
+            setBusy("Reading circuit...", 25);
+            progress = startProgress("Reading Circuit", "CiTT is parsing the image and prompt into a model spec.");
             cleanup = onCleanup(@() finishProgress(progress));
             parsed = feval('citt.parseCircuitWithGemini', state.ImagePath, state.PromptText);
             state.Spec = parsed.spec;
@@ -1096,7 +1096,7 @@ refreshAll();
     function onOpenSpec()
         try
             if exist(state.SpecPath, "file") ~= 2
-                setArea(handles.inputStatus, "No spec JSON exists yet. Read a circuit with Gemini first.");
+                setArea(handles.inputStatus, "No spec JSON exists yet. Read a circuit first.");
                 return
             end
             edit(char(state.SpecPath));
@@ -1176,7 +1176,7 @@ refreshAll();
                 ""
                 blockingIssues
                 ""
-                "Next: edit the prompt with the missing/clarified values, then click Read with Gemini again."
+                "Next: edit the prompt with the missing/clarified values, then click Read Circuit again."
                 "Spec saved at: " + parsed.spec_path
             ], newline);
         else
@@ -1278,7 +1278,9 @@ refreshAll();
     end
 
     function applyAgentRunState(runResult)
-        if strlength(fieldText(runResult, "produced_model_path")) > 0 && runResult.success
+        runResult = reconcileAgentRunArtifacts(runResult);
+        state.AgentRun = runResult;
+        if strlength(fieldText(runResult, "produced_model_path")) > 0 && isTruthy(fieldText(runResult, "success"))
             state.ModelPath = runResult.produced_model_path;
         end
         refreshAll();
@@ -1288,10 +1290,10 @@ refreshAll();
         if mode == "external_agent_pending"
             handles.agentStatus.Text = "Agent running";
             setPipeline("Agent running. MATLAB is free for MCP/SATK tool calls.", 68);
-        elseif runResult.success
+        elseif isTruthy(fieldText(runResult, "success"))
             if mode == "local_fallback"
-                handles.agentStatus.Text = "Fallback model built";
-                setPipeline("Fallback model built. Next: Check or Simulate.", 78);
+                handles.agentStatus.Text = "Local Simscape model built";
+                setPipeline("Local Simscape model built. Next: Check or Simulate.", 78);
             else
                 handles.agentStatus.Text = "Model built by SATK agent";
                 setPipeline("Model built by agent. Next: Check or Simulate.", 78);
@@ -1302,6 +1304,59 @@ refreshAll();
         else
             handles.agentStatus.Text = "Build incomplete";
             setPipeline("Build incomplete. See Agent Output.", 58);
+        end
+    end
+
+    function reconcileStateArtifacts()
+        if isempty(state.AgentRun)
+            return
+        end
+
+        state.AgentRun = reconcileAgentRunArtifacts(state.AgentRun);
+        modelPath = fieldText(state.AgentRun, "produced_model_path");
+        if strlength(strtrim(modelPath)) > 0 && isExistingFile(modelPath)
+            state.ModelPath = string(modelPath);
+        end
+    end
+
+    function runResult = reconcileAgentRunArtifacts(runResult)
+        if ~isstruct(runResult)
+            return
+        end
+        modelPath = fieldText(runResult, "produced_model_path");
+        if strlength(strtrim(modelPath)) == 0
+            modelPath = fieldText(runResult, "expected_model_path");
+        end
+        if strlength(strtrim(modelPath)) == 0
+            modelPath = state.Config.GeneratedModelPath;
+        end
+        focusPath = firstNonempty(fieldText(runResult, "produced_focus_map_path"), fieldText(runResult, "expected_focus_map_path"), state.Config.FocusMapPath);
+        probePath = firstNonempty(fieldText(runResult, "produced_probe_map_path"), fieldText(runResult, "expected_probe_map_path"), state.Config.ProbeMapPath);
+        reportPath = firstNonempty(fieldText(runResult, "agent_report_path"), fieldText(runResult, "expected_report_path"), state.Config.AgentReportPath);
+
+        artifactsExist = isExistingFile(modelPath) && isExistingFile(focusPath) && ...
+            isExistingFile(probePath) && isExistingFile(reportPath);
+        if artifactsExist
+            runResult.produced_model_path = string(modelPath);
+            runResult.produced_focus_map_path = string(focusPath);
+            runResult.produced_probe_map_path = string(probePath);
+            runResult.agent_report_path = string(reportPath);
+            exitStatus = str2double(fieldText(runResult, "exit_status"));
+            if exitStatus == 0 || isTruthy(fieldText(runResult, "success"))
+                runResult.success = true;
+                runResult.summary = "External SATK agent completed and produced CiTT model artifacts.";
+            end
+        end
+    end
+
+    function value = firstNonempty(varargin)
+        value = "";
+        for i = 1:nargin
+            candidate = string(varargin{i});
+            if strlength(strtrim(candidate)) > 0
+                value = candidate;
+                return
+            end
         end
     end
 
@@ -1726,8 +1781,9 @@ refreshAll();
             return
         end
         step = state.TeachingPlan.steps(state.TeachingStepIndex);
+        totalSteps = numel(state.TeachingPlan.steps);
         text = strjoin([
-            "Step " + string(state.TeachingStepIndex) + ": " + string(step.title)
+            "Step " + string(state.TeachingStepIndex) + " / " + string(totalSteps) + ": " + string(step.title)
             ""
             "Question:"
             string(step.student_question)
@@ -1845,6 +1901,8 @@ refreshAll();
     end
 
     function refreshAll()
+        reconcileStateArtifacts();
+
         statusLabel.Text = compactStatus(state);
         [nextLabel, ~, ~] = nextActionForState(state);
         handles.nextActionButton.Text = nextLabel;
@@ -1890,7 +1948,7 @@ refreshAll();
             return
         end
         if isempty(spec) && exist(currentState.SpecPath, "file") ~= 2
-            label = "Next: Read with Gemini";
+            label = "Next: Read Circuit";
             action = "read";
             destination = "read";
             return
@@ -1950,7 +2008,7 @@ refreshAll();
     end
 
     function tf = modelExists(currentState)
-        tf = strlength(currentState.ModelPath) > 0 && exist(currentState.ModelPath, "file") == 2;
+        tf = strlength(currentState.ModelPath) > 0 && isExistingFile(currentState.ModelPath);
     end
 
     function spec = currentSpecStruct(currentState)
@@ -1977,7 +2035,7 @@ refreshAll();
             setStatusChip(handles.agentChip, "Agent", false, "not checked");
             return
         end
-        setStatusChip(handles.geminiChip, "Gemini", setup.gemini_key_found, setup.gemini_model);
+        setStatusChip(handles.geminiChip, "Parser", parserReady(setup), parserStatusText(setup));
         setStatusChip(handles.satkChip, "SATK", setup.satk_initialize_available, readyNeeds(setup.satk_initialize_available));
         setStatusChip(handles.mcpChip, "MCP", setup.matlab_mcp_available, readyNeeds(setup.matlab_mcp_available));
         setStatusChip(handles.simscapeChip, "Simscape", setup.simscape_available, readyNeeds(setup.simscape_available));
@@ -2017,18 +2075,77 @@ refreshAll();
     end
 
     function text = setupAgentText(setup)
-        text = "needs CLI";
         if isfield(setup, "configured_agent_command") && strlength(strtrim(setup.configured_agent_command)) > 0
             text = "ready: CITT_AGENT_COMMAND";
             return
         end
+        backend = agentBackendText(setup);
         if isfield(setup, "agent_clis")
             for i = 1:numel(setup.agent_clis)
-                if isfield(setup.agent_clis(i), "available") && setup.agent_clis(i).available
-                    text = "ready: " + setup.agent_clis(i).name;
+                if setup.agent_clis(i).name == backend && isfield(setup.agent_clis(i), "available") && setup.agent_clis(i).available
+                    text = backend + ": ready";
                     return
                 end
             end
+        end
+        text = backend + ": needs CLI";
+    end
+
+    function backend = agentBackendText(setup)
+        backend = "codex";
+        if isfield(setup, "agent_backend") && strlength(strtrim(setup.agent_backend)) > 0
+            backend = lower(strtrim(string(setup.agent_backend)));
+        end
+    end
+
+    function ready = parserReady(setup)
+        ready = false;
+        if isfield(setup, "parser_available")
+            ready = logical(setup.parser_available);
+            return
+        end
+        backend = parserBackendText(setup);
+        switch backend
+            case "codex"
+                ready = isfield(setup, "codex_parser_cli_path") && strlength(strtrim(setup.codex_parser_cli_path)) > 0;
+            case "gemini"
+                ready = isfield(setup, "gemini_key_found") && logical(setup.gemini_key_found);
+            case "local"
+                ready = true;
+        end
+    end
+
+    function text = parserStatusText(setup)
+        backend = parserBackendText(setup);
+        if parserReady(setup)
+            switch backend
+                case "codex"
+                    text = "codex: ready";
+                case "gemini"
+                    text = "gemini: ready";
+                case "local"
+                    text = "local: ready";
+                otherwise
+                    text = backend + ": ready";
+            end
+            return
+        end
+        switch backend
+            case "codex"
+                text = "codex: needs Codex CLI";
+            case "gemini"
+                text = "gemini: needs GEMINI_API_KEY";
+            case "local"
+                text = "local: unavailable";
+            otherwise
+                text = backend + ": unsupported";
+        end
+    end
+
+    function backend = parserBackendText(setup)
+        backend = "codex";
+        if isfield(setup, "parser_backend") && strlength(strtrim(setup.parser_backend)) > 0
+            backend = lower(strtrim(string(setup.parser_backend)));
         end
     end
 
@@ -2044,7 +2161,7 @@ refreshAll();
                 "Modeling assumptions"
                 "- none yet"
                 ""
-                "Next action: Read with Gemini"
+                "Next action: Read Circuit"
             ], newline);
             return
         end
@@ -2127,7 +2244,7 @@ refreshAll();
             mode = fieldText(currentState.AgentRun, "mode");
             if mode == "external_agent_pending"
                 setStepStatus(handles.buildStepAgent, "Running", "blue");
-            elseif isfield(currentState.AgentRun, "success") && currentState.AgentRun.success
+            elseif isTruthy(fieldText(currentState.AgentRun, "success"))
                 setStepStatus(handles.buildStepAgent, "Complete", "green");
             elseif mode == "manual_agent"
                 setStepStatus(handles.buildStepAgent, "Manual agent needed", "yellow");
@@ -2220,11 +2337,12 @@ refreshAll();
         end
 
         steps = currentState.TeachingPlan.steps;
+        totalSteps = numel(steps);
         lines = strings(numel(steps), 1);
         for i = 1:numel(steps)
-            marker = string(i) + ". ";
+            marker = "Step " + string(i) + " / " + string(totalSteps) + ": ";
             if i == currentState.TeachingStepIndex
-                marker = "Current: ";
+                marker = "Current " + string(i) + " / " + string(totalSteps) + ": ";
             end
             lines(i) = marker + string(steps(i).title) + newline + "   focus: " + string(steps(i).focus_id);
         end
@@ -2309,7 +2427,7 @@ refreshAll();
 
     function text = compactStatus(currentState)
         setup = currentState.LastSetupReport;
-        text = "Gemini " + readyNeeds(setup.gemini_key_found) + ...
+        text = "Parser " + readyNeeds(parserReady(setup)) + ...
             " | SATK " + readyNeeds(setup.satk_initialize_available) + ...
             " | Simscape " + readyNeeds(setup.simscape_available);
     end
@@ -2318,7 +2436,7 @@ refreshAll();
         setup = currentState.LastSetupReport;
         text = strjoin([
             "Image: " + emptyText(currentState.ImagePath, "drop or browse for a circuit image")
-            "Gemini: " + readyNeeds(setup.gemini_key_found) + " using " + setup.gemini_model
+            "Parser: " + parserStatusText(setup)
             "SATK: " + readyNeeds(setup.satk_initialize_available) + " | MCP: " + readyNeeds(setup.matlab_mcp_available) + " | Simscape: " + readyNeeds(setup.simscape_available)
             "Spec file: " + currentState.SpecPath
         ], newline);
@@ -2339,8 +2457,9 @@ refreshAll();
         text = strjoin([
             "Ready checks"
             ""
+            "Circuit parser: " + parserStatusText(setup)
             "Gemini API: " + readyNeeds(setup.gemini_key_found)
-            "Model: " + setup.gemini_model
+            "Gemini model: " + setup.gemini_model
             "Simulink Agentic Toolkit: " + readyNeeds(setup.satk_initialize_available)
             "MATLAB MCP Server: " + readyNeeds(setup.matlab_mcp_available)
             "Simscape: " + readyNeeds(setup.simscape_available)
@@ -2583,7 +2702,7 @@ refreshAll();
 
         text = strjoin([
             "No circuit spec yet."
-            "Drop or browse for an image, then click Read with Gemini."
+            "Drop or browse for an image, then click Read Circuit."
         ], newline);
     end
 
@@ -2594,7 +2713,7 @@ refreshAll();
             setPipeline("Teaching plan ready.", 92);
         elseif ~isempty(currentState.LastModelCheck)
             setPipeline("Model check complete.", 90);
-        elseif strlength(currentState.ModelPath) > 0 && exist(currentState.ModelPath, "file") == 2
+        elseif modelExists(currentState)
             setPipeline("Model available. Next: Check.", 78);
         elseif ~isempty(currentState.AgentRun)
             setPipeline("Agent run complete. Check generated artifacts.", 70);
@@ -2603,7 +2722,7 @@ refreshAll();
         elseif ~isempty(currentState.Spec) || (strlength(currentState.SpecPath) > 0 && exist(currentState.SpecPath, "file") == 2)
             setPipeline("Circuit spec available. Next: Prepare Build.", 35);
         elseif strlength(currentState.ImagePath) > 0 || strlength(strtrim(currentState.PromptText)) > 0
-            setPipeline("Input ready. Next: Read with Gemini.", 12);
+            setPipeline("Input ready. Next: Read Circuit.", 12);
         else
             setPipeline("Ready for circuit input.", 0);
         end
@@ -2819,8 +2938,8 @@ refreshAll();
         elseif mode == "manual_agent"
             headline = "External SATK agent not launched.";
         elseif mode == "local_fallback"
-            headline = "Agent build unavailable. Running local Simscape fallback.";
-        elseif runResult.success
+            headline = "Agent build unavailable. Running local Simscape builder.";
+        elseif isTruthy(fieldText(runResult, "success"))
             headline = "External SATK agent build complete.";
         else
             headline = "External SATK agent build incomplete.";
@@ -2830,10 +2949,10 @@ refreshAll();
             headline
             "Mode: " + emptyText(mode, "unknown")
             "Agent: " + emptyText(fieldText(runResult, "agent_name"), "unknown")
-            "Local fallback code: " + emptyText(fieldText(runResult, "generated_code_path"), "not written")
-            "Model: " + emptyText(runResult.produced_model_path, "not found")
-            "Focus map: " + emptyText(runResult.produced_focus_map_path, "not found")
-            "Probe map: " + emptyText(runResult.produced_probe_map_path, "not found")
+            "Local build code: " + emptyText(fieldText(runResult, "generated_code_path"), "not written")
+            "Model: " + emptyText(fieldText(runResult, "produced_model_path"), "not found")
+            "Focus map: " + emptyText(fieldText(runResult, "produced_focus_map_path"), "not found")
+            "Probe map: " + emptyText(fieldText(runResult, "produced_probe_map_path"), "not found")
             "Report: " + emptyText(fieldText(runResult, "agent_report_path"), "not written")
             "Attempts: " + emptyText(fieldText(runResult, "agent_attempts"), "0")
             "PID: " + emptyText(fieldText(runResult, "agent_pid"), "not tracked")
@@ -2842,10 +2961,10 @@ refreshAll();
             "Exit status: " + emptyText(fieldText(runResult, "exit_status"), "running")
             ""
             "Command"
-            string(runResult.command)
+            emptyText(fieldText(runResult, "command"), "not recorded")
         ], newline);
 
-        stdoutTail = tailText(runResult.stdout, 30);
+        stdoutTail = tailText(fieldText(runResult, "stdout"), 30);
         if strlength(strtrim(stdoutTail)) > 0
             text = text + newline + newline + "Agent output (last 30 lines)" + newline + stdoutTail;
         end
@@ -3096,5 +3215,15 @@ refreshAll();
         else
             text = "";
         end
+    end
+
+    function tf = isTruthy(value)
+        text = lower(strtrim(string(value)));
+        tf = any(text == ["true", "1", "yes"]);
+    end
+
+    function tf = isExistingFile(pathValue)
+        code = exist(string(pathValue), "file");
+        tf = code == 2 || code == 4;
     end
 end

@@ -85,6 +85,7 @@ result.stdout = systemResult.stdout;
 result.stderr = systemResult.stderr;
 result.agent_attempts = systemResult.attempts;
 
+waitForRequiredArtifacts(config, artifactSnapshot, 10);
 [result, missingArtifacts] = collectArtifacts(result, config, artifactSnapshot);
 bypassedLocalFallback = localFallbackBypassDetected(result, config);
 if result.exit_status == 0 && isempty(missingArtifacts) && ~bypassedLocalFallback
@@ -101,7 +102,7 @@ else
         result.stderr = appendLine(result.stderr, "Missing or stale required artifacts: " + strjoin(missingArtifacts, ", ") + ".");
     end
     if bypassedLocalFallback
-        result.stderr = appendLine(result.stderr, "Agent bypassed SATK/model_edit by invoking or writing the CiTT local Simscape fallback.");
+        result.stderr = appendLine(result.stderr, "Agent bypassed SATK/model_edit by invoking or writing the CiTT local Simscape builder.");
     end
 end
 end
@@ -289,17 +290,17 @@ buildResult = feval('citt.buildLocalSimscapeFallback', specPath, struct( ...
     "RunGeneratedScript", true, ...
     "OpenModel", true));
 
-result = baseResult("local fallback: citt.buildLocalSimscapeFallback", config);
+result = baseResult("local Simscape builder: citt.buildLocalSimscapeFallback", config);
 result.mode = "local_fallback";
-result.agent_name = "local_simscape_fallback";
+result.agent_name = "local_simscape_builder";
 result.success = true;
 result.exit_status = 0;
-result.summary = "Agent build unavailable. Running local Simscape fallback.";
+result.summary = "Agent build unavailable. Running local Simscape builder.";
 result.stdout = strjoin([
     result.summary
     "Reason: " + reason
     buildResult.summary
-    "Generated fallback code: " + buildResult.generated_code_path
+    "Generated local build code: " + buildResult.generated_code_path
     "Model: " + buildResult.model_path
 ], newline);
 result.produced_model_path = existingPath(buildResult.model_path);
@@ -336,38 +337,53 @@ runner = struct("mode", "", "name", "", "command", "", "reason", "");
 
 if strlength(strtrim(config.AgentCommand)) > 0
     runner.mode = "external_agent";
-    runner.name = "CITT_AGENT_COMMAND";
+    runner.name = configuredAgentName(config.AgentCommand);
     runner.command = commandFromTemplate(config.AgentCommand, taskPath);
     return
 end
 
-gemini = cliPath(setup, "gemini");
-if strlength(gemini) > 0
-    runner.mode = "external_agent";
-    runner.name = "gemini";
-    runner.command = geminiCommand(gemini, config, taskPath);
-    return
+backend = "codex";
+if isfield(config, "AgentBackend")
+    backend = lower(strtrim(string(config.AgentBackend)));
 end
 
-codex = cliPath(setup, "codex");
-if strlength(codex) > 0
-    runner.mode = "external_agent";
-    runner.name = "codex";
-    runner.command = shellQuote(codex) + " exec " + taskContentArgument(taskPath);
-    return
+switch backend
+    case "codex"
+        codex = cliPath(setup, "codex");
+        if strlength(codex) > 0
+            runner.mode = "external_agent";
+            runner.name = "codex";
+            runner.command = codexCommand(codex, config, taskPath);
+            return
+        end
+    case "gemini"
+        gemini = cliPath(setup, "gemini");
+        if strlength(gemini) > 0
+            runner.mode = "external_agent";
+            runner.name = "gemini";
+            runner.command = geminiCommand(gemini, config, taskPath);
+            return
+        end
+    otherwise
+        runner.mode = "manual_agent";
+        runner.name = "manual";
+        runner.command = "manual agent: " + taskPath;
+        runner.reason = "Unsupported CITT_AGENT_BACKEND: " + backend;
+        return
 end
 
 if localFallbackEnabled(options)
     runner.mode = "local_fallback";
-    runner.name = "local_simscape_fallback";
+    runner.name = "local_simscape_builder";
     runner.command = "citt.buildLocalSimscapeFallback";
-    runner.reason = "No configured agent CLI was found and local fallback was explicitly enabled.";
+    runner.reason = "CITT_AGENT_BACKEND=" + backend + " did not resolve to an available CLI and the local Simscape builder was explicitly enabled.";
     return
 end
 
 runner.mode = "manual_agent";
 runner.name = "manual";
 runner.command = "manual agent: " + taskPath;
+runner.reason = "CITT_AGENT_BACKEND=" + backend + " did not resolve to an available CLI.";
 end
 
 function command = commandFromTemplate(commandTemplate, taskPath)
@@ -382,12 +398,31 @@ else
 end
 end
 
+function name = configuredAgentName(commandTemplate)
+lowerCommand = lower(string(commandTemplate));
+if contains(lowerCommand, "codex")
+    name = "codex";
+elseif contains(lowerCommand, "gemini")
+    name = "gemini";
+else
+    name = "CITT_AGENT_COMMAND";
+end
+end
+
 function command = geminiCommand(geminiPath, config, taskPath)
 command = shellQuote(geminiPath) + " --approval-mode yolo --allowed-mcp-server-names matlab";
 if strlength(strtrim(config.GeminiModel)) > 0
     command = command + " --model " + shellQuote(config.GeminiModel);
 end
 command = command + " --prompt " + taskContentArgument(taskPath);
+end
+
+function command = codexCommand(codexPath, config, taskPath)
+command = "cat " + shellQuote(taskPath) + " | " + ...
+    shellQuote(codexPath) + " exec " + ...
+    "--dangerously-bypass-approvals-and-sandbox " + ...
+    "--cd " + shellQuote(config.MatlabRoot) + " " + ...
+    "-";
 end
 
 function argument = taskContentArgument(taskPath)
@@ -482,6 +517,23 @@ if strlength(result.agent_report_path) == 0 || ~artifactIsFresh(config.AgentRepo
 end
 end
 
+function waitForRequiredArtifacts(config, snapshot, timeoutSeconds)
+startTime = tic;
+while toc(startTime) < timeoutSeconds
+    if allRequiredArtifactsFresh(config, snapshot)
+        return
+    end
+    pause(0.25);
+end
+end
+
+function fresh = allRequiredArtifactsFresh(config, snapshot)
+fresh = artifactIsFresh(config.GeneratedModelPath, snapshot.model) && ...
+    artifactIsFresh(config.FocusMapPath, snapshot.focus_map) && ...
+    artifactIsFresh(config.ProbeMapPath, snapshot.probe_map) && ...
+    artifactIsFresh(config.AgentReportPath, snapshot.report);
+end
+
 function fresh = artifactIsFresh(path, previousStamp)
 currentStamp = fileStamp(path);
 if isnan(currentStamp)
@@ -512,30 +564,41 @@ end
 
 function path = existingPath(pathCandidate)
 pathCandidate = string(pathCandidate);
-if exist(pathCandidate, "file") == 2
+if isExistingFile(pathCandidate)
     path = pathCandidate;
 else
     path = "";
 end
 end
 
-function detected = localFallbackBypassDetected(result, config)
-text = string(result.stdout) + newline + string(result.stderr);
-if exist(config.GeneratedBuildScriptPath, "file") == 2
-    text = text + newline + readText(config.GeneratedBuildScriptPath);
-end
-if exist(config.AgentReportPath, "file") == 2
-    text = text + newline + readText(config.AgentReportPath);
+function exists = isExistingFile(pathCandidate)
+code = exist(pathCandidate, "file");
+exists = code == 2 || code == 4;
 end
 
-patterns = [
+function detected = localFallbackBypassDetected(result, config)
+scriptText = "";
+if exist(config.GeneratedBuildScriptPath, "file") == 2
+    scriptText = readText(config.GeneratedBuildScriptPath);
+end
+reportText = "";
+if exist(config.AgentReportPath, "file") == 2
+    reportText = readText(config.AgentReportPath);
+end
+
+scriptPatterns = [
     "Generated by CiTT local fallback"
     "citt.buildLocalSimscapeFallback"
-    "buildLocalSimscapeFallback"
+    "buildLocalSimscapeFallback("
     "citt.buildSimscapeModelFromSpec"
-    "buildSimscapeModelFromSpec"
+    "buildSimscapeModelFromSpec("
 ];
-detected = any(contains(text, patterns));
+reportPatterns = [
+    "Generated by CiTT local fallback"
+    "local Simscape fallback builder was used"
+    "local Simscape builder was used instead of SATK"
+];
+detected = any(contains(scriptText, scriptPatterns)) || any(contains(reportText, reportPatterns));
 end
 
 function text = readText(path)
@@ -561,7 +624,7 @@ text = strjoin([
     "   Report: " + config.AgentReportPath
     ""
     "Set CITT_AGENT_COMMAND to automate this, for example: your-agent-command {taskPath}"
-    "For demo-only emergency use, set CITT_USE_LOCAL_SIMSCAPE_FALLBACK=1 to run the local Simscape fallback."
+    "For demo-only emergency use, set CITT_USE_LOCAL_SIMSCAPE_FALLBACK=1 to run the local Simscape builder."
     ""
     "Task: " + taskPath
 ], newline);

@@ -13,7 +13,7 @@ if isstruct(spec) && isfield(spec, "unsupported_or_unclear_regions")
         if strlength(region) == 0
             continue
         end
-        if isNonBlockingBiophysicalSimplification(region, spec)
+        if isNonBlockingBiophysicalSimplification(region, spec) || isNonBlockingExplicitModelingBoundary(region)
             nonblockingRegions(end + 1) = region; %#ok<AGROW>
             notes(end + 1) = "Non-blocking modeling simplification: " + region; %#ok<AGROW>
         else
@@ -75,6 +75,22 @@ isEquilibriumPassive = any(contains(context, [
 ]));
 
 tf = mentionsBiology && mentionsSimplification && isEquilibriumPassive;
+end
+
+function tf = isNonBlockingExplicitModelingBoundary(issue)
+text = lower(string(issue));
+tf = any(contains(text, [
+    "only the displayed"
+    "only the shown"
+    "represented as the shown"
+    "only the 1 mohm adc load is specified"
+    "beyond the protection resistors"
+    "use the provided macro-model"
+    "use the provided macromodel"
+    "use the given macro-model"
+    "use the given macromodel"
+    "configured agent cli"
+]));
 end
 
 function value = fieldValue(data, fieldName)

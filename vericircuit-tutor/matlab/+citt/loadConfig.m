@@ -6,9 +6,12 @@ workDir = fullfile(matlabRoot, "work");
 if exist(workDir, "dir") ~= 7
     mkdir(workDir);
 end
+settingsPath = fullfile(workDir, "citt_settings.json");
+taskHistoryPath = fullfile(workDir, "citt_task_history.json");
 
 loadLocalEnv(matlabRoot);
-loadShellEnvIfMissing(["GEMINI_API_KEY", "GEMINI_MODEL", "CITT_AGENT_COMMAND", ...
+applyAppSettings(settingsPath);
+loadShellEnvIfMissing(["GEMINI_API_KEY", "GEMINI_MODEL", "CITT_PARSER_BACKEND", "CITT_CODEX_CLI", "CITT_AGENT_BACKEND", "CITT_AGENT_COMMAND", ...
     "CITT_AGENT_MAX_ATTEMPTS", "CITT_AGENT_RETRY_DELAY_SECONDS", ...
     "CITT_USE_LOCAL_SIMSCAPE_FALLBACK", "CITT_LOCAL_SIMSCAPE_FALLBACK"]);
 agenticToolkit = discoverAgenticToolkit();
@@ -23,9 +26,13 @@ config.AgenticToolkitRoot = agenticToolkit.root;
 config.SatkInstallPath = agenticToolkit.simulink_path;
 config.MatlabAgenticToolkitPath = agenticToolkit.matlab_path;
 config.MatlabMcpServerPath = agenticToolkit.mcp_server_path;
+config.SettingsPath = string(settingsPath);
+config.TaskHistoryPath = string(taskHistoryPath);
 config.GeminiApiKey = apiKey;
 config.GeminiApiKeyName = apiKeyName;
 config.GeminiModel = getenvOrDefault("GEMINI_MODEL", "gemini-3.5-flash");
+config.ParserBackend = normalizeParserBackend(getenvOrDefault("CITT_PARSER_BACKEND", "codex"));
+config.AgentBackend = normalizeAgentBackend(getenvOrDefault("CITT_AGENT_BACKEND", "codex"));
 config.AgentCommand = string(getenv("CITT_AGENT_COMMAND"));
 config.AgentMaxAttempts = getenvPositiveInteger("CITT_AGENT_MAX_ATTEMPTS", 4);
 config.AgentRetryDelaySeconds = getenvNonnegativeNumber("CITT_AGENT_RETRY_DELAY_SECONDS", 20);
@@ -33,6 +40,7 @@ config.LastSpecPath = string(fullfile(workDir, "citt_last_circuit_spec.json"));
 config.AgentTaskPath = string(fullfile(workDir, "citt_agent_task.md"));
 config.GeneratedBuildScriptPath = string(fullfile(workDir, "citt_build_simscape_model.m"));
 config.GeneratedModelPath = string(fullfile(workDir, "citt_generated_model.slx"));
+config.ModelSnapshotPath = string(fullfile(workDir, "citt_model_snapshot.png"));
 config.FocusMapPath = string(fullfile(workDir, "citt_focus_map.json"));
 config.ProbeMapPath = string(fullfile(workDir, "citt_probe_map.json"));
 config.AgentReportPath = string(fullfile(workDir, "citt_agent_report.md"));
@@ -215,6 +223,38 @@ for i = 1:numel(lines)
 end
 end
 
+function applyAppSettings(path)
+if exist(path, "file") ~= 2
+    return
+end
+
+try
+    settings = jsondecode(fileread(path));
+catch
+    return
+end
+
+setEnvFromField(settings, "gemini_api_key", "GEMINI_API_KEY");
+setEnvFromField(settings, "gemini_model", "GEMINI_MODEL");
+setEnvFromField(settings, "parser_backend", "CITT_PARSER_BACKEND");
+setEnvFromField(settings, "agent_backend", "CITT_AGENT_BACKEND");
+setEnvFromField(settings, "agent_command", "CITT_AGENT_COMMAND");
+setEnvFromField(settings, "agent_max_attempts", "CITT_AGENT_MAX_ATTEMPTS");
+setEnvFromField(settings, "agent_retry_delay_seconds", "CITT_AGENT_RETRY_DELAY_SECONDS");
+end
+
+function setEnvFromField(settings, fieldName, envName)
+if ~isstruct(settings) || ~isfield(settings, fieldName)
+    return
+end
+
+value = string(settings.(fieldName));
+if strlength(strtrim(value)) == 0
+    return
+end
+setenv(envName, char(value));
+end
+
 function value = stripQuotes(value)
 rawValue = char(value);
 if numel(rawValue) >= 2
@@ -230,6 +270,28 @@ function value = getenvOrDefault(name, defaultValue)
 value = string(getenv(name));
 if strlength(value) == 0
     value = string(defaultValue);
+end
+end
+
+function backend = normalizeParserBackend(value)
+backend = lower(strtrim(string(value)));
+if backend == "cli"
+    backend = "codex";
+elseif backend == "deterministic"
+    backend = "local";
+end
+if ~ismember(backend, ["codex", "gemini", "local"])
+    backend = "codex";
+end
+end
+
+function backend = normalizeAgentBackend(value)
+backend = lower(strtrim(string(value)));
+if backend == "cli"
+    backend = "codex";
+end
+if ~ismember(backend, ["codex", "gemini"])
+    backend = "codex";
 end
 end
 

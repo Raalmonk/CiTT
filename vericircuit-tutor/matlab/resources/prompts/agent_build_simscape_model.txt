@@ -2,7 +2,7 @@ Build the model as the engineering playground for CiTT.
 
 Operate inside MATLAB/Simulink with Simulink Agentic Toolkit when available. This task is self-contained; do not read external agent skill files, do not invoke subagents, and do not use shell tools.
 
-Prefer MATLAB MCP/SATK tools for model inspection and edits. In Gemini CLI, the registered tool names are usually mcp_matlab_model_overview, mcp_matlab_model_read, mcp_matlab_model_edit, mcp_matlab_model_check, mcp_matlab_model_query_params, and mcp_matlab_model_resolve_params. If your runtime exposes unprefixed aliases, the equivalent aliases are model_overview, model_read, model_edit, model_check, model_query_params, and model_resolve_params. Use mcp_matlab_evaluate_matlab_code only for required artifact file writes or MATLAB checks that have no dedicated MCP tool; do not use it to bypass model_edit for structural model construction.
+Prefer MATLAB MCP/SATK tools for model inspection and edits. In external agent CLIs, the registered tool names are usually mcp_matlab_model_overview, mcp_matlab_model_read, mcp_matlab_model_edit, mcp_matlab_model_check, mcp_matlab_model_query_params, and mcp_matlab_model_resolve_params. If your runtime exposes unprefixed aliases, the equivalent aliases are model_overview, model_read, model_edit, model_check, model_query_params, and model_resolve_params. Use mcp_matlab_evaluate_matlab_code only for required artifact file writes or MATLAB checks that have no dedicated MCP tool; do not use it to bypass model_edit for structural model construction.
 
 Modeling rules:
 - Build a Simscape-first model.

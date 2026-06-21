@@ -46,7 +46,7 @@ end
 function modelName = resolveModelName(modelPath)
 modelName = "";
 modelPath = string(modelPath);
-if strlength(modelPath) > 0 && exist(modelPath, "file") == 2
+if strlength(modelPath) > 0 && isExistingFile(modelPath)
     [~, name, ~] = fileparts(modelPath);
     load_system(char(modelPath));
     modelName = string(name);
@@ -58,6 +58,11 @@ openModels(openModels == "simulink") = [];
 if ~isempty(openModels)
     modelName = openModels(1);
 end
+end
+
+function tf = isExistingFile(pathValue)
+code = exist(string(pathValue), "file");
+tf = code == 2 || code == 4;
 end
 
 function clearOne(target)

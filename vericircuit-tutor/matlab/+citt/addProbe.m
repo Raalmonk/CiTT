@@ -44,7 +44,7 @@ result.used_probe_map = true;
 
 result.instructions = [result.instructions; probeInstructions(probe)];
 
-if exist(modelPath, "file") ~= 2
+if ~isExistingFile(modelPath)
     error("CiTT:ModelMissing", "Model file not found. Run the SATK agent first: %s", string(modelPath));
 end
 
@@ -198,6 +198,11 @@ try
 catch
     exists = false;
 end
+end
+
+function tf = isExistingFile(pathValue)
+code = exist(string(pathValue), "file");
+tf = code == 2 || code == 4;
 end
 
 function position = shiftedPosition(targetPath)

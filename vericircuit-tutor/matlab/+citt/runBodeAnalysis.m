@@ -23,6 +23,13 @@ freqHz = optionNumberArray(options, "FrequencyHz", []);
 messages = strings(0, 1);
 curves = repmat(emptyCurve(), 0, 1);
 
+[filterCurve, filterMessage] = filterChainBodeCurve(spec, freqHz);
+if ~isempty(filterCurve)
+    curves(end + 1, 1) = filterCurve; %#ok<AGROW>
+elseif strlength(filterMessage) > 0
+    messages(end + 1) = filterMessage;
+end
+
 [rcCurve, rcMessage] = rcBodeCurve(spec, freqHz);
 if ~isempty(rcCurve)
     curves(end + 1, 1) = rcCurve; %#ok<AGROW>
@@ -135,6 +142,75 @@ curve.notes = [
     "This is an analytic first-order estimate, not a full Simscape linearization."
 ];
 message = "";
+end
+
+function [curve, message] = filterChainBodeCurve(spec, requestedFreqHz)
+curve = [];
+message = "";
+
+[cHp, cHpId] = componentValueById(spec, "C_HP", "f");
+[rHp, rHpId] = componentValueById(spec, "R_HP", "ohm");
+[rLp, rLpId] = componentValueById(spec, "R_LP", "ohm");
+[cLp, cLpId] = componentValueById(spec, "C_LP", "f");
+[rNotch, rNotchId] = componentValueById(spec, "Rn1", "ohm");
+[cNotch, cNotchId] = componentValueById(spec, "Cn1", "f");
+hasFilterChain = ~isempty(cHp) && ~isempty(rHp) && ~isempty(rLp) && ~isempty(cLp);
+hasTwinT = ~isempty(rNotch) && ~isempty(cNotch) && contains(lower(valueText(spec)), "twin");
+if ~hasFilterChain && ~hasTwinT
+    return
+end
+if ~hasFilterChain
+    message = "A Twin-T/notch path was found, but numeric HP/LP values were incomplete for an ECG filter-chain estimate.";
+    return
+end
+
+fcHp = 1 / (2 * pi * rHp * cHp);
+fcLp = 1 / (2 * pi * rLp * cLp);
+if hasTwinT
+    f0 = 1 / (2 * pi * rNotch * cNotch);
+else
+    f0 = [];
+end
+
+if isempty(requestedFreqHz)
+    upperHz = max([fcLp * 100, 1000, f0 * 10]);
+    freqHz = logspace(log10(max(fcHp / 100, 1e-3)), log10(upperHz), 360);
+else
+    freqHz = requestedFreqHz(:)';
+end
+
+s = 1i * 2 * pi * freqHz;
+h = (s ./ (s + 2 * pi * fcHp)) .* (1 ./ (1 + s ./ (2 * pi * fcLp)));
+notes = [
+    "Computed from named ECG filter components in the circuit spec."
+    "This is an analytic estimate, not a full Simscape linearization."
+];
+if hasTwinT
+    qEstimate = 0.35;
+    w0 = 2 * pi * f0;
+    hNotch = (s.^2 + w0^2) ./ (s.^2 + (w0 / qEstimate) .* s + w0^2);
+    h = h .* hNotch;
+    notes(end + 1) = "Twin-T notch is approximated as a second-order notch using " + ...
+        rNotchId + " and " + cNotchId + " with Q=" + string(qEstimate) + ".";
+end
+
+curve = emptyCurve();
+curve.curve_id = "analytic_ecg_filter_chain";
+curve.source = "analytic_spec";
+if hasTwinT
+    curve.label = "ECG HP/LP + Twin-T notch estimate";
+else
+    curve.label = "ECG HP/LP filter estimate";
+end
+curve.input = "INA_OUT";
+curve.output = "ADC_OUT";
+curve.frequency_hz = freqHz;
+curve.magnitude_db = 20 * log10(max(abs(h), realmin));
+curve.phase_deg = unwrap(angle(h)) * 180 / pi;
+curve.cutoff_frequency_hz = [fcHp, fcLp, f0];
+curve.notes = notes;
+message = "Generated ECG filter-chain analytic Bode from " + ...
+    strjoin([rHpId, cHpId, rLpId, cLpId], ", ") + ".";
 end
 
 function kind = rcKind(spec)
@@ -265,6 +341,16 @@ for i = 1:numel(curves)
     semilogx(ax2, f, double(curves(i).phase_deg), "LineWidth", 1.4);
     labels(i) = curves(i).label;
 end
+positiveFrequencies = [];
+for i = 1:numel(curves)
+    f = double(curves(i).frequency_hz);
+    positiveFrequencies = [positiveFrequencies, f(f > 0)]; %#ok<AGROW>
+end
+if ~isempty(positiveFrequencies)
+    xLimits = [min(positiveFrequencies), max(positiveFrequencies)];
+    set(ax1, "XScale", "log", "XLim", xLimits);
+    set(ax2, "XScale", "log", "XLim", xLimits);
+end
 legend(ax1, labels, "Interpreter", "none", "Location", "best");
 legend(ax2, labels, "Interpreter", "none", "Location", "best");
 exportgraphics(fig, char(path), "Resolution", 160);
@@ -307,13 +393,12 @@ for i = 1:numel(components)
     else
         component = components(i);
     end
-    text = lower(valueText(component));
-    if any(contains(text, lower(string(typeHints))))
+    if componentMatchesTypeHint(component, typeHints)
         id = fieldText(component, "id");
         if strlength(id) == 0
             id = "component_" + string(i);
         end
-        raw = firstField(component, ["value", "nominal_value", "resistance", "capacitance"]);
+        raw = componentValueWithUnit(component);
         value = parseSi(raw, unitFamily);
         if ~isempty(value)
             return
@@ -322,21 +407,83 @@ for i = 1:numel(components)
 end
 end
 
+function matches = componentMatchesTypeHint(component, typeHints)
+hints = lower(string(typeHints));
+typeText = lower(strjoin([
+    fieldText(component, "type")
+    fieldText(component, "component_type")
+    fieldText(component, "kind")
+    fieldText(component, "label")
+], " "));
+idText = lower(fieldText(component, "id"));
+
+longHints = hints(strlength(hints) > 1);
+matches = ~isempty(longHints) && any(contains(typeText, longHints));
+if matches
+    return
+end
+
+singleHints = hints(strlength(hints) == 1);
+if any(singleHints == "r")
+    matches = startsWith(idText, "r") || any(typeText == ["r", "resistor"]);
+elseif any(singleHints == "c")
+    matches = startsWith(idText, "c") || any(typeText == ["c", "capacitor"]);
+else
+    matches = false;
+end
+end
+
+function [value, id] = componentValueById(spec, targetId, unitFamily)
+value = [];
+id = "";
+components = getField(spec, "components");
+if isempty(components)
+    return
+end
+targetId = lower(string(targetId));
+for i = 1:numel(components)
+    if iscell(components)
+        component = components{i};
+    else
+        component = components(i);
+    end
+    candidateId = fieldText(component, "id");
+    if lower(candidateId) ~= targetId
+        continue
+    end
+    raw = componentValueWithUnit(component);
+    value = parseSi(raw, unitFamily);
+    if ~isempty(value)
+        id = candidateId;
+        return
+    end
+end
+end
+
+function value = componentValueWithUnit(component)
+value = firstField(component, ["value", "nominal_value", "resistance", "capacitance"]);
+unit = firstField(component, ["unit", "units"]);
+if ~isempty(value) && ~isempty(unit)
+    value = strtrim(valueText(value) + " " + valueText(unit));
+end
+end
+
 function value = parseSi(raw, unitFamily)
 value = [];
-text = lower(strtrim(valueText(raw)));
+rawText = strtrim(valueText(raw));
+text = lower(rawText);
 if strlength(text) == 0 || text == "null"
     return
 end
-tokens = regexp(char(text), '([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*([a-zµ]*)', 'tokens', 'once');
+tokens = regexp(char(rawText), '([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*([a-zA-Zµ]*)', 'tokens', 'once');
 if isempty(tokens)
     return
 end
 base = str2double(tokens{1});
-suffix = string(tokens{2});
-suffix = replace(suffix, "µ", "u");
+suffixRaw = string(tokens{2});
+suffix = lower(replace(suffixRaw, "µ", "u"));
 factor = 1;
-if startsWith(suffix, "meg")
+if startsWith(suffix, "meg") || (unitFamily == "ohm" && startsWith(suffixRaw, "M"))
     factor = 1e6;
 elseif startsWith(suffix, "k")
     factor = 1e3;
