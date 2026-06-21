@@ -79,11 +79,13 @@ pipelineLabel.Text = "Ready for circuit input";
 pipelineLabel.Layout.Row = 2;
 pipelineLabel.Layout.Column = [2 4];
 
-pipelineGauge = uigauge(header, "linear");
-pipelineGauge.Limits = [0 100];
-pipelineGauge.Value = 0;
-pipelineGauge.Layout.Row = 3;
-pipelineGauge.Layout.Column = [2 3];
+handles.pipelineProgress = uilabel(header, "Text", "Progress 0%");
+handles.pipelineProgress.HorizontalAlignment = "center";
+handles.pipelineProgress.FontWeight = "bold";
+handles.pipelineProgress.FontSize = 11;
+handles.pipelineProgress.Layout.Row = 3;
+handles.pipelineProgress.Layout.Column = [2 3];
+setTone(handles.pipelineProgress, "gray");
 
 handles.nextActionButton = uibutton(header, "Text", "Next: Read with Gemini", ...
     "ButtonPushedFcn", @(~, ~) onNextAction());
@@ -125,7 +127,7 @@ refreshAll();
         inputCard.Layout.Row = 1;
         inputCard.Layout.Column = 1;
         inputGrid = uigridlayout(inputCard, [7 3]);
-        inputGrid.RowHeight = {24, "1x", 30, 74, 34, 42, 44};
+        inputGrid.RowHeight = {24, "1x", 30, 72, 34, 56, 44};
         inputGrid.ColumnWidth = {58, "1x", 108};
         inputGrid.Padding = [12 10 12 12];
         inputGrid.RowSpacing = 8;
@@ -416,7 +418,7 @@ refreshAll();
         questionCard.Layout.Row = 1;
         questionCard.Layout.Column = 2;
         questionGrid = uigridlayout(questionCard, [8 3]);
-        questionGrid.RowHeight = {34, "1x", 22, 82, 30, 42, 34, 96};
+        questionGrid.RowHeight = {34, "1x", 22, 78, 30, 58, 34, 92};
         questionGrid.ColumnWidth = {86, "1x", 128};
         questionGrid.Padding = [12 10 12 12];
         questionGrid.RowSpacing = 8;
@@ -913,16 +915,11 @@ refreshAll();
         area = makeSoftArea(parent, "Menlo");
     end
 
-    function label = makeLatexPreview(parent, fallbackText)
-        label = uilabel(parent, "Text", char(fallbackText));
-        label.HorizontalAlignment = "center";
-        label.VerticalAlignment = "center";
-        label.FontSize = 13;
+    function preview = makeLatexPreview(parent, fallbackText)
+        htmlPath = fullfile(state.Config.MatlabRoot, "resources", "ui", "latex_preview.html");
+        preview = uihtml(parent, "HTMLSource", htmlPath);
         try
-            label.Interpreter = "latex";
-            label.WordWrap = "on";
-            label.BackgroundColor = [0.96 0.985 0.972];
-            label.FontColor = palette.primaryDark;
+            preview.Data = struct("latex", "", "placeholder", char(fallbackText));
         catch
         end
     end
@@ -2407,10 +2404,16 @@ refreshAll();
     function updateLatexPreviews()
         try
             if isfield(handles, "promptLatexPreview")
-                handles.promptLatexPreview.Text = latexPreviewText(textAreaText(handles.promptText));
+                rawPrompt = textAreaText(handles.promptText);
+                handles.promptLatexPreview.Data = struct( ...
+                    "latex", char(latexPreviewText(rawPrompt)), ...
+                    "html", char(htmlPreviewText(rawPrompt)));
             end
             if isfield(handles, "studentLatexPreview")
-                handles.studentLatexPreview.Text = latexPreviewText(textAreaText(handles.studentAnswer));
+                rawAnswer = textAreaText(handles.studentAnswer);
+                handles.studentLatexPreview.Data = struct( ...
+                    "latex", char(latexPreviewText(rawAnswer)), ...
+                    "html", char(htmlPreviewText(rawAnswer)));
             end
         catch
         end
@@ -2420,9 +2423,27 @@ refreshAll();
         rawText = string(rawText);
         formula = extractLatexFormula(rawText);
         if strlength(strtrim(formula)) == 0
-            preview = "\mathrm{LaTeX\ preview}";
+            preview = "";
         else
-            preview = "$" + formula + "$";
+            preview = formula;
+        end
+    end
+
+    function html = htmlPreviewText(rawText)
+        text = strtrim(string(rawText));
+        html = "";
+        if strlength(text) == 0
+            return
+        end
+
+        fenced = regexp(char(text), '```html\s*([\s\S]*?)\s*```', 'tokens', 'once');
+        if ~isempty(fenced)
+            html = string(fenced{1});
+            return
+        end
+
+        if startsWith(text, "<") && contains(text, ">")
+            html = text;
         end
     end
 
@@ -2592,7 +2613,15 @@ refreshAll();
         try
             pipelineLabel.Text = string(message);
             if nargin >= 2 && ~isempty(value)
-                pipelineGauge.Value = max(0, min(100, double(value)));
+                progressValue = max(0, min(100, round(double(value))));
+                handles.pipelineProgress.Text = "Progress " + string(progressValue) + "%";
+                if progressValue >= 90
+                    setTone(handles.pipelineProgress, "green");
+                elseif progressValue >= 35
+                    setTone(handles.pipelineProgress, "blue");
+                else
+                    setTone(handles.pipelineProgress, "gray");
+                end
             end
             [nextLabel, ~, ~] = nextActionForState(state);
             handles.nextActionButton.Text = nextLabel;

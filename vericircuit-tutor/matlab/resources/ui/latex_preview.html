@@ -1,0 +1,262 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #f2faf6;
+      color: #10231a;
+    }
+    .wrap {
+      box-sizing: border-box;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 12px;
+      border: 1px solid #d6e9df;
+      background: #f4fbf7;
+      overflow: hidden;
+      text-align: center;
+    }
+    .placeholder {
+      color: #5e7168;
+      font-size: 12px;
+    }
+    .fallback {
+      color: #10231a;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .math {
+      max-width: 100%;
+      overflow: visible;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 17px;
+      line-height: 1.55;
+      white-space: nowrap;
+    }
+    .html {
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
+      text-align: left;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #10231a;
+    }
+    .html p {
+      margin: 0 0 0.45em;
+    }
+    .html p:last-child {
+      margin-bottom: 0;
+    }
+    .html code {
+      padding: 0.08em 0.28em;
+      border-radius: 4px;
+      background: #e4f0ea;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+    .html ul,
+    .html ol {
+      margin: 0.2em 0 0.2em 1.35em;
+      padding: 0;
+    }
+    .frac {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0 0.12em;
+      vertical-align: middle;
+      font-size: 0.92em;
+      line-height: 1.05;
+    }
+    .frac .top {
+      border-bottom: 1px solid currentColor;
+      padding: 0 0.18em 0.08em;
+    }
+    .frac .bottom {
+      padding: 0.08em 0.18em 0;
+    }
+    .sqrt {
+      display: inline-flex;
+      align-items: flex-start;
+      gap: 0.02em;
+    }
+    .sqrt .radicand {
+      border-top: 1px solid currentColor;
+      padding: 0.02em 0.12em 0;
+    }
+    sup,
+    sub {
+      font-size: 0.7em;
+      line-height: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="preview" class="placeholder">LaTeX preview</div>
+  </div>
+
+  <script>
+    const commands = {
+      alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε",
+      theta: "θ", lambda: "λ", mu: "μ", pi: "π", rho: "ρ",
+      sigma: "σ", tau: "τ", omega: "ω",
+      Gamma: "Γ", Delta: "Δ", Theta: "Θ", Lambda: "Λ",
+      Pi: "Π", Sigma: "Σ", Omega: "Ω",
+      OmegaSymbol: "Ω", ohm: "Ω",
+      cdot: "·", times: "×", pm: "±", approx: "≈", neq: "≠",
+      leq: "≤", geq: "≥", infty: "∞", rightarrow: "→", leftarrow: "←"
+    };
+
+    function stripDelimiters(text) {
+      let raw = String(text || "").trim();
+      raw = raw.replace(/^\$\$([\s\S]*)\$\$$/, "$1");
+      raw = raw.replace(/^\$([\s\S]*)\$$/, "$1");
+      raw = raw.replace(/^\\\[([\s\S]*)\\\]$/, "$1");
+      raw = raw.replace(/^\\\(([\s\S]*)\\\)$/, "$1");
+      return raw.trim();
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function readGroup(src, start) {
+      if (src[start] !== "{") {
+        return { value: src[start] || "", next: start + 1 };
+      }
+      let depth = 0;
+      for (let i = start; i < src.length; i += 1) {
+        if (src[i] === "{") depth += 1;
+        if (src[i] === "}") depth -= 1;
+        if (depth === 0) {
+          return { value: src.slice(start + 1, i), next: i + 1 };
+        }
+      }
+      return { value: src.slice(start + 1), next: src.length };
+    }
+
+    function readCommand(src, start) {
+      let i = start + 1;
+      while (i < src.length && /[A-Za-z]/.test(src[i])) i += 1;
+      if (i === start + 1) i += 1;
+      return { name: src.slice(start + 1, i), next: i };
+    }
+
+    function parseLatex(src) {
+      let out = "";
+      for (let i = 0; i < src.length;) {
+        const ch = src[i];
+
+        if (ch === "\\") {
+          const cmd = readCommand(src, i);
+          if (cmd.name === "frac") {
+            const top = readGroup(src, cmd.next);
+            const bottom = readGroup(src, top.next);
+            out += `<span class="frac"><span class="top">${parseLatex(top.value)}</span><span class="bottom">${parseLatex(bottom.value)}</span></span>`;
+            i = bottom.next;
+            continue;
+          }
+          if (cmd.name === "sqrt") {
+            const group = readGroup(src, cmd.next);
+            out += `<span class="sqrt">√<span class="radicand">${parseLatex(group.value)}</span></span>`;
+            i = group.next;
+            continue;
+          }
+          out += escapeHtml(commands[cmd.name] || cmd.name);
+          i = cmd.next;
+          continue;
+        }
+
+        if (ch === "_" || ch === "^") {
+          const group = readGroup(src, i + 1);
+          const tag = ch === "_" ? "sub" : "sup";
+          out += `<${tag}>${parseLatex(group.value)}</${tag}>`;
+          i = group.next;
+          continue;
+        }
+
+        if (ch === "{") {
+          const group = readGroup(src, i);
+          out += parseLatex(group.value);
+          i = group.next;
+          continue;
+        }
+
+        if (ch === "}") {
+          i += 1;
+          continue;
+        }
+
+        out += ch === " " ? " " : escapeHtml(ch);
+        i += 1;
+      }
+      return out;
+    }
+
+    function sanitizeHtml(html) {
+      const template = document.createElement("template");
+      template.innerHTML = String(html || "");
+
+      template.content.querySelectorAll("script, iframe, object, embed, link, meta").forEach((node) => {
+        node.remove();
+      });
+
+      template.content.querySelectorAll("*").forEach((node) => {
+        [...node.attributes].forEach((attr) => {
+          const name = attr.name.toLowerCase();
+          const value = String(attr.value || "").trim().toLowerCase();
+          if (name.startsWith("on") || value.startsWith("javascript:")) {
+            node.removeAttribute(attr.name);
+          }
+        });
+      });
+
+      return template.innerHTML;
+    }
+
+    function render(rawText) {
+      const preview = document.getElementById("preview");
+      const data = rawText && typeof rawText === "object" ? rawText : { latex: rawText };
+      const html = String(data.html || "").trim();
+      if (html) {
+        preview.className = "html";
+        preview.innerHTML = sanitizeHtml(html);
+        return;
+      }
+
+      const math = stripDelimiters(data.latex || "");
+      if (!math) {
+        preview.className = "placeholder";
+        preview.textContent = "LaTeX preview";
+        return;
+      }
+      preview.className = "math";
+      preview.innerHTML = parseLatex(math);
+    }
+
+    function setup(htmlComponent) {
+      render(htmlComponent.Data);
+      htmlComponent.addEventListener("DataChanged", () => {
+        render(htmlComponent.Data);
+      });
+    }
+  </script>
+</body>
+</html>
