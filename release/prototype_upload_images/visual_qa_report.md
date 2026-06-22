@@ -3,7 +3,7 @@
 Generated image set: `release/prototype_upload_images/`.
 Image 1 generation method: PIL/vector composition; no external image-generation background used.
 No absolute local paths, BMES logos, or Medtronic logos are included in the images.
-Regeneration iterations: initial full redesign, then Image 3 right-side cards were compacted after contact-sheet review.
+Regeneration iterations: initial full redesign, Image 3 right-side cards were compacted after contact-sheet review, then Image 2 right column was expanded with tutor and lab-mistake dialogue cards.
 
 ## 01_workflow_llm_vs_citt.png
 - exists: True
@@ -18,6 +18,7 @@ Regeneration iterations: initial full redesign, then Image 3 right-side cards we
 - no top-left upload label: pass
 - left model screenshot width fraction: 68.12% (pass)
 - Bode plot width as right-column fraction: 90.42% (pass)
+- right column top and bottom filled with visible dialogue cards: pass
 
 ## 03_benchmark_tevc_feedback_tutor.png
 - exists: True
