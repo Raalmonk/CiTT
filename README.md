@@ -120,7 +120,9 @@ Run `citt.checkSetup` after installation to see which products, paths, agent set
 
 ## Reviewer Materials
 
-- Prototype overview image: [release/CiTT_Prototype_Overview.png](release/CiTT_Prototype_Overview.png)
+- Prototype upload images: [release/prototype_upload_images/](release/prototype_upload_images/)
+- Primary upload image: [01_workflow_llm_vs_citt.png](release/prototype_upload_images/01_workflow_llm_vs_citt.png)
+- Optional contact sheet: [00_contact_sheet_optional.png](release/prototype_upload_images/00_contact_sheet_optional.png)
 - Upload checklist: [release/BMES_Submission_Upload_Checklist.md](release/BMES_Submission_Upload_Checklist.md)
 - Setup details: [docs/release_setup.md](docs/release_setup.md)
 - Live GUI evidence map: [docs/demo_live_gui_evidence.md](docs/demo_live_gui_evidence.md)
@@ -140,8 +142,10 @@ docs/
   release_setup.md
   demo_live_gui_evidence.md
 release/
+  prototype_upload_images/
 submission_assets/
   live_gui_evidence/
+    prototype_upload_images/
 paper_orchestra/
   bmes_application/
     application_answers_draft.md
