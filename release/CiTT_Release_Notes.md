@@ -63,16 +63,6 @@ citt
 - `README.md`
 - selected setup/demo docs
 
-## Excluded
-
-- `.env` files and API keys
-- `matlab/work/`
-- `slprj/`
-- `*.slxc`
-- frontend/backend caches
-- `node_modules/`
-- old offline evidence drafts as final proof
-
 ## Evidence Package
 
 Final evidence entry point:

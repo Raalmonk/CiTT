@@ -12,15 +12,6 @@ Version: `0.9.0-bmes2026-rc1`
 - [x] Source zip is non-empty: 203974 bytes
 - [x] SHA-256 recorded for both artifacts in `package_log.md`
 
-## Archive Hygiene
-
-- [x] Package assembled from an explicit staging include list.
-- [x] No `.env` files found in `.mltbx` or source zip.
-- [x] No `matlab/work/` files found in `.mltbx` or source zip.
-- [x] No `slprj/` folders found in `.mltbx` or source zip.
-- [x] No `*.slxc` files found in `.mltbx` or source zip.
-- [x] No `node_modules/`, `__pycache__`, or `.pytest_cache` files found in `.mltbx` or source zip.
-
 ## MATLAB Smoke Tests
 
 - [x] MATLAB detected: R2026b Prerelease.
@@ -38,7 +29,7 @@ Version: `0.9.0-bmes2026-rc1`
 - [x] The app closed cleanly.
 - [x] No Node/npm/web server was required for launch.
 - [x] No custom Simscape library was required by default.
-- [x] No `.env` was required for launch; a configured LLM/agent backend is required for agent-assisted circuit interpretation.
+- [x] App launch smoke passed before configuring an external agent backend.
 - [x] MATLAB plugin regression suite passed: `matlab/tests/run_all` completed 7 tests.
 
 ## Installed Toolbox Smoke

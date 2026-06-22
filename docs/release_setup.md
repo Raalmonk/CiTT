@@ -91,8 +91,6 @@ GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-3.5-flash
 ```
 
-Do not commit `.env` files or API keys.
-
 ## SATK/MCP Setup
 
 Install and configure the MathWorks agentic tooling for MATLAB/Simulink. If available in your MATLAB installation, run:
@@ -108,7 +106,7 @@ If SATK is already installed but not on the MATLAB path, add the installed toolk
 satk_initialize
 ```
 
-The build step expects the agent to use SATK/MCP model tools and to produce local work products under `matlab/work/`:
+The build step expects the agent to use SATK/MCP model tools and to produce local run outputs under `matlab/work/`:
 
 ```text
 citt_generated_model.slx
@@ -117,9 +115,7 @@ citt_probe_map.json
 citt_agent_report.md
 ```
 
-`matlab/work/` is ignored by Git and is not included in the release package.
-
-When CiTT is installed from `.mltbx` and the Add-Ons install folder is read-only, CiTT falls back to MATLAB's writable `prefdir/CiTT/work` folder for settings and generated work products.
+When CiTT is installed from `.mltbx` and the Add-Ons install folder is read-only, CiTT falls back to MATLAB's writable `prefdir/CiTT/work` folder for settings and run outputs.
 
 ## Run A Demo
 
@@ -149,20 +145,6 @@ For the final BMES evidence map, see [demo_live_gui_evidence.md](demo_live_gui_e
 | Benchmark 3 does not settle | Educational parameter set exposes rail/current limits | Report as limitation-discovery evidence, not as a medical-use validation claim |
 | Lab Delta CSV cannot run | No external lab CSV was supplied | Leave Lab Delta marked incomplete rather than fabricating a comparison |
 | Old artifacts appear in the UI | Stale `matlab/work/` cache | Clear `matlab/work/` locally and rerun |
-
-## Release Hygiene
-
-Do not package or commit:
-
-- `.env` files
-- API keys
-- `slprj/`
-- `*.slxc`
-- `matlab/work/`
-- MATLAB caches or generated work folders
-- old offline draft evidence as final proof
-
-Final review evidence belongs in [submission_assets/live_gui_evidence](../submission_assets/live_gui_evidence/).
 
 ## Setup References
 

@@ -41,17 +41,6 @@
     "docs/demo_live_gui_evidence.md",
     "paper_orchestra/bmes_application/application_answers_draft.md"
   ],
-  "excluded_files_summary": [
-    ".env and API keys",
-    "matlab/work/",
-    "slprj/",
-    "*.slxc",
-    "node_modules/",
-    "__pycache__/",
-    ".pytest_cache/",
-    "frontend/backend caches",
-    "old offline evidence folders as final proof"
-  ],
   "evidence_entry_point": "submission_assets/live_gui_evidence/",
   "git_commit": "388f14a783e0e47c55521769eeb816fe85367a83",
   "git_status": "dirty with release-preparation files, installed-toolbox work-dir fix, exporter artifact check fix, and test hardening",

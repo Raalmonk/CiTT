@@ -31,19 +31,6 @@ The package was assembled under `/tmp/citt_bmes_release_stage/CiTT_BMES_2026_Sou
 - `docs/demo_live_gui_evidence.md`
 - `docs/bmes_application_answers_draft.md`
 
-## Exclusions
-
-Excluded from both `.mltbx` and source zip:
-
-- `.env`
-- API keys
-- `matlab/work/`
-- `slprj/`
-- `*.slxc`
-- frontend/backend caches
-- `node_modules/`
-- old offline evidence folders as final proof
-
 ## MATLAB Toolbox Packaging
 
 Tool used:
@@ -133,8 +120,6 @@ run_all completed with 7 result entries.
 Notes:
 
 - `test_simscape_model_generation` emitted model-name shadowing warnings from stale local `matlab/work/` model names, but completed successfully.
-- The release archives do not include `matlab/work/`.
-
 Installed-toolbox smoke:
 
 ```text
