@@ -14,11 +14,11 @@ Biomedical engineering students need to learn circuits, signal conditioning, ele
 
 Modern students increasingly use LLMs for tutoring. LLMs are useful language and attention models, but they are not rigorous engineering solvers by themselves. They can produce fluent explanations while hiding unit mistakes, sign errors, unsupported assumptions, missing nonideal behavior, or unexecuted simulation claims.
 
-CiTT addresses this by grounding an AI tutor in executable MATLAB/Simulink/Simscape artifacts. The language model helps parse prompts or circuit images and support Socratic dialogue, but engineering authority is assigned to inspectable models, plots, simulation metrics, model checks, assumptions, limitations, focus maps, probe maps, and exported evidence.
+CiTT addresses this by grounding an AI tutor in executable MATLAB/Simulink/Simscape artifacts. The configured LLM/agent backend helps interpret prompts or circuit images and support Socratic dialogue, but engineering authority is assigned to inspectable models, plots, simulation metrics, model checks, assumptions, limitations, focus maps, probe maps, and exported evidence.
 
 ## System Components
 
-- Gemini-assisted prompt/image parsing into a structured circuit specification.
+- Agent-assisted circuit interpretation into a structured circuit specification, using direct API or local CLI transport depending on configuration.
 - Agentic Simulink/Simscape model generation through SATK/MCP-style tooling.
 - Simscape/Simulink artifact checks and saved `.slx` models.
 - Socratic teaching loop grounded in model focus maps.

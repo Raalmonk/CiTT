@@ -4,7 +4,7 @@ CiTT is a MATLAB-native, Simscape-grounded AI tutor for biomedical circuit and i
 
 Biomedical engineering depends heavily on electrical and computer engineering concepts, including electrophysiology, biosignal acquisition, instrumentation amplifiers, filters, ADCs, sensors, imaging hardware, and feedback systems. Many curricula, including the author's BME coursework, require circuits and instrumentation training because medical-device design and physiological measurement both depend on those foundations. CiTT targets that learning gap by turning prompts or circuit images into structured circuit specifications, then using a MATLAB/Simulink/Simscape workflow to produce inspectable models, focus maps, probe maps, guided teaching, and exportable evidence.
 
-The key design principle is that the language model helps communicate and parse, but the engineering authority comes from visible artifacts: Simulink/Simscape models, generated plots, simulation metrics, model checks, assumptions, and limitations. The current prototype combines Gemini-based parsing, agentic Simulink/Simscape model generation, Socratic tutoring, model highlight/zoom, natural-language probes, and evidence export in a MATLAB toolbox package.
+The key design principle is that the LLM/agent layer helps communicate, interpret circuit inputs, and orchestrate tools, but the engineering authority comes from visible artifacts: Simulink/Simscape models, generated plots, simulation metrics, model checks, assumptions, and limitations. The current prototype combines an agent-assisted circuit interpretation path, agentic Simulink/Simscape model generation, Socratic tutoring, model highlight/zoom, natural-language probes, and evidence export in a MATLAB toolbox package.
 
 The release candidate has live evidence for three benchmarks. Benchmark 1 demonstrates an RC anti-aliasing filter with cutoff, attenuation, probe, and Bode evidence. Benchmark 2 demonstrates a two-electrode voltage clamp equivalent circuit with symbolic-value caveats, focus maps, probes, and feedback teaching. Benchmark 3 demonstrates a closed-loop mixed-signal neural clamp using educational scaled parameters, including ADC/digital behavior, saturation/current-limit behavior, non-settling evidence, simulation plots, and metrics JSON.
 
@@ -20,11 +20,11 @@ CiTT's objective is to provide a MATLAB-centered AI tutor that grounds biomedica
 
 # Final Design Documentation (250 words max)
 
-The final prototype is packaged as a MATLAB toolbox and source archive. The main learning surface is the `citt` MATLAB app. The workflow has six components: Gemini-assisted prompt/image parsing, structured circuit specification, agentic Simulink/Simscape model generation, model check and artifact storage, Socratic teaching with focus/highlight maps, natural-language probes, and evidence export.
+The final prototype is packaged as a MATLAB toolbox and source archive. The main learning surface is the `citt` MATLAB app. The workflow has six components: agent-assisted circuit interpretation, structured circuit specification, agentic Simulink/Simscape model generation, model check and artifact storage, Socratic teaching with focus/highlight maps, natural-language probes, and evidence export. Depending on configuration, the interpretation layer can use direct API credentials or a local Gemini/Codex-compatible CLI backend.
 
 The design uses built-in MATLAB, Simulink, Simscape, and Simscape Electrical capabilities where possible. Standards and risk thinking are applied as educational controls rather than regulated-device claims. Relevant future standards for a clinical or regulated extension would include software lifecycle, risk-management, cybersecurity, and verification practices; the current prototype instead uses scope guardrails, assumptions/limitations reporting, model checks, focus/probe maps, human review, and evidence traceability.
 
-Known risks include Gemini misreading a circuit, an agent building an incomplete model, students overtrusting generated simulations, missing nonideal physical effects, dependency on MATLAB/Gemini/SATK tooling, and ambiguous benchmark inputs. Mitigations include structured specs, visible Simscape diagrams, explicit caveats, saved artifacts, simulation warnings, benchmark comparison files, and an educational-only boundary. The live evidence package is stored at `vericircuit-tutor/submission_assets/live_gui_evidence/`; the release package is stored at `vericircuit-tutor/release/`.
+Known risks include an LLM/agent backend misreading a circuit, an agent building an incomplete model, students overtrusting generated simulations, missing nonideal physical effects, dependency on MATLAB/SATK/MCP and configured agent tooling, and ambiguous benchmark inputs. Mitigations include structured specs, visible Simscape diagrams, explicit caveats, saved artifacts, simulation warnings, benchmark comparison files, and an educational-only boundary. The live evidence package is stored at `vericircuit-tutor/submission_assets/live_gui_evidence/`; the release package is stored at `vericircuit-tutor/release/`.
 
 # Prototype Uploaded Files
 
@@ -72,7 +72,7 @@ The current CiTT prototype is educational software and design-assistance softwar
 
 # Estimated Manufacturing Costs (250 words max)
 
-CiTT is software, so the current prototype has no custom hardware bill of materials, manufacturing tooling, sterilization, inventory, or physical assembly cost. Prototype costs are primarily undergraduate development time, MATLAB/Simulink/Simscape access through an academic environment, Gemini/API usage, agent compute, documentation, and testing.
+CiTT is software, so the current prototype has no custom hardware bill of materials, manufacturing tooling, sterilization, inventory, or physical assembly cost. Prototype costs are primarily undergraduate development time, MATLAB/Simulink/Simscape access through an academic environment, LLM/agent backend usage, documentation, and testing.
 
 Deployment costs would depend on the institution. In a course that already has MATLAB, Simulink, Simscape, and Simscape Electrical access, the incremental cost is mainly toolbox installation, API configuration, instructor setup, support, and optional lab-computer maintenance. Distribution can use the `.mltbx` package or source zip. A realistic educational commercialization path would include academic licensing, curated course benchmark packs, setup support, instructor onboarding, maintenance, privacy/security review, and possibly LMS integration.
 
@@ -90,6 +90,6 @@ Near-term success can be measured by classroom pilots: fewer unit/sign/node-refe
 
 Primary prototype evidence: `vericircuit-tutor/submission_assets/live_gui_evidence/` and `vericircuit-tutor/release/`.
 
-Technical platforms: MATLAB, Simulink, Simscape, Simscape Electrical, Simulink Agentic Toolkit / MATLAB agentic tooling, and Gemini API.
+Technical platforms: MATLAB, Simulink, Simscape, Simscape Electrical, Simulink Agentic Toolkit / MATLAB agentic tooling, and a configured LLM/agent provider such as Gemini-compatible or Codex-compatible local tooling.
 
-Acknowledgements: The project concept was inspired by biomedical circuits/instrumentation coursework and by Professor Pak Wong's classroom exploration of agent-based teaching. The author also acknowledges MathWorks documentation, Google Gemini API documentation, and the BMES/Medtronic competition context.
+Acknowledgements: The project concept was inspired by biomedical circuits/instrumentation coursework and by Professor Pak Wong's classroom exploration of agent-based teaching. The author also acknowledges MathWorks documentation, model-provider documentation including Google Gemini API documentation, and the BMES/Medtronic competition context.

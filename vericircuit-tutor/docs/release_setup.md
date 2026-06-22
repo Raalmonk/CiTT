@@ -55,24 +55,25 @@ Minimum release target:
 - Simscape Electrical preferred
 - Simulink Agentic Toolkit / SATK-compatible flow
 - MATLAB MCP Server
-- Gemini API key for Gemini-backed parsing
+- Configured LLM/agent provider for circuit interpretation and orchestration
+- Direct Gemini API credentials or a local Gemini/Codex-compatible CLI backend, depending on configuration
 - Configured agent CLI for SATK/MCP model building
 
 The release evidence assumes no custom Simscape libraries and no custom project-specific block libraries. CiTT should prefer built-in MATLAB, Simulink, Simscape, and Simscape Electrical blocks.
 
 ## Environment Variables
 
-Required for Gemini-backed parsing:
+Required for the full AI-backed flow: either Gemini API credentials or a configured local LLM/agent CLI. For the release evidence path, the local CLI/agent route may be used for both circuit interpretation and model-building.
+
+```bash
+export CITT_AGENT_COMMAND="your-agent-cli-command"
+```
+
+Optional for direct Gemini API or a Gemini-backed local CLI:
 
 ```bash
 export GEMINI_API_KEY="your_key_here"
-```
-
-Optional:
-
-```bash
 export GEMINI_MODEL="gemini-3.5-flash"
-export CITT_AGENT_COMMAND="your-agent-cli-command"
 ```
 
 If MATLAB is opened from the Dock or another launcher that does not inherit shell environment variables, create a local untracked file:
@@ -84,9 +85,10 @@ vericircuit-tutor/matlab/.env
 with:
 
 ```text
+CITT_AGENT_COMMAND=your-agent-cli-command
+# Optional if using direct Gemini API or a Gemini-backed local CLI:
 GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-3.5-flash
-CITT_AGENT_COMMAND=your-agent-cli-command
 ```
 
 Do not commit `.env` files or API keys.
@@ -123,7 +125,7 @@ When CiTT is installed from `.mltbx` and the Add-Ons install folder is read-only
 
 1. Launch `citt`.
 2. Enter a prompt or select a circuit image.
-3. Read/parse the circuit with the configured parser.
+3. Read/interpret the circuit with the configured LLM/agent backend.
 4. Build the model through the SATK/MCP agent flow.
 5. Inspect the generated Simulink/Simscape model.
 6. Use the teaching dialog to step through model-linked explanations.
@@ -136,8 +138,8 @@ For the final BMES evidence map, see [demo_live_gui_evidence.md](demo_live_gui_e
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| `GEMINI_API_KEY` missing | MATLAB did not inherit shell environment variables | Add `vericircuit-tutor/matlab/.env` locally or launch MATLAB from the configured shell |
-| Gemini works in terminal but not MATLAB | Environment mismatch | Check `getenv("GEMINI_API_KEY")` inside MATLAB |
+| AI-backed read step unavailable | No configured LLM/agent backend is visible to MATLAB | Set `CITT_AGENT_COMMAND`, configure a supported CLI, or provide direct provider credentials such as `GEMINI_API_KEY` |
+| Gemini works in terminal but not MATLAB | Environment mismatch | Check `getenv("GEMINI_API_KEY")` inside MATLAB or use a local CLI route through `CITT_AGENT_COMMAND` |
 | Simscape blocks missing | Simscape or Simscape Electrical is unavailable | Install/enable Simscape and Simscape Electrical |
 | SATK shown as missing | `satk_initialize` is not on the MATLAB path | Install/configure SATK, add the toolkit path, then run `satk_initialize` |
 | MATLAB MCP unavailable | Agent CLI cannot reach MATLAB model tools | Configure MATLAB MCP Server for the agent workflow |

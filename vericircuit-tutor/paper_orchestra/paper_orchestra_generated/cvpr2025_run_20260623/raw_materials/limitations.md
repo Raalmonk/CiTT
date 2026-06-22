@@ -1,7 +1,7 @@
 # Limitations
 
-- CiTT depends on MATLAB, Simulink, Simscape, preferably Simscape Electrical, Gemini configuration, and SATK/MCP-compatible agent tooling.
-- Gemini or another parser can misread circuit diagrams or prompts.
+- CiTT depends on MATLAB, Simulink, Simscape, preferably Simscape Electrical, a configured LLM/agent backend, and SATK/MCP-compatible agent tooling.
+- The configured LLM/agent backend can misread circuit diagrams or prompts.
 - Agentic model generation can produce incomplete or incorrect models.
 - Students may overtrust generated simulations if assumptions and limitations are not reviewed.
 - Simscape models may omit nonidealities that matter in real hardware or biology.

@@ -2,7 +2,7 @@
 
 \subsection{Circuit Input and Structured Specification}
 
-CiTT accepts a circuit prompt and optionally an image. Gemini is used as a parser when configured through \texttt{GEMINI\_API\_KEY} and the local parser backend \cite{gemini_api_docs}. The parser is not treated as the engineering authority. Its role is to produce a structured circuit specification with components, nodes, assumptions, ambiguities, requested outputs, and suggested Simscape blocks.
+CiTT accepts a circuit prompt and optionally an image. The interpretation layer uses a configured LLM/agent backend: Gemini-compatible API credentials are one supported route, while the release evidence path may also use a local CLI/agent runtime that shares the later model-building path \cite{gemini_api_docs}. This backend is not treated as the engineering authority. Its role is to produce a structured circuit specification with components, nodes, assumptions, ambiguities, requested outputs, and suggested Simscape blocks.
 
 \subsection{Agentic Simscape Model Generation}
 

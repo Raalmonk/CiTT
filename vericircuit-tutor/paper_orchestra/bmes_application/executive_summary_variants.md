@@ -6,7 +6,7 @@ These alternatives are shorter than the full application answer and can be used 
 
 CiTT is a MATLAB-native, Simscape-grounded AI tutor for biomedical circuit and instrumentation learning. It addresses a core problem in engineering education: students increasingly use large language models for help, but text-only tutoring can hide incorrect units, signs, assumptions, or transient behavior. CiTT keeps language useful while moving engineering authority into executable artifacts.
 
-The workflow accepts a prompt or circuit image, creates a structured circuit specification, builds or opens a Simulink/Simscape model, and teaches from model-linked focus maps, highlights, probes, plots, and evidence exports. The current prototype uses Gemini-assisted parsing, agentic Simulink/Simscape model generation, Socratic tutoring, natural-language probes, and release-ready evidence packaging.
+The workflow accepts a prompt or circuit image, creates a structured circuit specification, builds or opens a Simulink/Simscape model, and teaches from model-linked focus maps, highlights, probes, plots, and evidence exports. The current prototype uses an agent-assisted circuit interpretation path, agentic Simulink/Simscape model generation, Socratic tutoring, natural-language probes, and release-ready evidence packaging.
 
 The release candidate demonstrates three live benchmarks: an RC anti-aliasing filter, a two-electrode voltage clamp equivalent circuit, and a mixed-signal neural clamp using educational scaled parameters. The evidence includes model screenshots, Bode plots, simulation metrics, ADC/digital behavior, focus/probe maps, and limitation reporting. CiTT is educational software, not patient-facing or diagnostic software.
 

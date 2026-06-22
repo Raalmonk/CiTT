@@ -5,7 +5,7 @@ This is a scaffold for future submission prose. Keep final answers concise, evid
 ## Executive Summary (500 Words Max)
 
 - Summarize CiTT as a MATLAB-native circuit tutor that turns biomedical circuit prompts into inspectable Simulink/Simscape models, model-linked teaching, natural-language probes, and reproducible evidence.
-- Mention the three benchmark demonstrations without claiming clinical validation.
+- Mention the three benchmark demonstrations without making medical-use or biological-validation claims.
 - Emphasize the difference between text-only reasoning and executable model grounding.
 
 ## Problem (125 Words Max)
@@ -15,13 +15,13 @@ This is a scaffold for future submission prose. Keep final answers concise, evid
 
 ## Objective (125 Words Max)
 
-- State the objective as a MATLAB-centered tutor that parses circuit inputs, generates Simscape-first model tasks, teaches from model focus maps, and supports probe/evidence workflows.
+- State the objective as a MATLAB-centered tutor that uses a configured LLM/agent backend to interpret circuit inputs, generates Simscape-first model tasks, teaches from model focus maps, and supports probe/evidence workflows.
 - Keep the objective educational and review-oriented, not clinical.
 
 ## Final Design Documentation (250 Words Max)
 
 - Describe the MATLAB plugin entry point: `addpath("vericircuit-tutor/matlab"); citt`.
-- Note the main components: parser, SATK/MCP agent task generation, Simulink/Simscape artifact checks, focus maps, probe maps, teaching/probe dialog, and evidence export.
+- Note the main components: configurable LLM/agent interpretation backend, SATK/MCP agent task generation, Simulink/Simscape artifact checks, focus maps, probe maps, teaching/probe dialog, and evidence export.
 - Reference `submission_assets/live_gui_evidence/` as the final evidence package.
 
 ## Functional Proof (250 Words Max)
@@ -40,12 +40,12 @@ This is a scaffold for future submission prose. Keep final answers concise, evid
 ## Regulatory Pathway (125 Words Max)
 
 - Position the current prototype as educational software and model-based learning support.
-- State that Benchmark 3 is not clinical validation and the prototype is not patient-specific decision support.
+- State that Benchmark 3 is educational scaled evidence and the prototype is not individual-care decision support.
 - Note that any medical-device pathway would require a separate quality, validation, cybersecurity, and risk-management program.
 
 ## Estimated Manufacturing Costs (250 Words Max)
 
-- Software prototype costs are primarily MATLAB/Simulink/Simscape access, cloud/API usage, development time, and support.
+- Software prototype costs are primarily MATLAB/Simulink/Simscape access, configured LLM/agent backend usage, development time, and support.
 - No hardware manufacturing is required for the current educational prototype.
 - Include a future-cost note for deployment, maintenance, validation, and institutional licensing.
 
@@ -59,5 +59,5 @@ This is a scaffold for future submission prose. Keep final answers concise, evid
 
 - MATLAB, Simulink, Simscape, Simscape Electrical.
 - Simulink Agentic Toolkit / MATLAB MCP Server.
-- Gemini API for configured parsing.
+- Configured LLM/agent provider; Gemini remains one supported option.
 - BMES/Medtronic submission reviewers and course/lab context.
