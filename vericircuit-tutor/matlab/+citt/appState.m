@@ -23,6 +23,7 @@ state.LastModelCheck = [];
 state.LastSimulation = [];
 state.LastBode = [];
 state.LastProbe = [];
+state.ProbeAskText = "";
 state.LabCsvPath = "";
 state.OpAmpPart = "";
 state.LastLabDelta = [];

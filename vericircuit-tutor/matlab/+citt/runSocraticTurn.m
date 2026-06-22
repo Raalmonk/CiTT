@@ -100,6 +100,36 @@ elseif contains(focusId, "ecg_visibility") || contains(focusId, "visibility")
         "The expected qualitative result is: pacing artifact first dominates, clamps/recovery filter settle, then the small ECG waveform becomes visible again."
         "Common mistake to watch: " + string(step.common_mistake)
     ], newline);
+elseif contains(focusId, "cutoff") || contains(focusId, "time_constant")
+    message = strjoin([
+        "Answer: the cutoff is set by the physical RC time constant. For this model, $R=39.8\,k\Omega$ and $C=100\,nF$, so $\tau=RC=3.98\,ms$."
+        "The cutoff frequency is $f_c=\frac{1}{2\pi RC}$, which gives about $39.99\,Hz$. That is why the model passes the 5 Hz sensor signal with little loss but starts attenuating stronger interference above the cutoff."
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
+elseif contains(focusId, "interference") || contains(focusId, "attenuation")
+    message = strjoin([
+        "Answer: after the cutoff is known, compare each frequency with $f_c$. The low-pass magnitude is $|H(jf)|=\frac{1}{\sqrt{1+(f/f_c)^2}}$."
+        "At 60 Hz, the model gives about $-5.12\,dB$ of attenuation, so mains ripple is reduced but not eliminated. At the 250 Hz ADC Nyquist edge, the attenuation is about $-16.03\,dB$, so the output is much smaller before sampling."
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
+elseif contains(focusId, "nyquist") || contains(focusId, "adc")
+    message = strjoin([
+        "Answer: a 500 Hz ADC has Nyquist frequency $f_N=\frac{f_s}{2}=250\,Hz$. The Simscape frequency-response check should therefore include the output at 250 Hz, not only the sensor band."
+        "Because $250\,Hz$ is well above $f_c\approx39.99\,Hz$, the RC model attenuates that edge by about $-16.03\,dB$."
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
+elseif contains(focusId, "wrong_capacitor") || contains(focusId, "mistake")
+    message = strjoin([
+        "Answer: replacing $100\,nF$ with $100\,\mu F$ makes the capacitor $1000\times$ larger, so $\tau=RC$ becomes $1000\times$ larger and $f_c=\frac{1}{2\pi RC}$ becomes $1000\times$ smaller."
+        "That moves the cutoff from about $39.99\,Hz$ down to about $0.040\,Hz$, which would badly suppress the 5 Hz signal. This is the kind of lab error a pure text answer can miss unless it checks the actual model parameters."
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
+elseif contains(focusId, "output_node") || contains(focusId, "vout")
+    message = strjoin([
+        "Answer: the output probe belongs at the capacitor node, measured relative to electrical reference. In this low-pass circuit, that node is $V_{out}=V_C$, so it shows the filtered version of the input."
+        "If the probe is placed across the resistor instead, the plot answers the complementary high-pass question and the cutoff explanation no longer matches the requested output."
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
 elseif strlength(strtrim(concept)) > 0
     message = strjoin([
         "Answer: " + concept

@@ -1,0 +1,239 @@
+[
+  {
+    "focus_id": "fp_command_step",
+    "label": "Command step V_c(t)",
+    "explanation": "External command source drives node n_cmd through a Simscape controlled voltage source.",
+    "model_paths": [
+      "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/VC_STEP_Command_Profile",
+      "citt_generated_model/VC_STEP_Simulink_PS",
+      "citt_generated_model/VC_STEP_Source_n_cmd",
+      "citt_generated_model/VC_STEP_Command_Sense"
+    ],
+    "line_handles_or_descriptions": [
+      "VC_STEP_Command_Profile.y1 -> VC_STEP_Simulink_PS.u1",
+      "VC_STEP_Simulink_PS.RConn1 -> VC_STEP_Source_n_cmd.vT",
+      "VC_STEP_Source_n_cmd.p <-> VC_STEP_Command_Sense.p"
+    ],
+    "related_components": [
+      "VC_STEP"
+    ],
+    "related_nodes": [
+      "n_cmd",
+      "n_ref"
+    ],
+    "teaching_question": "What should happen to V_m immediately after the command voltage V_c(t) changes?"
+  },
+  {
+    "focus_id": "fp_amplifier_limits",
+    "label": "Finite-gain amplifier saturation and current limit",
+    "explanation": "Amplifier error is sensed physically, multiplied by A_ol, rail-limited, driven by a controlled voltage source, and passed through a current limiter.",
+    "model_paths": [
+      "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/AMP1_Input_Error_Vcmd_minus_Vfb",
+      "citt_generated_model/AMP1_Open_Loop_Gain_A_ol",
+      "citt_generated_model/AMP1_Rail_Saturation",
+      "citt_generated_model/AMP1_Finite_Gain_Output_Source",
+      "citt_generated_model/AMP1_Output_Current_Limit_I_limit",
+      "citt_generated_model/AMP1_Output_Voltage_Sensor"
+    ],
+    "line_handles_or_descriptions": [
+      "VC_STEP_Command_Sense.V -> AMP1_Input_Error_Vcmd_minus_Vfb.I1",
+      "DAC1_Feedback_Sense.V -> AMP1_Input_Error_Vcmd_minus_Vfb.I2",
+      "AMP1_Open_Loop_Gain_A_ol.O -> AMP1_Rail_Saturation.I",
+      "AMP1_Finite_Gain_Output_Source.p <-> AMP1_Output_Current_Limit_I_limit.p"
+    ],
+    "related_components": [
+      "AMP1"
+    ],
+    "related_nodes": [
+      "n_cmd",
+      "n_feedback",
+      "n_amp_out",
+      "n_ref"
+    ],
+    "teaching_question": "How would finite gain or rail saturation prevent the clamp from forcing V_m exactly to V_c?"
+  },
+  {
+    "focus_id": "fp_electrode_series_resistance",
+    "label": "Electrode series resistance R_e",
+    "explanation": "Clamp current flows from the amplifier output through the limiter, current sensor, and R_e into the membrane node.",
+    "model_paths": [
+      "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/AMP1_Output_Current_Limit_I_limit",
+      "citt_generated_model/ICLAMP_SENSOR_Clamp_Current",
+      "citt_generated_model/RELECT_R_e"
+    ],
+    "line_handles_or_descriptions": [
+      "AMP1_Output_Current_Limit_I_limit.n <-> ICLAMP_SENSOR_Clamp_Current.p",
+      "ICLAMP_SENSOR_Clamp_Current.n <-> RELECT_R_e.p",
+      "RELECT_R_e.n <-> membrane node n_vm"
+    ],
+    "related_components": [
+      "RELECT",
+      "ICLAMP_SENSOR"
+    ],
+    "related_nodes": [
+      "n_amp_out",
+      "n_mem_drive",
+      "n_vm"
+    ],
+    "teaching_question": "When clamp current increases, where does the voltage drop across R_e appear?"
+  },
+  {
+    "focus_id": "fp_membrane_dynamics",
+    "label": "Membrane C_m, R_m, and leak current",
+    "explanation": "The membrane node is a Simscape electrical node with C_m, R_m, leak current, and optional nonlinear current to reference.",
+    "model_paths": [
+      "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/MEMBRANE_C_m",
+      "citt_generated_model/MEMBRANE_R_m_Leak",
+      "citt_generated_model/MEMBRANE_I_leak_Command",
+      "citt_generated_model/MEMBRANE_I_leak_Source",
+      "citt_generated_model/INL_MEM_Optional_Current_Law",
+      "citt_generated_model/INL_MEM_Optional_Current_Source"
+    ],
+    "line_handles_or_descriptions": [
+      "RELECT_R_e.n <-> MEMBRANE_C_m.p/MEMBRANE_R_m_Leak.p/VM_SENSOR_Membrane_Voltage.p",
+      "MEMBRANE_I_leak_Command.O -> MEMBRANE_I_leak_Source.iT",
+      "INL_MEM_Optional_Current_Law.y1 -> INL_MEM_Simulink_PS.u1 -> INL_MEM_Optional_Current_Source.iT"
+    ],
+    "related_components": [
+      "MEMBRANE",
+      "INL_MEM"
+    ],
+    "related_nodes": [
+      "n_vm",
+      "n_ref"
+    ],
+    "teaching_question": "Which part of the membrane model stores charge, and which part leaks current at steady state?"
+  },
+  {
+    "focus_id": "fp_vm_probe",
+    "label": "Vm and clamp-current probes",
+    "explanation": "Voltage and current sensors feed PS-Simulink converters and To Workspace logs for probe responses.",
+    "model_paths": [
+      "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/VM_SENSOR_Membrane_Voltage",
+      "citt_generated_model/Vm_To_Simulink",
+      "citt_generated_model/Vm_Log",
+      "citt_generated_model/ICLAMP_SENSOR_Clamp_Current",
+      "citt_generated_model/IClamp_To_Simulink",
+      "citt_generated_model/IClamp_Log"
+    ],
+    "line_handles_or_descriptions": [
+      "VM_SENSOR_Membrane_Voltage.V -> Vm_To_Simulink.LConn1 -> Vm_Log.u1",
+      "ICLAMP_SENSOR_Clamp_Current.I -> IClamp_To_Simulink.LConn1 -> IClamp_Log.u1"
+    ],
+    "related_components": [
+      "VM_SENSOR",
+      "ICLAMP_SENSOR"
+    ],
+    "related_nodes": [
+      "n_vm",
+      "n_amp_out",
+      "n_mem_drive"
+    ],
+    "teaching_question": "Which measured signal tells us whether the clamp succeeded, and which tells us how hard the amplifier worked?"
+  },
+  {
+    "focus_id": "fp_adc_quantization",
+    "label": "ADC sampling and quantization",
+    "explanation": "Measured V_m is sampled at T_s and quantized with V_adc_ref/(2^N_bits - 1).",
+    "model_paths": [
+      "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/Vm_To_Simulink",
+      "citt_generated_model/ADC1_Sample_Hold_T_s",
+      "citt_generated_model/ADC1_Quantizer_N_bits",
+      "citt_generated_model/ADC_Code_Log"
+    ],
+    "line_handles_or_descriptions": [
+      "Vm_To_Simulink.y1 -> ADC1_Sample_Hold_T_s.u1 -> ADC1_Quantizer_N_bits.u1 -> ADC_Code_Log.u1"
+    ],
+    "related_components": [
+      "ADC1"
+    ],
+    "related_nodes": [
+      "s_vm",
+      "s_adc_code"
+    ],
+    "teaching_question": "What information is lost when V_m is sampled and quantized into ADC codes?"
+  },
+  {
+    "focus_id": "fp_digital_control",
+    "label": "Digital comparator or finite-state logic",
+    "explanation": "Sampled command and ADC code are differenced, converted to a symbolic control update K_ctrl, saturated, and logged with state and flag outputs.",
+    "model_paths": [
+      "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/DIGCTRL_Target_Sample",
+      "citt_generated_model/DIGCTRL_Error_Target_Minus_ADC",
+      "citt_generated_model/DIGCTRL_Update_Gain_K_ctrl",
+      "citt_generated_model/DIGCTRL_DAC_Rail_Saturation",
+      "citt_generated_model/DIGCTRL_State_Error_Nonzero",
+      "citt_generated_model/Digital_State_Log",
+      "citt_generated_model/DIGCTRL_Saturation_High_Flag",
+      "citt_generated_model/DIGCTRL_Saturation_Low_Flag",
+      "citt_generated_model/Saturation_Flags_Log"
+    ],
+    "line_handles_or_descriptions": [
+      "DIGCTRL_Target_Sample.y1 and ADC1_Quantizer_N_bits.y1 -> DIGCTRL_Error_Target_Minus_ADC",
+      "DIGCTRL_Error_Target_Minus_ADC.y1 -> DIGCTRL_Update_Gain_K_ctrl.u1 -> DIGCTRL_DAC_Rail_Saturation.u1",
+      "Comparator outputs are logged as digital state and saturation flags"
+    ],
+    "related_components": [
+      "DIGCTRL"
+    ],
+    "related_nodes": [
+      "s_adc_code",
+      "s_state",
+      "s_saturation_flags",
+      "s_control_update"
+    ],
+    "teaching_question": "What state should the digital controller enter when the ADC code remains near the target for several samples?"
+  },
+  {
+    "focus_id": "fp_feedback_path",
+    "label": "DAC or command update feedback path",
+    "explanation": "The saturated digital update is held, converted to a physical signal, and drives a controlled voltage source at n_feedback.",
+    "model_paths": [
+      "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/DAC1_Update_Hold_T_s",
+      "citt_generated_model/DAC1_Update_Simulink_PS",
+      "citt_generated_model/DAC1_Feedback_Source_n_feedback",
+      "citt_generated_model/DAC1_Feedback_Sense",
+      "citt_generated_model/Control_Update_Log"
+    ],
+    "line_handles_or_descriptions": [
+      "DIGCTRL_DAC_Rail_Saturation.y1 -> DAC1_Update_Hold_T_s.u1",
+      "DAC1_Update_Hold_T_s.y1 -> DAC1_Update_Simulink_PS.u1 -> DAC1_Feedback_Source_n_feedback.vT",
+      "DAC1_Feedback_Sense.V -> AMP1_Input_Error_Vcmd_minus_Vfb.I2"
+    ],
+    "related_components": [
+      "DAC1",
+      "AMP1",
+      "DIGCTRL"
+    ],
+    "related_nodes": [
+      "s_control_update",
+      "n_feedback",
+      "n_cmd"
+    ],
+    "teaching_question": "How does a delayed DAC update change the closed-loop settling behavior?"
+  }
+]

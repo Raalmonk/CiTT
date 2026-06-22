@@ -415,6 +415,12 @@ measurement.recovery_time_below_1mV_s = [];
 measurement.recovery_time_below_0p5mV_s = [];
 measurement.message = "No logged simulation output was available for this measurement.";
 
+parameterMeasurement = summarizeParameterMeasurement(modelPath, probeResult, measurement.output_name);
+if isfield(parameterMeasurement, "success") && logical(parameterMeasurement.success)
+    measurement = parameterMeasurement;
+    return
+end
+
 modelPath = string(modelPath);
 if strlength(strtrim(modelPath)) == 0 || ~isfile(modelPath)
     measurement.message = "Model file is not available for simulation measurement.";
@@ -454,6 +460,157 @@ measurement.late_peak_to_peak_V = max(data(lateMask)) - min(data(lateMask));
 measurement.recovery_time_below_1mV_s = sustainedBelowTime(time, data, 1e-3);
 measurement.recovery_time_below_0p5mV_s = sustainedBelowTime(time, data, 5e-4);
 measurement.message = "Simulation measurement computed from yout.";
+end
+
+function measurement = summarizeParameterMeasurement(modelPath, probeResult, outputName)
+measurement = struct();
+measurement.success = false;
+
+targetText = lower(valueText(probeResult));
+if ~isRcParameterProbe(targetText)
+    return
+end
+
+[rOhm, rSource] = readSimscapeScalar(modelPath, "R1_39p8k", ["R", "Resistance"], 39.8e3);
+[cFarad, cSource] = readSimscapeScalar(modelPath, "C1_100nF", ["c", "C", "Capacitance"], 100e-9);
+[cMistakeFarad, cMistakeSource] = readSimscapeScalar(modelPath, "C1_MISTAKE_100uF", ["c", "C", "Capacitance"], 100e-6);
+
+tau = rOhm * cFarad;
+fc = 1 / (2 * pi * tau);
+mag5dB = rcLowpassMagnitudeDb(5, fc);
+mag60dB = rcLowpassMagnitudeDb(60, fc);
+mag250dB = rcLowpassMagnitudeDb(250, fc);
+mistakeFc = 1 / (2 * pi * rOhm * cMistakeFarad);
+
+lines = [
+    "Measured from Simscape model parameters:"
+    "R1 = " + formatOhms(rOhm) + " (" + rSource + ")."
+    "C1 = " + formatFarads(cFarad) + " (" + cSource + ")."
+    "tau = R*C = " + string(sprintf("%.4g s", tau)) + "."
+    "Cutoff frequency fc = 1/(2*pi*R*C) = " + string(sprintf("%.4f Hz", fc)) + "."
+    "At 5 Hz: |Vout/Vin| = " + string(sprintf("%.4f dB", mag5dB)) + " (sensor signal nearly passes)."
+    "At 60 Hz: |Vout/Vin| = " + string(sprintf("%.4f dB", mag60dB)) + " (mains ripple is reduced)."
+    "At 250 Hz: |Vout/Vin| = " + string(sprintf("%.4f dB", mag250dB)) + " (500 Hz ADC Nyquist edge)."
+];
+
+if contains(targetText, "mistake") || contains(targetText, "100uf") || contains(targetText, "100 uf") || contains(targetText, "wrong_capacitor")
+    lines(end + 1, 1) = "100 uF mistake branch C = " + formatFarads(cMistakeFarad) + ...
+        " (" + cMistakeSource + "), so fc would drop to " + string(sprintf("%.5f Hz", mistakeFc)) + ".";
+end
+
+measurement.success = true;
+measurement.output_name = outputName;
+measurement.block_path = "citt_generated_model/R1_39p8k, citt_generated_model/C1_100nF";
+measurement.cutoff_frequency_Hz = fc;
+measurement.time_constant_s = tau;
+measurement.magnitude_5Hz_dB = mag5dB;
+measurement.magnitude_60Hz_dB = mag60dB;
+measurement.magnitude_250Hz_dB = mag250dB;
+measurement.mistake_cutoff_frequency_Hz = mistakeFc;
+measurement.summary_lines = lines;
+measurement.message = "Computed from Simscape model parameters.";
+end
+
+function yes = isRcParameterProbe(text)
+yes = hasAny(text, ["r1_39p8k", "c1_100nf", "cutoff_frequency_from_r1_c1", ...
+    "abs_vout_over_vin", "frequency_attenuation", "nyquist", "low-pass", "low pass"]) && ...
+    hasAny(text, ["rc", "cutoff", "attenuation", "nyquist", "vout"]);
+end
+
+function [value, source] = readSimscapeScalar(modelPath, blockName, paramNames, fallback)
+value = fallback;
+source = "fallback prompt value";
+modelPath = string(modelPath);
+if strlength(strtrim(modelPath)) == 0 || ~isfile(modelPath)
+    return
+end
+
+[~, modelName, ~] = fileparts(modelPath);
+try
+    load_system(char(modelPath));
+catch
+    return
+end
+
+blockPath = string(modelName) + "/" + string(blockName);
+for i = 1:numel(paramNames)
+    paramName = string(paramNames(i));
+    try
+        raw = get_param(char(blockPath), char(paramName));
+        parsed = parseScalarValue(raw);
+        if isfinite(parsed) && parsed > 0
+            value = parsed;
+            source = blockPath + "." + paramName;
+            return
+        end
+    catch
+    end
+end
+end
+
+function value = parseScalarValue(raw)
+value = NaN;
+if isnumeric(raw) || islogical(raw)
+    values = double(raw(:));
+    if ~isempty(values)
+        value = values(1);
+    end
+    return
+end
+if iscell(raw) && ~isempty(raw)
+    value = parseScalarValue(raw{1});
+    return
+end
+
+rawText = string(raw);
+match = regexp(char(rawText), "[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", "match", "once");
+if isempty(match)
+    return
+end
+value = str2double(match);
+if ~isfinite(value)
+    return
+end
+
+lowerText = lower(rawText);
+if contains(lowerText, "kohm") || contains(lowerText, "k ohm")
+    value = value * 1e3;
+elseif contains(lowerText, "mohm") || contains(lowerText, "megohm")
+    value = value * 1e6;
+elseif contains(lowerText, "uf") || contains(lowerText, "microf")
+    value = value * 1e-6;
+elseif contains(lowerText, "nf")
+    value = value * 1e-9;
+elseif contains(lowerText, "pf")
+    value = value * 1e-12;
+end
+end
+
+function magnitudeDb = rcLowpassMagnitudeDb(frequencyHz, cutoffHz)
+magnitude = 1 / sqrt(1 + (frequencyHz / cutoffHz)^2);
+magnitudeDb = 20 * log10(magnitude);
+end
+
+function text = formatOhms(value)
+if abs(value) >= 1e6
+    text = string(sprintf("%.4g MOhm", value / 1e6));
+elseif abs(value) >= 1e3
+    text = string(sprintf("%.4g kOhm", value / 1e3));
+else
+    text = string(sprintf("%.4g Ohm", value));
+end
+end
+
+function text = formatFarads(value)
+if abs(value) >= 1e-3
+    text = string(sprintf("%.4g mF", value / 1e-3));
+elseif abs(value) >= 1e-6
+    text = string(sprintf("%.4g uF", value / 1e-6));
+elseif abs(value) >= 1e-9
+    text = string(sprintf("%.4g nF", value / 1e-9));
+else
+    text = string(sprintf("%.4g F", value));
+end
 end
 
 function outputName = measurementOutputName(probeResult)

@@ -49,7 +49,11 @@
       background: var(--bg);
     }
     .shell.sidebar-collapsed {
-      grid-template-columns: 64px minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .shell.sidebar-collapsed .sidebar {
+      display: none;
     }
 
     .sidebar {
@@ -1328,7 +1332,7 @@
               <button class="btn primary" id="learningNextButton" data-action="next_teaching_step">Next step</button>
             </div>
             <div class="probe-bar">
-              <input id="probeAsk" type="text" placeholder="Measure recovered ECG output after the pacing pulse">
+              <input id="probeAsk" type="text" placeholder="Measure a model signal in plain language">
               <button class="btn primary" data-action="run_command">Measure</button>
             </div>
             <div class="probe-result" id="learningProbeResult">Ask for a measurement in plain language, for example: measure amplifier input voltage.</div>
@@ -1733,11 +1737,15 @@
 
     function collectPayload(action) {
       var naturalProbe = value("probeAsk");
+      var commandText = naturalProbe ? naturalProbe : value("commandField");
+      if (naturalProbe && !/^\s*(measure|probe|show|highlight|zoom|open|clear|simulate|check)\b/i.test(commandText)) {
+        commandText = "measure " + commandText;
+      }
       var studentReasoning = value("learningAnswer") || value("studentAnswer");
       var payload = {
         imagePath: value("imagePath"),
         modelPath: value("modelPath"),
-        command: naturalProbe ? ("measure " + naturalProbe) : value("commandField"),
+        command: commandText,
         studentAnswer: studentReasoning,
         teachingImagePath: value("teachingImagePath"),
         focus: value("previewFocusSelector") || value("focusSelector"),
@@ -1841,6 +1849,7 @@
       setValue("teachingImagePath", paths.teachingImagePath);
       setValue("studentAnswer", paths.studentAnswer);
       setValue("learningAnswer", paths.studentAnswer);
+      setValue("probeAsk", paths.probeAsk);
       setValue("labCsvPath", paths.labCsvPath);
       setValue("opAmpPart", paths.opAmpPart);
       setValue("evidencePath", paths.evidencePath);
@@ -1848,6 +1857,7 @@
       renderPreview("answerPreview", value("studentAnswer"));
       renderPreview("learningAnswerPreview", value("learningAnswer"));
       renderRunStatus(runStatus);
+      setClass(document.querySelector(".shell"), "sidebar-collapsed", !!state.sidebarCollapsed);
 
       var teach = state.teach || {};
       fillSelect("focusSelector", teach.focusItems || []);
@@ -1949,14 +1959,14 @@
       text("learningStepLabel", stepLabel);
       text("learningFocusLabel", teach.currentFocus || "");
       text("learningNextButton", stepTotal > 0 && stepIndex >= stepTotal ? "Finish" : "Next step");
-      html("learningQuestion", richText(teach.currentQuestion || "Look at the model and describe what changed in the signal path."));
-      html("learningConcept", richText(teach.currentConcept || ""));
+      html("learningQuestion", richText(latexifyCircuitSymbols(teach.currentQuestion || "Look at the model and describe what changed in the signal path.")));
+      html("learningConcept", richText(latexifyCircuitSymbols(teach.currentConcept || "")));
       renderTeachingFeedback(teach.output, teach.currentQuestion);
 
       var probe = currentState.probe || {};
       var probeText = String(probe.probeOutput || "").trim();
       var probeStatus = String(probe.probeStatus || "").trim();
-      text("learningProbeResult", studentProbeText(probeStatus, probeText));
+      html("learningProbeResult", richText(latexifyCircuitSymbols(studentProbeText(probeStatus, probeText))));
       bindInteractiveButtons(root);
     }
 
@@ -1967,7 +1977,37 @@
       var question = String(currentQuestion || "").trim();
       var show = feedback && feedback !== question;
       root.classList.toggle("empty", !show);
-      root.innerHTML = show ? richText(feedback) : "";
+      root.innerHTML = show ? richText(latexifyCircuitSymbols(feedback)) : "";
+    }
+
+    function latexifyCircuitSymbols(raw) {
+      var textValue = String(raw == null ? "" : raw);
+      if (!textValue.trim() || hasLatex(textValue)) return textValue;
+      var replacements = [
+        [/\bVout\s*=\s*100\s*\*\s*\(\s*Vbuffer\s*-\s*Vfeedback\s*\)/g, "$V_{out}=100\\,(V_{buffer}-V_{feedback})$"],
+        [/\bVbuffer\b/g, "$V_{buffer}$"],
+        [/\bVfeedback\b/g, "$V_{feedback}$"],
+        [/\bVout\b/g, "$V_{out}$"],
+        [/\bV_c\b/g, "$V_c$"],
+        [/\bVc\b/g, "$V_c$"],
+        [/\bVm\b/g, "$V_m$"],
+        [/\bR_e\b/g, "$R_e$"],
+        [/\bRe\b/g, "$R_e$"],
+        [/\bR_o\b/g, "$R_o$"],
+        [/\bRo\b/g, "$R_o$"],
+        [/\bR_m\b/g, "$R_m$"],
+        [/\bRm\b/g, "$R_m$"],
+        [/\bn_vm\b/g, "$n_{vm}$"],
+        [/\bn_ref\b/g, "$n_{ref}$"],
+        [/\bn_vc\b/g, "$n_{vc}$"],
+        [/\bn_buffer_out\b/g, "$n_{buffer\\,out}$"],
+        [/\bn_feedback_sense\b/g, "$n_{feedback\\,sense}$"],
+        [/\bn_amp_out\b/g, "$n_{amp\\,out}$"]
+      ];
+      for (var i = 0; i < replacements.length; i += 1) {
+        textValue = textValue.replace(replacements[i][0], replacements[i][1]);
+      }
+      return textValue;
     }
 
     function studentProbeText(status, raw) {

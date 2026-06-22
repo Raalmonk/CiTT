@@ -58,6 +58,7 @@ lastAssessmentStatus = "Learning and planning reports are ready.";
 lastEvidenceOutput = "";
 lastEvidenceStatus = "Export an evidence pack when the model has enough proof.";
 lastSettingsStatus = "Settings are loaded from the local CiTT work folder.";
+sidebarCollapsed = false;
 
 ensureActiveTask();
 restoreActiveTaskIfAvailable();
@@ -65,8 +66,19 @@ restoreActiveTaskIfAvailable();
 app.Handles = handles;
 app.State = state;
 app.TestHooks = struct( ...
+    "newTask", @() onNewTask(), ...
+    "selectTask", @(taskId) onSelectTask(taskId), ...
+    "setPrompt", @(promptText) setTestPrompt(promptText), ...
+    "setImagePath", @(imagePath) setTestImagePath(imagePath), ...
+    "navigate", @(pageName) setTestPage(pageName), ...
+    "read", @() onParseWithGemini(), ...
+    "prepareBuild", @() onGenerateAgentTask(), ...
+    "buildModel", @() onRunAgent(), ...
+    "openModel", @() onOpenModel(), ...
     "runPipeline", @() onRunPipeline(), ...
     "runCommand", @(commandText) onRunCommand(commandText), ...
+    "setProbeAsk", @(commandText) setTestProbeAsk(commandText), ...
+    "setSidebarCollapsed", @(collapsed) setTestSidebarCollapsed(collapsed), ...
     "addProbe", @(targetId) onAddProbe(targetId), ...
     "setStudentAnswer", @(answerText) setTestStudentAnswer(answerText), ...
     "nextHint", @() onNextHint(), ...
@@ -264,10 +276,42 @@ app.TestHooks = struct( ...
         if isfield(payload, "evidencePath")
             state.EvidencePackPath = string(payload.evidencePath);
         end
+        if isfield(payload, "command")
+            state.ProbeAskText = string(payload.command);
+        end
     end
 
     function setTestStudentAnswer(answerText)
         state.StudentAnswer = string(answerText);
+        sendState();
+    end
+
+    function setTestPrompt(promptText)
+        state.PromptText = string(promptText);
+        sendState();
+    end
+
+    function setTestImagePath(imagePath)
+        state.ImagePath = string(imagePath);
+        sendState();
+    end
+
+    function setTestProbeAsk(commandText)
+        state.ProbeAskText = string(commandText);
+        sendState();
+    end
+
+    function setTestSidebarCollapsed(collapsed)
+        sidebarCollapsed = logical(collapsed);
+        sendState();
+    end
+
+    function setTestPage(pageName)
+        pageName = lower(strtrim(string(pageName)));
+        if ~ismember(pageName, ["read", "build", "teach", "probe", "evidence", "settings"])
+            pageName = "read";
+        end
+        activePage = pageName;
         sendState();
     end
 
@@ -914,6 +958,7 @@ app.TestHooks = struct( ...
 
     function onRunCommand(commandText)
         try
+            state.ProbeAskText = string(commandText);
             setBusy("Running command...", 86);
             commandResult = feval('citt.runNaturalCommand', string(commandText), state);
             commandAction = lower(strtrim(fieldText(commandResult, "action")));
@@ -1340,6 +1385,7 @@ app.TestHooks = struct( ...
             "modelSnapshotPath", state.ModelSnapshotPath, ...
             "teachingImagePath", state.TeachingImagePath, ...
             "studentAnswer", fieldText(state, "StudentAnswer"), ...
+            "probeAsk", fieldText(state, "ProbeAskText"), ...
             "labCsvPath", state.LabCsvPath, ...
             "opAmpPart", fieldText(state, "OpAmpPart"), ...
             "evidencePath", state.EvidencePackPath);
@@ -1396,6 +1442,7 @@ app.TestHooks = struct( ...
         ui.environment = environmentState();
         ui.settings = settingsState();
         ui.settingsStatus = lastSettingsStatus;
+        ui.sidebarCollapsed = sidebarCollapsed;
 
         try
             handles.web.Data = ui;
@@ -1481,6 +1528,7 @@ app.TestHooks = struct( ...
         currentState.LastSimulation = [];
         currentState.LastBode = [];
         currentState.LastProbe = [];
+        currentState.ProbeAskText = "";
         currentState.LabCsvPath = "";
         currentState.OpAmpPart = "";
         currentState.LastLabDelta = [];
@@ -1611,6 +1659,7 @@ app.TestHooks = struct( ...
         task.model_path = state.ModelPath;
         task.model_snapshot_path = state.ModelSnapshotPath;
         task.evidence_path = state.EvidencePackPath;
+        task.probe_ask_text = fieldText(state, "ProbeAskText");
         taskHistory(index) = task;
     end
 
@@ -1646,6 +1695,7 @@ app.TestHooks = struct( ...
             "model_path", state.ModelPath, ...
             "model_snapshot_path", state.ModelSnapshotPath, ...
             "evidence_path", state.EvidencePackPath, ...
+            "probe_ask_text", "", ...
             "events", emptyEvents());
     end
 
@@ -1669,6 +1719,7 @@ app.TestHooks = struct( ...
             task.model_path = taskField(rawTasks(i), "model_path", "");
             task.model_snapshot_path = taskField(rawTasks(i), "model_snapshot_path", "");
             task.evidence_path = taskField(rawTasks(i), "evidence_path", state.EvidencePackPath);
+            task.probe_ask_text = taskField(rawTasks(i), "probe_ask_text", "");
             if isfield(rawTasks(i), "events")
                 task.events = normalizeEvents(rawTasks(i).events);
             end
@@ -1763,6 +1814,7 @@ app.TestHooks = struct( ...
             "model_path", "", ...
             "model_snapshot_path", "", ...
             "evidence_path", "", ...
+            "probe_ask_text", "", ...
             "events", emptyEvents()), 0, 1);
     end
 
@@ -1789,6 +1841,7 @@ app.TestHooks = struct( ...
         state.ModelPath = taskField(task, "model_path", "");
         state.ModelSnapshotPath = taskField(task, "model_snapshot_path", "");
         state.EvidencePackPath = taskField(task, "evidence_path", state.EvidencePackPath);
+        state.ProbeAskText = taskField(task, "probe_ask_text", "");
         state.Spec = [];
         if exist(state.SpecPath, "file") == 2
             try
@@ -3664,6 +3717,14 @@ app.TestHooks = struct( ...
         if ~isTruthy(fieldText(measurement, "success"))
             text = emptyText(fieldText(measurement, "message"), "No numeric measurement was computed.");
             return
+        end
+        if isfield(measurement, "summary_lines") && ~isempty(measurement.summary_lines)
+            lines = string(measurement.summary_lines(:));
+            lines(strlength(strtrim(lines)) == 0) = [];
+            if ~isempty(lines)
+                text = strjoin(lines, newline);
+                return
+            end
         end
 
         text = strjoin([
