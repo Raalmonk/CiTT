@@ -1,0 +1,268 @@
+% CVPR 2025 Paper Template; see https://github.com/cvpr-org/author-kit
+
+\documentclass[10pt,twocolumn,letterpaper]{article}
+\usepackage{cvpr}
+
+\input{preamble}
+
+% It is strongly recommended to use hyperref, especially for the review version.
+% hyperref with option pagebackref eases the reviewers' job.
+\definecolor{cvprblue}{rgb}{0.21,0.49,0.74}
+\usepackage[pagebackref,breaklinks,colorlinks,allcolors=cvprblue]{hyperref}
+
+\def\paperID{12345678}
+\def\confName{CVPR}
+\def\confYear{2025}
+
+%%%%%%%%% TITLE - PLEASE UPDATE
+\title{CiTT: A Model-Grounded Agentic Tutor for Biomedical Circuit Learning with Gemini, Simulink Agentic Toolkit, and Simscape}
+
+\author{Ambitious AI Researcher\\
+AI Research Institute\\
+123 AI Avenue, ML City\\
+{\tt\small researcher@institute.ai}
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+%%%%%%%%% ABSTRACT %%%%%%%%%
+The increasing reliance of students on Large Language Models (LLMs) for educational support presents a challenge in rigorous engineering domains like biomedical circuits, where LLMs alone can produce inaccurate or unverifiable artifacts. This paper introduces CiTT (Circuit and Instrumentation Tutor), a novel MATLAB-native agentic tutor that grounds LLM communication in executable Simscape models. CiTT leverages Gemini for prompt and image parsing, agentic tooling (SATK/MCP) for Simscape model generation, and a Socratic teaching loop that relies on inspectable model artifacts, focus maps, and natural-language probe maps. We demonstrate CiTT's capabilities across three benchmarks: an RC anti-aliasing filter, a two-electrode voltage clamp equilibrium, and a mixed-signal neural clamp using educational scaled parameters. Our results show that CiTT successfully generates verifiable engineering artifacts, facilitates model-grounded teaching, and provides a structured evidence export path suitable for educational review. CiTT establishes a new model-grounded authority structure for AI tutoring in engineering education.
+%%%%%%%%% ABSTRACT %%%%%%%%%
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+%%%%%%%%% INTRODUCTION %%%%%%%%%
+Biomedical engineering education critically depends on a strong understanding of electrical circuits and signal processing principles, which are foundational for the design and development of medical-device signal chains. Students must grasp concepts ranging from basic circuit analysis and filtering to more complex topics like electrophysiology, instrumentation, analog-to-digital conversion (ADC), sensor interfacing, and feedback control systems. The ability to analyze and simulate these systems is central to engineering coursework and design reasoning \cite{webster_medical_instrumentation_2020}.
+
+However, the pedagogical landscape is shifting, with students increasingly turning to Large Language Models (LLMs) for tutoring and problem-solving assistance. While LLMs excel at natural language understanding and generation, their application in quantitative engineering disciplines exposes significant limitations. These models can produce fluent yet factually incorrect explanations, exhibit unit errors, make unsupported assumptions, omit critical non-ideal behaviors, or falsely claim the execution of simulations. This lack of rigor hinders deep engineering comprehension and reliable design practices, creating a gap between the accessibility of LLM-based help and the demands of engineering education.
+
+To bridge this gap, we introduce CiTT (Circuit and Instrumentation Tutor), a novel agentic tutor designed for biomedical circuit learning. CiTT's core innovation lies in grounding LLM-driven communication within executable MATLAB/Simulink/Simscape models. This model-grounded approach ensures that explanations and interactions are tied to verifiable engineering artifacts, rather than solely relying on the LLM's linguistic capabilities. CiTT combines the natural language interaction of an LLM with the precision of formal simulation and modeling tools, offering a more robust and reliable learning experience.
+
+Our contributions in this work are threefold:
+\begin{enumerate}
+    \item We present a MATLAB-native agentic tutor workflow specifically tailored for biomedical circuit learning, integrating Gemini, SATK/MCP-style tooling, and Simscape.
+    \item We establish a model-grounded authority structure that distinctly separates the LLM's communication role from the generation and validation of executable engineering evidence.
+    \item We provide live evidence across three diverse benchmarks—an RC anti-aliasing filter, a two-electrode voltage clamp equilibrium, and a mixed-signal neural clamp—demonstrating CiTT's ability to generate inspectable artifacts, perform model-grounded teaching, and facilitate a submission-oriented evidence export.
+\end{enumerate}
+This paper details the CiTT system, its evaluation on these benchmarks, and its potential as an educational software draft for course review and design competition documentation.
+%%%%%%%%% INTRODUCTION %%%%%%%%%
+
+\section{Related Work}
+\label{sec:related_work}
+%%%%%%%%% RELATED WORK %%%%%%%%%
+The development of AI-driven educational tools has seen significant advancements, particularly with the rise of Large Language Models (LLMs). However, applying these tools effectively to rigorous STEM fields, especially engineering, requires careful consideration of their inherent limitations. This section reviews existing approaches in LLM-based tutoring, symbolic circuit analysis, and model-based engineering environments to contextualize CiTT's novel contributions.
+
+\subsection{LLM-Based Educational Tutors}
+Recent years have witnessed a surge in LLM applications within education, leveraging their sophisticated natural language processing capabilities to provide explanations, answer questions, and even generate problem sets \cite{gemini_api_docs}. Systems like AutoTutor \cite{graesser_autotutor_2001} have demonstrated the potential of conversational agents in tutoring. However, when applied to quantitative engineering domains, these LLM-only approaches often falter. They lack the ability to perform executable simulations, leading to potential factual inaccuracies, unit errors, and the generation of unverifiable claims \cite{llm_math_reasoning_survey}. The 'LLM-only baseline' discussed in our experiments highlights these shortcomings, where models like Gemini can provide conceptual understanding but fail to produce concrete, executable engineering artifacts critical for design and analysis. CiTT addresses this by augmenting LLM communication with a robust, grounded system that ensures engineering rigor and verifiable outputs through executable Simscape models.
+
+\subsection{Symbolic Circuit Analysis Tools}
+Traditional circuit analysis often relies on mathematical techniques, including symbolic solvers, to derive circuit behavior. These methods, such as the Modified Nodal Approach (MNA) \cite{ho_mna_1975} and SPICE-era nonlinear circuit analysis \cite{nagel_rohrer_1971}, provide precise analytical and numerical foundations for circuit simulation. Tools based on these principles can offer deep insights into circuit structure. However, their application to complex, real-world biomedical circuits, which are often non-linear, dynamic, or mixed-signal, can be challenging. Furthermore, symbolic tools typically lack the interactive, visual feedback mechanisms that are crucial for student learning. They do not readily provide the intuitive understanding of transient behaviors or the simulation-based validation that is essential in engineering education. CiTT integrates symbolic reasoning implicitly through model generation but prioritizes dynamic simulation and visual feedback via Simulink/Simscape for a richer learning experience.
+
+\subsection{Model-Based Engineering Environments}
+Established platforms such as MATLAB, Simulink, and Simscape \cite{mathworks_matlab, mathworks_simulink, mathworks_simscape} provide powerful environments for engineering design, simulation, and analysis. These tools are indispensable in industry and academia for modeling complex physical systems, including electrical circuits. In educational contexts, they enable students to simulate circuit behavior, test designs, and understand dynamic responses. Despite their computational power, these environments often present a steep learning curve. They typically require significant user expertise to set up, configure, and interpret simulation results. Crucially, they lack the agentic tutoring capabilities and natural language interaction features that could guide students through the learning process. CiTT leverages the simulation and modeling power of MATLAB/Simulink/Simscape but adds an agentic layer to facilitate natural language interaction and guided exploration, thereby lowering the barrier to entry for students.
+%%%%%%%%% RELATED WORK %%%%%%%%%
+
+\section{Methodology}
+\label{sec:method}
+%%%%%%%%% METHOD %%%%%%%%%
+The CiTT system is designed to provide a model-grounded agentic tutoring experience for biomedical circuit learning. It integrates LLM capabilities with formal engineering tools to ensure both accessibility and rigor. This section details the system architecture and its core components.
+
+\subsection{System Architecture}
+\label{sec:method_architecture}
+The CiTT framework follows a modular architecture, enabling distinct roles for language understanding and engineering execution. The overall workflow is illustrated in \cref{fig:framework_overview}. At its core, CiTT separates the LLM's role in communication and initial parsing from the authoritative role of executable Simscape models.
+
+The process begins with Gemini \cite{gemini_api_docs} assisting in parsing user prompts or circuit images into a structured circuit specification. This specification then guides the agentic generation of Simulink/Simscape models using tooling inspired by the Simulink Agentic Toolkit (SATK) and Model Context Protocol (MCP) workflows \cite{mathworks_satk, matlab_agentic_toolkit}. These tools are responsible for creating executable \texttt{.slx} model files. The generated models undergo Simscape/Simulink artifact checks to identify obvious construction or configuration issues.
+
+CiTT employs a Socratic teaching loop, where the LLM engages the student in dialogue. This dialogue is not arbitrary but is grounded in inspectable model artifacts. Specific aspects of the model are highlighted using "focus maps," which guide the tutor's attention to relevant circuit elements or behaviors. Similarly, "probe maps" enable natural-language querying of simulation results and model states, allowing students to ask questions about the circuit's behavior in a contextually aware manner. Finally, CiTT facilitates a submission-oriented evidence export path, compiling all relevant artifacts for review.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\linewidth]{figures/fig2_app_open.png}
+  \caption{Conceptual overview of the CiTT framework, illustrating the interplay between Gemini-assisted parsing, agentic model generation (SATK/MCP), Simscape/Simulink execution, and the Socratic teaching loop grounded in model focus and probe maps.}
+  \label{fig:framework_overview}
+\end{figure}
+
+\subsection{Gemini-Assisted Prompt and Image Parsing}
+\label{sec:method_parsing}
+The initial step involves understanding the student's request, which may be presented as a textual prompt describing a circuit problem or, in future iterations, potentially as an image of a circuit diagram. Gemini \cite{gemini_api_docs}, a powerful multimodal LLM, is employed to parse this input. It interprets the user's intent, identifies key circuit components, their parameters, and the desired analysis or simulation objectives. The output of this stage is a structured circuit specification that serves as the input for the model generation module. This ensures that the subsequent engineering artifacts are directly derived from the student's stated problem.
+
+\subsection{Agentic Model Generation with SATK/MCP}
+\label{sec:method_model_gen}
+Leveraging the structured circuit specification, CiTT utilizes agentic tooling, inspired by workflows such as the Simulink Agentic Toolkit (SATK) and Model Context Protocol (MCP) \cite{mathworks_satk, matlab_agentic_toolkit}, to programmatically generate Simulink/Simscape models. This process involves selecting appropriate blocks from the Simscape Electrical component libraries \cite{mathworks_simscape_electrical}, connecting them according to the circuit topology, and assigning the parsed parameters. The output is an executable \texttt{.slx} model file. Importantly, this generation process includes automated checks within Simscape/Simulink to identify potential issues, such as algebraic loops or solver configuration problems, providing early feedback on model integrity.
+
+\subsection{Model-Grounded Teaching and Probing}
+\label{sec:method_teaching}
+CiTT's pedagogical approach is centered around a Socratic teaching loop, where the LLM facilitates a dialogue grounded in the generated Simscape model. The system employs "focus maps" to guide the tutor's attention to specific circuit elements, subsystems, or simulation states that are most relevant to the student's query or the learning objective. For instance, when discussing a filter's performance, the focus map might highlight the resistor and capacitor components. Complementing this, "probe maps" allow students to ask natural-language questions about the model's behavior (e.g., "What is the membrane voltage at t=5ms?"). The system then executes the model (or retrieves simulation data) and uses the LLM to interpret and present the results in an understandable format, directly linked to the model's state. This ensures that the tutor's explanations are always tied to verifiable, executable evidence.
+
+\subsection{Evidence Export for Review}
+\label{sec:method_export}
+To support educational review processes, such as course evaluations or design competitions, CiTT incorporates a structured evidence export mechanism. This feature compiles all relevant artifacts generated during a tutoring session into a comprehensive package. This includes the original student prompt, the identified assumptions made by the system, the generated Simscape model (\texttt{.slx} file), teaching artifacts (e.g., explanations, highlighted diagrams), probe map results, generated plots, simulation metrics, documented limitations, and release verification information. This export path provides a transparent and reproducible record of the tutoring interaction and the underlying engineering analysis.
+%%%%%%%%% METHOD %%%%%%%%%
+
+\section{Experiments}
+\label{sec:experiments}
+%%%%%%%%% EXPERIMENTS %%%%%%%%%
+We evaluated the CiTT system across three distinct biomedical engineering circuit benchmarks, demonstrating its capability to generate inspectable artifacts, engage in model-grounded teaching, and provide comprehensive evidence export. The implementation utilizes MATLAB, Simulink, and Simscape \cite{mathworks_matlab, mathworks_simulink, mathworks_simscape}, with agentic model generation facilitated by tooling inspired by SATK/MCP \cite{mathworks_satk, matlab_agentic_toolkit}. For natural language understanding and dialogue, we employed Gemini \cite{gemini_api_docs}. The LLM-only baseline involved comparing Gemini's unaided output for conceptual understanding and basic arithmetic against CiTT's model-grounded approach.
+
+\subsection{Experimental Setup}
+\label{sec:exp_setup}
+\subsubsection{Benchmark 1: RC Anti-Aliasing Filter}
+This benchmark focuses on a common task in biomedical signal processing: designing an RC low-pass filter to act as an anti-aliasing filter for an ECG-style signal prior to ADC sampling. The CiTT system was tasked with generating the Simscape model and providing explanations regarding its frequency response.
+
+\subsubsection{Benchmark 2: Two-Electrode Voltage Clamp (TEVC) Equilibrium}
+This benchmark involves modeling the equilibrium behavior of a Two-Electrode Voltage Clamp circuit, a teaching abstraction motivated by classic voltage-clamp experiments for membrane current-voltage behavior \cite{hodgkin_huxley_katz_1952}. The equivalent circuit comprises a command voltage source, a buffer path, a finite-gain amplifier, the biological membrane, electrode resistance, and associated probes and references. The task was to generate the Simscape model and demonstrate probing of key variables like membrane voltage and clamp current. Due to the lack of specific numerical values in the benchmark prompt for the command voltage ($V_c$) and electrode resistance ($R_e$), these parameters remained symbolic in the generated model, impacting the numerical simulation results but not the model generation or probing mechanism itself.
+
+\subsubsection{Benchmark 3: Mixed-Signal Neural Clamp}
+This benchmark simulates a closed-loop mixed-signal neural clamp circuit. It includes a command path, an Analog-to-Digital Converter (ADC) \cite{webster_medical_instrumentation_2020}, digital logic, a feedback path, an amplifier with saturation and current limiting behavior, and a simulated biological membrane. For educational purposes, the system used scaled parameters rather than biologically accurate ones. The evaluation focused on demonstrating the system's ability to handle mixed-signal complexities, capture transient responses, perform parameter sweeps, and analyze fault sensitivity. The generated model and simulation results were used to teach students about system limitations like saturation and non-settling behavior.
+
+\subsection{Benchmark 1: RC Anti-Aliasing Filter}
+\label{sec:exp_rc_filter}
+For the RC anti-aliasing filter, CiTT successfully generated the Simscape model (\cref{fig:rc_model}) and provided a teaching page detailing the cutoff frequency calculation. The system also generated natural-language probe evidence (\cref{fig:rc_probe}). Key parameters derived from the generated model and simulation were: $R = 39.8 \, k\Omega$, $C = 100 \, nF$, $\tau = 0.00398 \, s$, and $f_c = 39.9887 \, Hz$. The filter demonstrated an attenuation of $-5.1205 \, dB$ at $60 \, Hz$ and $-16.0298 \, dB$ at $250 \, Hz$, as visualized in the Bode plot (\cref{fig:rc_bode}). Notably, a comparison highlighted how using an incorrect capacitance value ($100 \, \mu F$ instead of $100 \, nF$) would drastically alter the cutoff frequency to approximately $0.03999 \, Hz$, severely attenuating relevant ECG frequencies—a critical unit mistake that CiTT's model-grounded approach helps prevent. The LLM-only baseline (Gemini) performed basic arithmetic correctly but could not produce any executable artifacts or visual evidence.
+
+\begin{figure*}[t]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/fig3_rc_model.png}
+        \caption{Generated Simscape model for the RC anti-aliasing filter.}
+        \label{fig:rc_model}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/fig3_rc_bode.png}
+        \caption{RC filter Bode plot showing cutoff frequency and attenuation at 60 Hz and 250 Hz. Includes a comparison demonstrating the impact of a unit mistake ($100 \mu F$ vs $100 nF$).}
+        \label{fig:rc_bode}
+    \end{subfigure}
+    \caption{Benchmark 1: RC Anti-Aliasing Filter evidence.}
+    \label{fig:benchmark1_rc}
+\end{figure*}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.8\linewidth]{figures/fig3_rc_probe.png}
+    \caption{Benchmark 1: Natural-language probe evidence for the RC filter, demonstrating interaction with the model's parameters and behavior.}
+    \label{fig:rc_probe}
+\end{figure}
+
+
+\subsection{Benchmark 2: Two-Electrode Voltage Clamp}
+\label{sec:exp_tevc}
+For the TEVC benchmark, CiTT generated a Simscape model (\cref{fig:tevc_model}) and provided teaching highlights for the feedback loop (\cref{fig:tevc_feedback}). The system produced focus and probe maps, alongside natural-language probe evidence (\cref{fig:tevc_probe}). The SATK model check reported the model as healthy. As noted, $V_c$ and $R_e$ remained symbolic due to missing prompt values, meaning numerical simulation results and probes would require assignment of these values. The LLM-only baseline offered conceptual explanations but lacked the executable model artifacts and interactive probing capabilities.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\linewidth]{figures/fig4_tevc_model.png}
+  \caption{Benchmark 2: Simscape model of the Two-Electrode Voltage Clamp circuit generated by CiTT.}
+  \label{fig:tevc_model}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\linewidth]{figures/fig4_tevc_feedback.png}
+  \caption{Benchmark 2: Teaching/highlight evidence for the TEVC feedback loop, demonstrating CiTT's ability to focus on critical circuit aspects.}
+  \label{fig:tevc_feedback}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\linewidth]{figures/fig4_tevc_probe.png}
+  \caption{Benchmark 2: Natural-language probe evidence for the TEVC, enabling students to query model states like membrane voltage and clamp current.}
+  \label{fig:tevc_probe}
+\end{figure}
+
+
+\subsection{Benchmark 3: Mixed-Signal Neural Clamp}
+\label{sec:exp_neural_clamp}
+The mixed-signal neural clamp benchmark showcased CiTT's ability to handle complex, mixed-signal systems. CiTT generated and presented the Simscape model (\cref{fig:neural_clamp_model}), along with various interactive elements and simulation outputs. Key evidence included screenshots of the command path, ADC/digital logic (\cref{fig:mixed_adc}), and feedback highlights, as well as fault/sweep behavior plots (\cref{fig:mixed_faults}). The simulation ran for 60 ms, yielding the following metrics: Settling time: not settled; Overshoot: $413.9\%$; Final tracking error: $186.2 \, mV$; Saturation duration: $60 \, ms$; Max clamp current: $5.099 \, nA$; Max amplifier output: $1 \, V$. A model warning indicated potential solver convergence issues due to discontinuities in algebraic loops. These results, generated using educational scaled parameters, effectively demonstrate limitation discovery within the simulated system, serving as valuable teaching points about saturation and non-ideal behavior, rather than claiming biological accuracy. The LLM-only baseline correctly identified the need for simulation for detailed transient analysis but introduced unsupported assumptions and unit/model errors. The timeline plot is shown in \cref{fig:mixed_timeline}.
+
+\begin{figure*}[t]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/fig5_mixed_model.png}
+        \caption{Generated Simscape model for the mixed-signal neural clamp (educational parameters).}
+        \label{fig:neural_clamp_model}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/fig5_mixed_timeline.png}
+        \caption{Collection of plots illustrating mixed-signal neural clamp performance: timeline, voltage/current, saturation, logic, sweep, and fault injection outcomes.}
+        \label{fig:mixed_signal_plots}
+    \end{subfigure}
+    \caption{Benchmark 3: Mixed-Signal Neural Clamp evidence. Includes the generated model and various performance plots.}
+    \label{fig:benchmark3_mixed_signal}
+\end{figure*}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{figures/fig5_mixed_timeline.png}
+  \caption{Benchmark 3: Simulation timeline evidence for the mixed-signal neural clamp.}
+  \label{fig:mixed_timeline}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{figures/fig5_mixed_adc.png}
+  \caption{Benchmark 3: ADC and digital logic behavior evidence for the mixed-signal neural clamp.}
+  \label{fig:mixed_adc}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{figures/fig5_mixed_faults.png}
+  \caption{Benchmark 3: Fault injection and parameter sweep behavior evidence under educational scaled parameters.}
+  \label{fig:mixed_faults}
+\end{figure}
+
+
+\subsection{Release Verification}
+\label{sec:exp_release}
+The CiTT system's release artifacts were verified for reproducibility. The package includes the \texttt{.mltbx} toolbox (\texttt{release/CiTT\_BMES\_2026.mltbx}), source code (\texttt{release/CiTT\_BMES\_2026\_Source.zip}), release notes, a reproducibility checklist, and installation instructions. Verification confirmed that the \texttt{.mltbx} file installs correctly, with the \texttt{which citt} command resolving properly and the \texttt{citt.checkSetup} function running without errors. The installed examples successfully reproduced all three benchmark workflows, supporting package-level reproducibility of the generated evidence. The installed GUI smoke test is shown in \cref{fig:installed_gui_smoke}.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{figures/installed_gui_smoke.png}
+  \caption{Benchmark: Installed GUI smoke test verification image, confirming basic functionality of the CiTT toolbox.}
+  \label{fig:installed_gui_smoke}
+\end{figure}
+
+We emphasize that CiTT produced inspectable artifacts and demonstrated model-grounded teaching. It complements LLM reasoning rather than dismissing LLMs entirely. This work is positioned as an educational design-assistance software for coursework and design competitions. Claims regarding regulated deployment, medical-use claims, or exhaustive comparisons with external lab data are avoided.
+%%%%%%%%% EXPERIMENTS %%%%%%%%%
+
+\section{Conclusion}
+\label{sec:conclusion}
+%%%%%%%%% CONCLUSION %%%%%%%%%
+This paper introduced CiTT, a novel agentic tutor designed to enhance biomedical circuit learning by grounding LLM-based interactions in executable Simscape models. We addressed the critical challenge of reconciling the accessibility of LLMs with the rigor required in engineering education, where factual accuracy, unit consistency, and verifiable artifacts are paramount. CiTT establishes a model-grounded authority structure, separating the communicative role of the LLM from the engineering validation provided by Simscape simulations and artifacts.
+
+We demonstrated CiTT's effectiveness across three diverse benchmarks: an RC anti-aliasing filter, a two-electrode voltage clamp, and a mixed-signal neural clamp. In each case, CiTT successfully generated inspectable Simscape models, provided model-grounded teaching through focus and probe maps, and facilitated a structured evidence export path suitable for academic review. The system effectively highlighted potential pitfalls, such as unit errors in the RC filter example, and complex behaviors like saturation in the neural clamp, using educational scaled parameters.
+
+Future work could involve expanding CiTT's capabilities to include a wider range of biomedical systems and more sophisticated circuit analysis techniques. Further research into advanced prompt engineering for complex circuit descriptions or even image-based circuit parsing could enhance its utility. Investigating deeper integration with student project workflows and exploring methods for automatically comparing simulation results against external laboratory data would also be valuable extensions. CiTT represents a significant step towards AI tutors that are not only conversational but also rigorously grounded in executable engineering principles.
+%%%%%%%%% CONCLUSION %%%%%%%%%
+
+{
+    \small
+    \bibliographystyle{ieeenat_fullname}
+    \bibliography{references}
+}
+
+%%%%%%%%% Appendix %%%%%%%%%
+\appendix
+\section{Reproducibility Checklist}
+\label{sec:appendix_repro_checklist}
+A detailed reproducibility checklist is provided as part of the release artifacts (\texttt{release/CiTT\_Reproducibility\_Checklist.md}). This document outlines the necessary steps and configurations required to reproduce the packaged examples presented in this paper, supporting transparency and reviewability.
+
+\section{Installation and Smoke Test}
+\label{sec:appendix_install_smoke}
+Instructions for installing the CiTT toolbox (\texttt{.mltbx} package) and performing a basic smoke test are available in \texttt{release/install\_and\_smoke\_test.md}. This guide includes steps to verify the installation and confirm the basic functionality of the CiTT graphical user interface (GUI), with verification images provided in \texttt{release/example\_repro/installed\_gui\_smoke.png}.
+
+\section{Supplementary Model Files}
+\label{sec:appendix_models}
+The generated Simscape (\texttt{.slx}) models for all three benchmarks, along with the complete project source code, are provided in the \texttt{release/CiTT\_BMES\_2026\_Source.zip} archive. These files are available for inspection and further reproduction of the results presented in this work.
+%%%%%%%%% Appendix %%%%%%%%%
+
+\end{document}

@@ -1,3 +1,5 @@
-Not run in this environment. Prompt prepared for manual baseline run.
+# LLM-Only Baseline Output
 
-Reason: a verified pure no-tool baseline invocation was not executed in this run. MATLAB CiTT setup reported a Gemini key in its local configuration, but the shell environment did not expose that key and the available Codex/Gemini CLIs are agentic workspace CLIs unless carefully constrained. No LLM output or failure was fabricated.
+Canonical review copy: `llm_baseline_output_gemini_no_tools.md`.
+
+This compatibility file is retained because earlier evidence indexes referenced `llm_baseline_output.md`. The Gemini-only no-tools baseline should be read from the canonical file above.

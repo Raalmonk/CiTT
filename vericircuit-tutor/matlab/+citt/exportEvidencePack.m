@@ -1228,7 +1228,7 @@ end
 
 function tf = existFile(path)
 path = string(path);
-tf = strlength(path) > 0 && exist(path, "file") == 2;
+tf = strlength(path) > 0 && isfile(path);
 end
 
 function writeText(path, text)

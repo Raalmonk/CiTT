@@ -1,0 +1,21 @@
+\section{Method}
+
+\subsection{Circuit Input and Structured Specification}
+
+CiTT accepts a circuit prompt and optionally an image. Gemini is used as a parser when configured through \texttt{GEMINI\_API\_KEY} and the local parser backend \cite{gemini_api_docs}. The parser is not treated as the engineering authority. Its role is to produce a structured circuit specification with components, nodes, assumptions, ambiguities, requested outputs, and suggested Simscape blocks.
+
+\subsection{Agentic Simscape Model Generation}
+
+Given a structured specification, CiTT writes an agent task for a SATK/MCP-compatible workflow. The agent is expected to use model tools to generate a Simulink/Simscape model, focus map, probe map, and report. CiTT validates that these artifacts exist rather than silently claiming success. A local Simscape fallback exists only for emergency/demo cases; it is not the default release path.
+
+\subsection{Socratic Teaching Loop}
+
+The teaching planner reads the circuit specification and focus map. Each focus item becomes a teaching step with a concept, student question, expected reasoning, hint, common mistake, and optional value reference. The goal is to keep tutoring anchored to a visible model region instead of drifting into unconstrained explanation.
+
+\subsection{Focus, Highlight, and Probe Maps}
+
+Focus maps identify model regions for explanation and highlighting. Probe maps identify measurable quantities such as membrane voltage, clamp current, or output-node voltage. Natural-language probe requests are mapped to these targets and reflected back in the learning dialog.
+
+\subsection{Evidence Export}
+
+CiTT exports evidence packs that connect the prompt, spec, model artifact, model checks, simulation outputs, focus/probe maps, limitations, risks, and functional-proof text. This evidence format is intended for course review and design-competition documentation, not as a regulated verification record.

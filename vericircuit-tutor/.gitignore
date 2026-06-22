@@ -1,16 +1,28 @@
+# Python environments and caches
 .venv/
 backend/.venv/
-.env
-backend/.env
 __pycache__/
+**/__pycache__/
 *.py[cod]
 .pytest_cache/
-*.log
+**/.pytest_cache/
 *.egg-info/
 **/*.egg-info/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+backend/.env
+matlab/.env
+
+# Logs and frontend build output
+*.log
 node_modules/
 frontend/node_modules/
 frontend/dist/
+
+# MATLAB, Simulink, and Simscape generated work products
 matlab/work/
 **/slprj/
 *.slxc

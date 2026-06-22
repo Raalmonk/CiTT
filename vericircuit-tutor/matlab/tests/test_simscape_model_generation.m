@@ -22,7 +22,7 @@ result = feval('citt.buildLocalSimscapeFallback', specPath, struct( ...
 
 assert(result.success);
 assert(exist(scriptPath, "file") == 2);
-assert(exist(modelPath, "file") == 2);
+assert(isfile(modelPath));
 assert(exist(focusPath, "file") == 2);
 assert(exist(probePath, "file") == 2);
 assert(exist(reportPath, "file") == 2);
@@ -53,7 +53,7 @@ symbolicResult = feval('citt.buildLocalSimscapeFallback', symbolicSpecPath, stru
     "OpenModel", false));
 
 assert(symbolicResult.success);
-assert(exist(symbolicModelPath, "file") == 2);
+assert(isfile(symbolicModelPath));
 assert(any(contains(symbolicResult.unresolved_values, "V_c")));
 assert(any(contains(symbolicResult.unresolved_values, "CITT_R1_value")));
 assert(~isempty(symbolicResult.build_notes));

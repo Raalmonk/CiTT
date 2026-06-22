@@ -40,6 +40,7 @@ context.LastSimulation = struct( ...
 context.LastProbe = struct("success", true, "target_id", "output_node");
 context.LabCsvPath = "";
 context.LastLabDelta = localLabDelta();
+context.LastRequirements = struct("rows", []);
 context.EvidencePackPath = packPath;
 
 result = feval('citt.exportEvidencePack', context, struct("OutputPath", packPath));

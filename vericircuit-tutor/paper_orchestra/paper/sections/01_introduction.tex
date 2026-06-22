@@ -1,0 +1,30 @@
+\section{Introduction}
+
+Biomedical engineering education depends heavily on electrical and computer engineering concepts: electrophysiology, biosignal acquisition, filtering, instrumentation amplifiers, analog-to-digital conversion, feedback control, sensors, and medical-device signal chains. Many BME curricula include circuits and instrumentation courses; in the author's coursework, BME 402/403-style material provided a concrete motivation for asking how AI tutors can support engineering reasoning without replacing simulation.
+
+The rise of LLM tutoring creates both opportunity and risk. Language models can explain concepts, ask Socratic questions, and help students explore unfamiliar material. Yet they are not rigorous engineering solvers. In open-ended tutor mode, attention can drift from the physical model; outputs can be unstable; and generic workflows more often fall back to text or Python than to MATLAB/Simulink/Simscape artifacts. For circuit learning, students need more than a fluent answer: they need to see the circuit, inspect assumptions, measure signals, and relate explanations to executable models.
+
+CiTT addresses this gap by grounding an AI tutor in MATLAB, Simulink, and Simscape. The system uses Gemini-based parsing to convert a prompt or image into a structured circuit specification, uses SATK/MCP-style agent tooling to build or prepare Simscape models, and presents teaching interactions around focus maps, highlights, natural-language probes, and evidence export. The result is not a replacement for instructor review. It is a model-grounded tutoring loop that makes AI assistance inspectable.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+    node distance=0.95cm,
+    box/.style={draw, rounded corners, align=center, minimum height=1.0cm, minimum width=2.5cm, fill=gray!8},
+    arrow/.style={-{Latex[length=2.2mm]}, thick}
+]
+\node[box] (input) {Circuit image\\or prompt};
+\node[box, right=of input] (spec) {Gemini parser\\structured spec};
+\node[box, right=of spec] (agent) {SATK/MCP agent\\Simscape build};
+\node[box, right=of agent] (teach) {Socratic teach\\highlight/probe};
+\node[box, right=of teach] (evidence) {Evidence export\\screenshots/maps/plots};
+\draw[arrow] (input) -- (spec);
+\draw[arrow] (spec) -- (agent);
+\draw[arrow] (agent) -- (teach);
+\draw[arrow] (teach) -- (evidence);
+\end{tikzpicture}
+\caption{CiTT workflow. A circuit image or text prompt is parsed into a structured specification, transformed into a Simscape/Simulink modeling task, and used to drive model-grounded teaching, highlighting, probing, and evidence export.}
+\label{fig:workflow}
+\end{figure*}
+
+This paper makes three contributions. First, it presents the CiTT architecture as a MATLAB-native, model-grounded agentic tutor. Second, it documents a live evidence package for three biomedical circuit-learning benchmarks. Third, it compares CiTT against a no-tools Gemini-only baseline while explicitly reporting limitations, symbolic caveats, and pending Lab Delta CSV work.
