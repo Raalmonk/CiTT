@@ -1,44 +1,64 @@
-# CiTT BMES/Medtronic Submission Evidence Package
+# CiTT BMES/Medtronic Submission Assets
 
-This directory contains a benchmark evidence package for CiTT: a model-grounded AI tutor for biomedical circuit simulation.
+This directory contains both legacy offline draft assets and the final live GUI evidence package for CiTT, a model-grounded AI tutor for biomedical circuit simulation.
 
-Contents:
-- `figures/`: architecture, workflow, score, and BMES-alignment visuals.
-- `screenshots/`: offline CiTT app evidence panels. Replace with live MATLAB app screenshots before final submission when possible.
-- `benchmark_01_textbook_rc/`: textbook RC anti-aliasing benchmark.
-- `benchmark_02_tevc_equilibrium/`: simplified TEVC equilibrium feedback benchmark.
-- `benchmark_03_mixed_signal_simscape/`: mixed physical/digital neural clamp benchmark.
-- `benchmark_scorecard.csv` and `.md`: honest current scoring.
-- `bmes_evidence_report.md` and `.pdf`: submission-facing report.
-- `scripts/`: MATLAB wrappers plus the offline generator used in this environment.
+Use this as the final submission evidence entry point:
 
-Required live environment for the full CiTT evidence run:
+- `live_gui_evidence/bmes_live_evidence_report.md`
+- `live_gui_evidence/README.md`
+- `live_gui_evidence/screenshots/`
+- `live_gui_evidence/benchmark_01_textbook_rc/`
+- `live_gui_evidence/benchmark_02_tevc_equilibrium/`
+- `live_gui_evidence/benchmark_03_mixed_signal/`
+
+Do not use older offline draft reports, offline screenshots, or generated placeholder panels as final proof unless they are explicitly labeled as draft/background material.
+
+## Final Live Evidence Status
+
+- Benchmark 1 RC anti-aliasing: live model, teaching, highlight, natural-language probe, and Bode evidence are complete.
+- Benchmark 2 TEVC equilibrium: live Simscape-first structure, feedback teaching, highlight, symbolic caveat, and natural-language probe evidence are complete.
+- Benchmark 3 mixed-signal neural clamp: live generated model, user-arranged model screenshot, educational scaled parameter set, nominal Simulink/Simscape timeline simulation, command/ADC/feedback highlights, plots, metrics, and evidence pack are complete.
+
+Benchmark 3 is **educational scaled benchmark evidence, not a clinically validated axon model**. Its value is that simulation exposes non-settling, rail saturation, current-limit behavior, ADC/digital timing, and parameter/fault sensitivity that text-only LLM output should not be trusted to infer.
+
+## Legacy Draft Assets
+
+The following root-level or source benchmark folders are useful for provenance, but are not the final evidence package:
+
+- `bmes_evidence_report_OFFLINE_DRAFT.md` and `.pdf`
+- `benchmark_run_log.md`
+- `figures/`
+- `screenshots/`
+- `benchmark_01_textbook_rc/`
+- `benchmark_02_tevc_equilibrium/`
+- `benchmark_03_mixed_signal_simscape/`
+- `scripts/generate_offline_assets.py`
+
+These older assets may mention offline panels, illustrative surrogate plots, or pending live Simscape evidence. Those statements describe the earlier draft package, not the current live evidence pass.
+
+## Scorecard
+
+`benchmark_scorecard.md` and `benchmark_scorecard.csv` are internal evidence rubrics. They are useful for tracking which proof items exist, but should not be presented as an objective external score.
+
+LLM-only baselines are marked `live-not-run` because no verified pure no-tool baseline invocation was rerun during this evidence pass. No baseline output or score is fabricated.
+
+## Reproduction Notes
+
+Full live reproduction requires:
+
 - MATLAB
 - Simulink
 - Simscape
-- Simscape Electrical preferred
-- Simulink Agentic Toolkit initialized with SATK policy/library gates
+- Simscape Electrical
+- Simulink Agentic Toolkit / SATK-compatible model build flow
 - MATLAB MCP Server
-- Gemini API key for circuit parsing
+- Gemini API key for circuit parsing, where configured
 - SATK-configured agent CLI via `CITT_AGENT_COMMAND`, Codex CLI, or Gemini CLI
 
-Reproduce offline package:
+The old offline generator can still regenerate draft assets:
 
 ```bash
 python3 vericircuit-tutor/submission_assets/scripts/generate_offline_assets.py --mode all
 ```
 
-Reproduce from MATLAB:
-
-```matlab
-run("vericircuit-tutor/submission_assets/scripts/run_all_benchmarks.m")
-```
-
-Manual Simscape arrangement pause:
-After live model generation, the MATLAB workflow must open the model and pause with the required `PAUSE FOR MANUAL SIMSCAPE ARRANGEMENT` message. The user should drag and clean up the diagram, save it, then press Enter. Screenshots should be captured only after that pause.
-
-Provenance in this run:
-- RC and TEVC plots are analytical/offline.
-- Mixed-signal plots are illustrative surrogate data and explicitly labeled.
-- App/model screenshot PNGs are offline panels, not live MATLAB screenshots.
-- LLM baseline prompts are prepared, but baseline outputs are manual-pending because no pure no-tool baseline invocation was executed.
+Do not run the offline generator as final submission proof. Use `live_gui_evidence/` for the final evidence story.

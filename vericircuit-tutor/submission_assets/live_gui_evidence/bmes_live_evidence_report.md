@@ -147,6 +147,7 @@ Simulation metrics from `benchmark_03_mixed_signal/artifacts/benchmark_03_simula
 Interpretation:
 
 - The nominal generated model stays at rail/current limit and does not settle in the requested window. This is useful device-performance and limitation evidence for the product story, not a clinical validation claim.
+- The failure to settle is an intended evidence point: it shows that the generated model exposes nonideal amplifier, current-limit, rail-saturation, and mixed-signal timing effects that a text-only LLM answer would likely miss or hand-wave.
 - The plot set demonstrates transient behavior, ADC quantization, digital state, saturation, parameter sensitivity, and fault sensitivity.
 
 ## LLM Baseline Status

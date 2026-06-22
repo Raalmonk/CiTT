@@ -18,6 +18,7 @@
 
 - Model warning: Discontinuities detected in one or more algebraic loops might prevent the algebraic loop solver from solving the loop.
 - The nominal generated model does not settle in the 60 ms window and stays at the rail/current limit. This is device-performance evidence and a model limitation, not a clinical claim.
+- The failure to settle is an intended evidence point: it shows that the generated model exposes nonideal amplifier, current-limit, rail-saturation, and mixed-signal timing effects that a text-only LLM answer would likely miss or hand-wave.
 - Parameter sweep and fault-injection plots use the same educational scaled equations deterministically for comparison speed; the nominal timeline plots are from the Simulink/Simscape model run.
 
 ## Required Plots
