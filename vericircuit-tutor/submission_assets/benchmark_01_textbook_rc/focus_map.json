@@ -1,0 +1,9 @@
+{
+  "focus_points": [
+    "cutoff_frequency",
+    "vout_probe_node",
+    "nyquist_warning",
+    "unit_mistake_delta"
+  ],
+  "source": "offline programmatic equivalent; Gemini parse not run in this environment"
+}

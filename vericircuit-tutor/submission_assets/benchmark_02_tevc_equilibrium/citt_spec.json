@@ -1,0 +1,57 @@
+{
+  "assumptions": [
+    "equilibrium",
+    "passive membrane",
+    "capacitance ignored",
+    "ion-channel dynamics out of scope"
+  ],
+  "benchmark": "tevc_equilibrium_feedback",
+  "components": [
+    {
+      "id": "Vc",
+      "type": "command_voltage"
+    },
+    {
+      "id": "buffer",
+      "type": "ideal_buffer"
+    },
+    {
+      "gain": 100,
+      "id": "amp",
+      "type": "finite_gain_differential_amplifier"
+    },
+    {
+      "id": "Rm",
+      "type": "membrane_resistance",
+      "unit": "Ohm",
+      "value": 10
+    },
+    {
+      "id": "Ro",
+      "type": "output_electrode_resistance",
+      "unit": "Ohm",
+      "value": 10
+    },
+    {
+      "id": "Re",
+      "type": "voltage_electrode_resistance",
+      "value": "symbolic"
+    }
+  ],
+  "focus_map": [
+    "feedback_loop",
+    "membrane_node",
+    "finite_gain_error",
+    "electrode_resistance_assumption"
+  ],
+  "limitations": [
+    "Educational equilibrium model, not a full Hodgkin-Huxley or clinical verification model."
+  ],
+  "probe_map": [
+    "Vm",
+    "amplifier output",
+    "clamp current"
+  ],
+  "source": "offline programmatic equivalent; Gemini parse not run in this environment",
+  "title": "Two-Electrode Voltage Clamp Equivalent Circuit"
+}

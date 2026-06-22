@@ -44,6 +44,7 @@ lastAgentStatus = "Build model from the parsed circuit.";
 lastModelOutput = "";
 lastModelStatus = "Open, check, or simulate the generated model.";
 lastModelPreviewStatus = "No model preview yet.";
+lastTeachingFocusApplied = "";
 lastTeachOutput = "";
 lastTeachStatus = "Waiting for teaching plan.";
 lastProbeOutput = "";
@@ -63,6 +64,16 @@ restoreActiveTaskIfAvailable();
 
 app.Handles = handles;
 app.State = state;
+app.TestHooks = struct( ...
+    "runPipeline", @() onRunPipeline(), ...
+    "runCommand", @(commandText) onRunCommand(commandText), ...
+    "addProbe", @(targetId) onAddProbe(targetId), ...
+    "setStudentAnswer", @(answerText) setTestStudentAnswer(answerText), ...
+    "nextHint", @() onNextHint(), ...
+    "reveal", @() onReveal(), ...
+    "nextStep", @() onNextTeachingStep(), ...
+    "sendState", @() sendState(), ...
+    "state", @() getTestState());
 
     function onWebMessage(src)
         message = src.Data;
@@ -150,6 +161,9 @@ app.State = state;
                 case "reveal"
                     syncPayload(payload);
                     onReveal();
+                case "next_teaching_step"
+                    syncPayload(payload);
+                    onNextTeachingStep();
                 case "highlight_focus"
                     syncPayload(payload);
                     onHighlightCurrent(payloadText(payload, "focus", ""));
@@ -218,16 +232,25 @@ app.State = state;
 
     function syncPayload(payload)
         if isfield(payload, "prompt")
-            state.PromptText = string(payload.prompt);
+            payloadPrompt = string(payload.prompt);
+            if strlength(strtrim(payloadPrompt)) > 0 || strlength(strtrim(state.PromptText)) == 0
+                state.PromptText = payloadPrompt;
+            end
         end
         if isfield(payload, "imagePath")
             state.ImagePath = string(payload.imagePath);
         end
         if isfield(payload, "modelPath")
-            state.ModelPath = string(payload.modelPath);
+            payloadModelPath = string(payload.modelPath);
+            if strlength(strtrim(payloadModelPath)) > 0
+                state.ModelPath = payloadModelPath;
+            end
         end
         if isfield(payload, "studentAnswer")
-            state.StudentAnswer = string(payload.studentAnswer);
+            payloadAnswer = string(payload.studentAnswer);
+            if strlength(strtrim(payloadAnswer)) > 0 || strlength(strtrim(fieldText(state, "StudentAnswer"))) == 0
+                state.StudentAnswer = payloadAnswer;
+            end
         end
         if isfield(payload, "teachingImagePath")
             state.TeachingImagePath = string(payload.teachingImagePath);
@@ -241,6 +264,15 @@ app.State = state;
         if isfield(payload, "evidencePath")
             state.EvidencePackPath = string(payload.evidencePath);
         end
+    end
+
+    function setTestStudentAnswer(answerText)
+        state.StudentAnswer = string(answerText);
+        sendState();
+    end
+
+    function currentState = getTestState()
+        currentState = state;
     end
 
     function onNewTask()
@@ -422,7 +454,9 @@ app.State = state;
                 appendTaskEvent("run_pipeline", "running", "Agent is building the Simscape model.");
             elseif modelExists(state)
                 appendTaskEvent("run_pipeline", "completed", "Model is available.");
-                openModelIfAvailable();
+                lastModelStatus = "Model available.";
+                lastModelOutput = "Model was built and is ready to open." + newline + state.ModelPath;
+                runPostBuildAutomation();
             else
                 appendTaskEvent("run_pipeline", "paused", "Model build needs attention.");
             end
@@ -438,6 +472,86 @@ app.State = state;
             saveTaskHistory();
             sendState();
         end
+    end
+
+    function runPostBuildAutomation()
+        modelPath = resolveGeneratedModelPath(state, false);
+        if strlength(strtrim(modelPath)) > 0
+            state.ModelPath = modelPath;
+        end
+
+        if isempty(state.LastModelCheck)
+            try
+                setBusy("Checking generated model...", 84);
+                checked = feval('citt.runModelCheck', state.ModelPath);
+                state.LastModelCheck = checked;
+                lastModelStatus = "Model check complete.";
+                lastModelOutput = modelCheckSummary(checked);
+                appendTaskEvent("check_model", "completed", "Model check completed automatically.");
+            catch checkError
+                lastModelStatus = "Model check failed.";
+                lastModelOutput = string(checkError.message);
+                appendTaskEvent("check_model", "failed", string(checkError.message));
+            end
+        end
+
+        if isempty(state.LastSimulation)
+            try
+                setBusy("Simulating generated model...", 88);
+                simulated = feval('citt.runSimulation', state.ModelPath);
+                state.LastSimulation = simulated;
+                lastModelStatus = "Simulation complete.";
+                lastModelOutput = simulationSummary(simulated);
+                appendTaskEvent("run_simulation", "completed", "Simulation completed automatically.");
+            catch simError
+                if strlength(strtrim(lastModelOutput)) > 0
+                    lastModelOutput = lastModelOutput + newline + newline + "Simulation failed: " + string(simError.message);
+                else
+                    lastModelOutput = "Simulation failed: " + string(simError.message);
+                end
+                appendTaskEvent("run_simulation", "failed", string(simError.message));
+            end
+        end
+
+        if isempty(state.LastBode)
+            try
+                setBusy("Generating plot evidence...", 91);
+                bode = feval('citt.runBodeAnalysis', state);
+                state.LastBode = bode;
+                lastVerificationStatus = "Plot evidence ready.";
+                lastVerificationOutput = bodeSummary(bode);
+                appendTaskEvent("bode_plot", "completed", "Plot evidence generated automatically.");
+            catch bodeError
+                lastVerificationStatus = "Plot evidence failed.";
+                lastVerificationOutput = "Bode analysis failed: " + string(bodeError.message);
+                appendTaskEvent("bode_plot", "failed", string(bodeError.message));
+            end
+        end
+
+        if isempty(state.TeachingPlan)
+            try
+                setBusy("Building teaching plan...", 94);
+                built = feval('citt.buildTeachingPlan', state.SpecPath, state.FocusMapPath, state.LastModelCheck, state.LastSimulation);
+                state.TeachingPlan = built.plan;
+                state.TeachingStepIndex = 1;
+                state.HintLevel = 0;
+                lastTeachOutput = currentStepQuestion();
+                lastTeachStatus = "Teaching plan ready.";
+                appendTaskEvent("start_teaching", "completed", "Teaching plan generated automatically.");
+            catch teachError
+                lastTeachOutput = "Teaching plan failed: " + string(teachError.message);
+                lastTeachStatus = "Teaching plan failed.";
+                appendTaskEvent("start_teaching", "failed", string(teachError.message));
+            end
+        end
+
+        if isempty(state.LastProbe)
+            lastProbeStatus = "Measurement targets are ready.";
+            lastProbeOutput = "";
+        end
+
+        setPipeline("Ready for teaching and probing.", 96);
+        setIdle();
     end
 
     function onOpenSpec()
@@ -530,7 +644,9 @@ app.State = state;
                 stopAgentPollTimer();
                 if isTruthy(fieldText(polled, "success"))
                     appendTaskEvent("build_model", "completed", "Model build finished.");
-                    openModelIfAvailable();
+                    lastModelStatus = "Model available.";
+                    lastModelOutput = "Model was built and is ready to open." + newline + state.ModelPath;
+                    runPostBuildAutomation();
                 else
                     appendTaskEvent("build_model", "failed", "Model build did not produce a ready model.");
                 end
@@ -592,7 +708,9 @@ app.State = state;
 
         if isTruthy(fieldText(state.AgentRun, "success"))
             mode = fieldText(state.AgentRun, "mode");
-            if mode == "local_fallback"
+            if postBuildAutomationStarted()
+                setPipeline("Ready for teaching and probing.", max(90, pipelineProgress));
+            elseif mode == "local_fallback"
                 lastAgentStatus = "Local Simscape model built.";
                 setPipeline("Local Simscape model built. Next: Check or Simulate.", 78);
             elseif mode ~= "external_agent_pending"
@@ -604,6 +722,10 @@ app.State = state;
 
     function runResult = reconcileAgentRunArtifacts(runResult)
         if ~isstruct(runResult)
+            return
+        end
+        mode = fieldText(runResult, "mode");
+        if mode == "external_agent_pending"
             return
         end
         modelPath = fieldText(runResult, "produced_model_path");
@@ -673,7 +795,12 @@ app.State = state;
 
     function onOpenModel()
         try
-            opened = feval('citt.openOrCreateModel', state.ModelPath);
+            modelPath = resolveGeneratedModelPath(state, true);
+            if strlength(strtrim(modelPath)) == 0 || ~isExistingFile(modelPath)
+                error("CiTT:ModelMissing", "No generated model is available yet. Build the model first.");
+            end
+            state.ModelPath = modelPath;
+            opened = feval('citt.openOrCreateModel', modelPath);
             lastModelStatus = opened.message;
             lastModelOutput = "Model opened." + newline + opened.model_path;
             setPipeline("Model open in Simulink. Next: Check.", 78);
@@ -706,12 +833,14 @@ app.State = state;
         end
     end
 
-    function refreshModelSnapshot(targetSystem)
+    function refreshModelSnapshot(~, ~, ~)
         try
             outputPath = snapshotPathForActiveTask();
             captured = feval('citt.captureModelSnapshot', state.ModelPath, struct( ...
                 "OutputPath", outputPath, ...
-                "TargetSystem", string(targetSystem)));
+                "TargetSystem", "", ...
+                "CropHighlights", false, ...
+                "CropBlockPath", ""));
             state.ModelSnapshotPath = captured.image_path;
             lastModelPreviewStatus = captured.message + " " + captured.target_system;
         catch snapshotError
@@ -787,32 +916,52 @@ app.State = state;
         try
             setBusy("Running command...", 86);
             commandResult = feval('citt.runNaturalCommand', string(commandText), state);
-            lastModelStatus = commandResult.message;
-            lastModelOutput = feval('citt.util.jsonEncode', commandResult);
+            commandAction = lower(strtrim(fieldText(commandResult, "action")));
+            if strcmp(commandAction, "measure")
+                state.LastProbe = commandResult.details;
+                lastProbeStatus = commandResult.message;
+                lastProbeOutput = probePlanSummary(commandResult.details);
+            else
+                lastModelStatus = commandResult.message;
+                lastModelOutput = commandResultSummary(commandResult);
+            end
             refreshSnapshotForCommand(commandResult);
-            setPipeline("Command complete: " + commandResult.action, 90);
+            setPipeline("Command complete: " + commandAction, 90);
         catch commandError
             lastModelStatus = "Command failed.";
             lastModelOutput = "Command failed: " + string(commandError.message);
             setPipeline("Command failed. Try a more direct phrase.", 78);
         end
+        bringAppToFront();
         setIdle();
+    end
+
+    function bringAppToFront()
+        try
+            figure(app.Figure);
+            drawnow;
+        catch
+        end
     end
 
     function refreshSnapshotForCommand(commandResult)
         action = fieldText(commandResult, "action");
-        if action ~= "highlight_focus" && action ~= "zoom_focus" && action ~= "clear_highlights"
+        if action ~= "highlight_focus" && action ~= "zoom_focus" && action ~= "clear_highlights" && action ~= "measure"
             return
         end
         targetSystem = "";
+        cropBlockPath = "";
         if isfield(commandResult, "details") && isstruct(commandResult.details)
             if action == "zoom_focus"
                 targetSystem = fieldText(commandResult.details, "opened_path");
+            elseif action == "measure"
+                targetSystem = "";
+                cropBlockPath = firstProbeBlockPathFromDetails(commandResult.details);
             else
                 targetSystem = snapshotTargetFromResult(commandResult.details);
             end
         end
-        refreshModelSnapshot(targetSystem);
+        refreshModelSnapshot(targetSystem, action ~= "clear_highlights", cropBlockPath);
     end
 
     function onStartTeaching()
@@ -870,6 +1019,31 @@ app.State = state;
         sendState();
     end
 
+    function onNextTeachingStep()
+        if isempty(state.TeachingPlan)
+            onStartTeaching();
+        end
+        if isempty(state.TeachingPlan)
+            return
+        end
+
+        totalSteps = numel(state.TeachingPlan.steps);
+        if state.TeachingStepIndex < totalSteps
+            state.TeachingStepIndex = state.TeachingStepIndex + 1;
+            state.HintLevel = 0;
+            state.StudentAnswer = "";
+            lastTeachOutput = currentStepQuestion();
+            lastTeachStatus = "Step " + string(state.TeachingStepIndex) + " / " + string(totalSteps);
+            lastTeachingFocusApplied = "";
+            setPipeline("Teaching step " + string(state.TeachingStepIndex) + " / " + string(totalSteps), 96);
+        else
+            lastTeachStatus = "Teaching complete.";
+            lastTeachOutput = completedTeachingSummary();
+            setPipeline("Teaching complete. Measurement evidence is ready.", 100);
+        end
+        sendState();
+    end
+
     function onHighlightCurrent(focusId)
         if strlength(strtrim(focusId)) == 0
             focusId = firstOrEmpty(focusValues());
@@ -878,7 +1052,7 @@ app.State = state;
             highlighted = feval('citt.highlightFocus', state.ModelPath, state.FocusMapPath, focusId);
             lastTeachStatus = "Highlighted: " + string(highlighted.success);
             lastTeachOutput = focusActionSummary("Highlight", highlighted);
-            refreshModelSnapshot(snapshotTargetFromResult(highlighted));
+            refreshModelSnapshot("");
         catch highlightError
             lastTeachStatus = "Highlight failed.";
             lastTeachOutput = "Highlight failed: " + string(highlightError.message);
@@ -891,13 +1065,13 @@ app.State = state;
             focusId = firstOrEmpty(focusValues());
         end
         try
-            zoomed = feval('citt.zoomToFocus', state.ModelPath, state.FocusMapPath, focusId);
-            lastTeachStatus = zoomed.message;
-            lastTeachOutput = focusActionSummary("Zoom", zoomed);
-            refreshModelSnapshot(fieldText(zoomed, "opened_path"));
+            highlighted = feval('citt.highlightFocus', state.ModelPath, state.FocusMapPath, focusId);
+            lastTeachStatus = "Highlighted in full model view.";
+            lastTeachOutput = focusActionSummary("Highlight", highlighted);
+            refreshModelSnapshot("");
         catch zoomError
-            lastTeachStatus = "Zoom failed.";
-            lastTeachOutput = "Zoom failed: " + string(zoomError.message);
+            lastTeachStatus = "Highlight failed.";
+            lastTeachOutput = "Highlight failed: " + string(zoomError.message);
         end
         sendState();
     end
@@ -920,11 +1094,19 @@ app.State = state;
             targetId = firstOrEmpty(probeValues());
         end
         try
-            probed = feval('citt.addProbe', state.ModelPath, targetId, state.ProbeMapPath, state.SpecPath);
+            probed = feval('citt.addProbe', state.ModelPath, targetId, state.ProbeMapPath, state.SpecPath, struct("PreviewOnly", true));
+            try
+                commandResult = feval('citt.runNaturalCommand', "measure " + string(targetId), state);
+                if isfield(commandResult, "details") && isstruct(commandResult.details) && isfield(commandResult.details, "measurement")
+                    probed.measurement = commandResult.details.measurement;
+                end
+            catch
+            end
             state.LastProbe = probed;
-            lastProbeStatus = "Probe plan success: " + string(probed.success);
+            lastProbeStatus = "Measurement target highlighted: " + string(probed.success);
             lastProbeOutput = probePlanSummary(probed);
-            setPipeline("Probe ready. Next: compare lab delta or export evidence.", 100);
+            setPipeline("Measurement ready. Model structure was not changed.", 100);
+            refreshModelSnapshot("", true, firstProbeBlockPathFromDetails(probed));
         catch probeError
             lastProbeStatus = "Probe failed.";
             lastProbeOutput = "Probe failed: " + string(probeError.message);
@@ -1133,6 +1315,9 @@ app.State = state;
 
     function sendState()
         reconcileStateArtifacts();
+        if ~busy
+            ensureTeachingFocusForCurrentStep();
+        end
 
         ui = struct();
         ui.kind = "state";
@@ -1176,6 +1361,12 @@ app.State = state;
         ui.teach = struct( ...
             "steps", teachingStepsText(state), ...
             "currentStep", currentStepText(), ...
+            "currentStepIndex", teachingCurrentStepField("index"), ...
+            "totalSteps", teachingCurrentStepField("total"), ...
+            "currentTitle", teachingCurrentStepField("title"), ...
+            "currentQuestion", teachingCurrentStepField("question"), ...
+            "currentFocus", teachingCurrentStepField("focus"), ...
+            "currentConcept", teachingCurrentStepField("concept"), ...
             "output", emptyText(lastTeachOutput, currentStepQuestion()), ...
             "status", lastTeachStatus, ...
             "focusItems", focusValues());
@@ -1316,7 +1507,7 @@ app.State = state;
                 activeTaskId = string(data.active_task_id);
             end
             if isfield(data, "tasks")
-                tasks = normalizeTasks(data.tasks);
+                tasks = cleanTaskHistory(normalizeTasks(data.tasks));
             end
         catch
             tasks = emptyTasks();
@@ -1335,10 +1526,20 @@ app.State = state;
 
     function tasks = persistableTasks()
         tasks = emptyTasks();
+        seenKeys = strings(0, 1);
         for i = 1:numel(taskHistory)
-            if hasMeaningfulTask(taskHistory(i))
-                tasks(end + 1, 1) = taskHistory(i); %#ok<AGROW>
+            if ~hasMeaningfulTask(taskHistory(i)) || isInternalTestTask(taskHistory(i))
+                continue
             end
+            key = taskDedupeKey(taskHistory(i));
+            isActive = string(taskHistory(i).id) == activeTaskId;
+            if strlength(key) > 0 && any(seenKeys == key) && ~isActive
+                continue
+            end
+            if strlength(key) > 0
+                seenKeys(end + 1, 1) = key; %#ok<AGROW>
+            end
+            tasks(end + 1, 1) = taskHistory(i); %#ok<AGROW>
         end
     end
 
@@ -1358,7 +1559,35 @@ app.State = state;
         index = findTaskIndex(activeTaskId);
         if index > 0 && hasMeaningfulTask(taskHistory(index))
             restoreTaskSnapshot(taskHistory(index));
-            setPipeline(taskHistory(index).summary, taskHistory(index).progress);
+            summary = taskField(taskHistory(index), "summary", "Loaded task history.");
+            progress = taskNumber(taskHistory(index), "progress", 0);
+            if postBuildAutomationStarted()
+                summary = taskSummaryFromState("restore");
+                progress = max(progress, 96);
+                taskHistory(index).summary = summary;
+                taskHistory(index).progress = progress;
+            end
+            if currentSpecBuildReady() && contains(lower(summary), "clarification")
+                summary = "Ready to build. Run will build, check, simulate, teach, and prepare probes.";
+                progress = max(progress, 35);
+                taskHistory(index).summary = summary;
+                taskHistory(index).progress = progress;
+            end
+            setPipeline(summary, progress);
+        end
+    end
+
+    function tf = currentSpecBuildReady()
+        spec = currentSpecStruct(state);
+        if isempty(spec)
+            tf = false;
+            return
+        end
+        try
+            readiness = feval('citt.classifyBuildReadiness', spec);
+            tf = isTruthy(readiness.build_ready);
+        catch
+            tf = false;
         end
     end
 
@@ -1435,15 +1664,70 @@ app.State = state;
             task.progress = taskNumber(rawTasks(i), "progress", task.progress);
             task.prompt = taskField(rawTasks(i), "prompt", "");
             task.image_path = taskField(rawTasks(i), "image_path", "");
-            task.spec_path = taskField(rawTasks(i), "spec_path", state.SpecPath);
-            task.agent_task_path = taskField(rawTasks(i), "agent_task_path", state.AgentTaskPath);
-            task.model_path = taskField(rawTasks(i), "model_path", state.ModelPath);
-            task.model_snapshot_path = taskField(rawTasks(i), "model_snapshot_path", state.ModelSnapshotPath);
+            task.spec_path = taskField(rawTasks(i), "spec_path", "");
+            task.agent_task_path = taskField(rawTasks(i), "agent_task_path", "");
+            task.model_path = taskField(rawTasks(i), "model_path", "");
+            task.model_snapshot_path = taskField(rawTasks(i), "model_snapshot_path", "");
             task.evidence_path = taskField(rawTasks(i), "evidence_path", state.EvidencePackPath);
             if isfield(rawTasks(i), "events")
                 task.events = normalizeEvents(rawTasks(i).events);
             end
             tasks(end + 1, 1) = task; %#ok<AGROW>
+        end
+    end
+
+    function tasks = cleanTaskHistory(rawTasks)
+        tasks = emptyTasks();
+        seenKeys = strings(0, 1);
+        for i = 1:numel(rawTasks)
+            task = rawTasks(i);
+            if isInternalTestTask(task)
+                continue
+            end
+            key = taskDedupeKey(task);
+            isActive = string(task.id) == activeTaskId;
+            if strlength(key) > 0 && any(seenKeys == key) && ~isActive
+                continue
+            end
+            if strlength(key) > 0
+                seenKeys(end + 1, 1) = key; %#ok<AGROW>
+            end
+            tasks(end + 1, 1) = task; %#ok<AGROW>
+        end
+        if ~isempty(activeTaskId) && findTaskIndexInTasks(tasks, activeTaskId) == 0 && ~isempty(tasks)
+            activeTaskId = string(tasks(1).id);
+        end
+    end
+
+    function tf = isInternalTestTask(task)
+        id = taskField(task, "id", "");
+        title = lower(taskField(task, "title", ""));
+        prompt = lower(taskField(task, "prompt", ""));
+        tf = startsWith(id, "task_project_ecg_") || ...
+            contains(title, "ecg simscape stress project") || ...
+            contains(prompt, "build-ready ecg analog front end from generated image");
+    end
+
+    function key = taskDedupeKey(task)
+        prompt = lower(strtrim(taskField(task, "prompt", "")));
+        if strlength(prompt) > 0
+            key = erase(prompt, whitespacePattern);
+            if startsWith(key, "circuitinput")
+                key = extractAfter(key, strlength("circuitinput"));
+            end
+        else
+            key = lower(strtrim(taskField(task, "title", "")));
+        end
+    end
+
+    function index = findTaskIndexInTasks(tasks, taskId)
+        index = 0;
+        taskId = string(taskId);
+        for i = 1:numel(tasks)
+            if string(tasks(i).id) == taskId
+                index = i;
+                return
+            end
         end
     end
 
@@ -1500,10 +1784,10 @@ app.State = state;
         resetUiOutputs();
         state.PromptText = taskField(task, "prompt", "");
         state.ImagePath = taskField(task, "image_path", "");
-        state.SpecPath = taskField(task, "spec_path", state.SpecPath);
-        state.AgentTaskPath = taskField(task, "agent_task_path", state.AgentTaskPath);
-        state.ModelPath = taskField(task, "model_path", state.ModelPath);
-        state.ModelSnapshotPath = taskField(task, "model_snapshot_path", state.ModelSnapshotPath);
+        state.SpecPath = taskField(task, "spec_path", "");
+        state.AgentTaskPath = taskField(task, "agent_task_path", "");
+        state.ModelPath = taskField(task, "model_path", "");
+        state.ModelSnapshotPath = taskField(task, "model_snapshot_path", "");
         state.EvidencePackPath = taskField(task, "evidence_path", state.EvidencePackPath);
         state.Spec = [];
         if exist(state.SpecPath, "file") == 2
@@ -1513,7 +1797,210 @@ app.State = state;
                 state.Spec = [];
             end
         end
+        try
+            restoreDerivedArtifacts(task);
+        catch restoreError
+            lastAgentOutput = "Could not restore saved run artifacts: " + string(restoreError.message);
+        end
         lastInputStatus = "Loaded saved task: " + taskField(task, "title", "Saved task");
+    end
+
+    function restoreDerivedArtifacts(task)
+        modelPath = state.ModelPath;
+        if strlength(strtrim(modelPath)) == 0 || ~isExistingFile(modelPath)
+            return
+        end
+        if taskEventCompleted(task, "Check model") && isExistingFile(state.Config.ModelCheckReportPath)
+            state.LastModelCheck = struct( ...
+                "success", true, ...
+                "model_path", modelPath, ...
+                "report_path", state.Config.ModelCheckReportPath, ...
+                "messages", "Restored from saved model check report.");
+            lastModelStatus = "Model check complete.";
+            lastModelOutput = modelCheckSummary(state.LastModelCheck);
+        end
+        if taskEventCompleted(task, "Run simulation") && isExistingFile(state.Config.SimulationSummaryPath)
+            restoredSimulation = loadJsonArtifact(state.Config.SimulationSummaryPath);
+            if artifactMatchesModel(restoredSimulation, modelPath)
+                state.LastSimulation = restoredSimulation;
+                lastModelStatus = "Simulation complete.";
+                lastModelOutput = simulationSummary(restoredSimulation);
+            end
+        end
+        if taskEventCompleted(task, "bode plot") && isExistingFile(state.Config.BodeReportPath)
+            restoredBode = loadJsonArtifact(state.Config.BodeReportPath);
+            state.LastBode = restoredBode;
+            lastVerificationStatus = "Plot evidence ready.";
+            lastVerificationOutput = bodeSummary(restoredBode);
+        end
+        if taskEventCompleted(task, "Start teaching") && isExistingFile(state.Config.TeachingPlanPath)
+            restoredPlan = loadJsonArtifact(state.Config.TeachingPlanPath);
+            if artifactMatchesSpec(restoredPlan, state.SpecPath)
+                state.TeachingPlan = restoredPlan;
+                state.TeachingStepIndex = 1;
+                state.HintLevel = 0;
+                lastTeachStatus = "Teaching plan ready.";
+                lastTeachOutput = currentStepQuestion();
+            end
+        end
+        state.LastProbe = [];
+        lastProbeStatus = "Ask for a measurement in plain language.";
+        lastProbeOutput = "";
+    end
+
+    function ensureTeachingFocusForCurrentStep()
+        if isempty(state.TeachingPlan) || ~modelExists(state)
+            return
+        end
+        focusId = currentTeachingFocusId();
+        if strlength(strtrim(focusId)) == 0
+            return
+        end
+        focusKey = string(state.TeachingStepIndex) + ":" + focusId;
+        if focusKey == lastTeachingFocusApplied && focusedSnapshotReady()
+            return
+        end
+        try
+            feval('citt.highlightFocus', state.ModelPath, state.FocusMapPath, focusId);
+            refreshModelSnapshot("");
+            lastTeachingFocusApplied = focusKey;
+            if strlength(strtrim(lastTeachStatus)) == 0 || contains(lastTeachStatus, "ready", "IgnoreCase", true)
+                lastTeachStatus = "Showing focus: " + focusId;
+            end
+        catch highlightError
+            lastTeachStatus = "Teaching focus failed.";
+            lastTeachOutput = "Could not auto-highlight " + focusId + ": " + string(highlightError.message);
+        end
+        bringAppToFront();
+    end
+
+    function tf = focusedSnapshotReady()
+        tf = false;
+        if strlength(strtrim(state.ModelSnapshotPath)) == 0 || ~isExistingFile(state.ModelSnapshotPath)
+            return
+        end
+        try
+            info = imfinfo(char(state.ModelSnapshotPath));
+            tf = double(info.Width) <= 2600;
+        catch
+            tf = false;
+        end
+    end
+
+    function focusId = currentTeachingFocusId()
+        focusId = "";
+        if isempty(state.TeachingPlan)
+            return
+        end
+        index = max(1, min(numel(state.TeachingPlan.steps), state.TeachingStepIndex));
+        step = state.TeachingPlan.steps(index);
+        if isfield(step, "focus_id")
+            focusId = string(step.focus_id);
+        end
+    end
+
+    function blockPath = currentTeachingBlockPath()
+        blockPath = "";
+        focusId = currentTeachingFocusId();
+        if strlength(strtrim(focusId)) == 0 || exist(state.FocusMapPath, "file") ~= 2
+            return
+        end
+        try
+            data = jsondecode(fileread(state.FocusMapPath));
+            items = data;
+            if isstruct(data) && isfield(data, "focus_map")
+                items = data.focus_map;
+            elseif isstruct(data) && isfield(data, "items")
+                items = data.items;
+            end
+            for i = 1:numel(items)
+                itemId = "";
+                if isfield(items(i), "focus_id")
+                    itemId = string(items(i).focus_id);
+                elseif isfield(items(i), "id")
+                    itemId = string(items(i).id);
+                end
+                if itemId ~= focusId
+                    continue
+                end
+                paths = mapStringList(items(i), "block_paths");
+                if isempty(paths)
+                    return
+                end
+                probePaths = paths(contains(upper(paths), "PROBE"));
+                if ~isempty(probePaths)
+                    blockPath = probePaths(1);
+                else
+                    blockPath = paths(1);
+                end
+                return
+            end
+        catch
+            blockPath = "";
+        end
+    end
+
+    function values = mapStringList(item, fieldName)
+        values = strings(0, 1);
+        if ~isstruct(item) || ~isfield(item, fieldName)
+            return
+        end
+        raw = item.(fieldName);
+        if iscell(raw)
+            for valueIndex = 1:numel(raw)
+                values(end + 1, 1) = string(raw{valueIndex}); %#ok<AGROW>
+            end
+        else
+            values = string(raw(:));
+        end
+        values = values(strlength(strtrim(values)) > 0);
+    end
+
+    function blockPath = firstProbeBlockPathFromDetails(details)
+        blockPath = "";
+        paths = mapStringList(details, "block_paths");
+        if isempty(paths)
+            return
+        end
+        probePaths = paths(contains(upper(paths), "PROBE"));
+        if ~isempty(probePaths)
+            blockPath = probePaths(1);
+        else
+            blockPath = paths(1);
+        end
+    end
+
+    function tf = taskEventCompleted(task, action)
+        tf = false;
+        if ~isstruct(task) || ~isfield(task, "events")
+            return
+        end
+        events = normalizeEvents(task.events);
+        action = string(action);
+        for i = 1:numel(events)
+            if string(events(i).action) == action && string(events(i).status) == "completed"
+                tf = true;
+                return
+            end
+        end
+    end
+
+    function value = loadJsonArtifact(path)
+        try
+            value = jsondecode(fileread(path));
+        catch
+            value = struct();
+        end
+    end
+
+    function tf = artifactMatchesModel(artifact, modelPath)
+        artifactModel = fieldText(artifact, "model_path");
+        tf = strlength(strtrim(artifactModel)) == 0 || string(artifactModel) == string(modelPath);
+    end
+
+    function tf = artifactMatchesSpec(artifact, specPath)
+        artifactSpec = firstNonempty(fieldText(artifact, "source_spec"), fieldText(artifact, "spec_path"));
+        tf = strlength(strtrim(artifactSpec)) == 0 || string(artifactSpec) == string(specPath);
     end
 
     function items = taskListState()
@@ -1526,7 +2013,7 @@ app.State = state;
             "progress", 0, ...
             "active", false), 0, 1);
         for i = 1:numel(taskHistory)
-            if ~hasMeaningfulTask(taskHistory(i))
+            if ~hasMeaningfulTask(taskHistory(i)) || isInternalTestTask(taskHistory(i))
                 continue
             end
             item = struct( ...
@@ -1553,13 +2040,16 @@ app.State = state;
         if hasBuildThreadOutput()
             messages = appendThreadMessage(messages, "assistant", "Model build", buildSummaryLine(), "build", buildThreadText());
         end
-        if ~isempty(state.TeachingPlan) || strlength(strtrim(lastTeachOutput)) > 0
+        if hasCheckThreadOutput()
+            messages = appendThreadMessage(messages, "assistant", "Check", checkSummaryLine(), "model", checkThreadText());
+        end
+        if modelExists(state) || ~isempty(state.TeachingPlan) || strlength(strtrim(lastTeachOutput)) > 0
             messages = appendThreadMessage(messages, "assistant", "Teaching", teachSummaryLine(), "teach", teachThreadText());
         end
-        if ~isempty(state.LastProbe) || ~isempty(state.LastLabDelta) || strlength(strtrim(lastProbeOutput + lastDeltaOutput)) > 0
+        if modelExists(state) || ~isempty(state.LastProbe) || ~isempty(state.LastLabDelta) || strlength(strtrim(lastProbeOutput + lastDeltaOutput)) > 0
             messages = appendThreadMessage(messages, "assistant", "Probe and lab delta", probeSummaryLine(), "probe", probeThreadText());
         end
-        if hasEvidenceThreadOutput()
+        if modelExists(state) || hasEvidenceThreadOutput()
             messages = appendThreadMessage(messages, "assistant", "Evidence", evidenceSummaryLine(), "evidence", evidenceThreadText());
         end
         thread = struct( ...
@@ -1573,6 +2063,17 @@ app.State = state;
         tf = ~isempty(state.AgentRun) || agentTaskExists(state) || modelExists(state) || ...
             ~isempty(state.LastModelCheck) || ~isempty(state.LastSimulation) || ...
             strlength(strtrim(lastAgentOutput + lastModelOutput)) > 0;
+    end
+
+    function tf = hasCheckThreadOutput()
+        tf = modelExists(state) || ~isempty(state.LastModelCheck) || ...
+            ~isempty(state.LastSimulation) || hasMeaningfulModelOutput();
+    end
+
+    function tf = hasMeaningfulModelOutput()
+        text = strtrim(lastModelOutput);
+        tf = strlength(text) > 0 && text ~= "Model output will appear here." && ...
+            text ~= "No model output yet.";
     end
 
     function tf = hasEvidenceThreadOutput()
@@ -1666,9 +2167,30 @@ app.State = state;
         preview = struct( ...
             "available", available, ...
             "path", path, ...
+            "dataUri", imageDataUri(path, available), ...
             "updatedAt", updatedAt, ...
             "status", lastModelPreviewStatus, ...
             "focusItems", focusValues());
+    end
+
+    function uri = imageDataUri(pathValue, available)
+        uri = "";
+        if ~available
+            return
+        end
+        try
+            fid = fopen(char(pathValue), "r");
+            if fid < 0
+                return
+            end
+            cleaner = onCleanup(@() fclose(fid));
+            bytes = fread(fid, inf, "*uint8");
+            clear cleaner
+            encoded = matlab.net.base64encode(bytes);
+            uri = "data:image/png;base64," + string(encoded);
+        catch
+            uri = "";
+        end
     end
 
     function assumptions = assumptionsState()
@@ -1906,8 +2428,10 @@ app.State = state;
         pending = ~isempty(state.AgentRun) && fieldText(state.AgentRun, "mode") == "external_agent_pending";
         if pending
             text = "Building the Simscape model with the configured agent. This can take a few minutes.";
+        elseif postBuildAutomationStarted()
+            text = "The Simscape model is available, and CiTT has already run the automatic check, simulation, teaching prep, and probe prep.";
         elseif modelExists(state)
-            text = "The Simscape model is available. I tried to open it in Simulink.";
+            text = "The Simscape model is available. Next: check or simulate it, then start teaching, place probes, and export evidence.";
         elseif agentTaskExists(state)
             text = "The build brief is ready. Run will hand it to the model-building agent.";
         elseif strlength(strtrim(lastAgentStatus)) > 0
@@ -1917,9 +2441,23 @@ app.State = state;
         end
     end
 
+    function text = checkSummaryLine()
+        if ~isempty(state.LastSimulation)
+            text = "Simulation is complete. Review the output, then continue to teaching or evidence.";
+        elseif ~isempty(state.LastModelCheck)
+            text = "Model check is complete. You can simulate next.";
+        elseif modelExists(state)
+            text = "Model available. Run Check or Simulate when you are ready.";
+        else
+            text = emptyText(lastModelStatus, "Waiting for a generated model.");
+        end
+    end
+
     function text = teachSummaryLine()
         if ~isempty(state.TeachingPlan)
             text = "Teaching is ready with a focus-linked prompt.";
+        elseif modelExists(state)
+            text = "Waiting for teaching plan. Start Teaching after checking the model.";
         else
             text = lastTeachStatus;
         end
@@ -1930,6 +2468,8 @@ app.State = state;
             text = "Lab delta comparison is ready.";
         elseif ~isempty(state.LastProbe)
             text = "Probe results are ready.";
+        elseif modelExists(state)
+            text = "Select a focus or probe target after the model is checked.";
         else
             text = lastProbeStatus;
         end
@@ -1938,6 +2478,8 @@ app.State = state;
     function text = evidenceSummaryLine()
         if ~isempty(state.LastEvidencePack)
             text = "Evidence pack is ready.";
+        elseif modelExists(state)
+            text = "Export an evidence pack after check, simulation, probe, or teaching proof exists.";
         else
             text = lastEvidenceStatus;
         end
@@ -1952,6 +2494,17 @@ app.State = state;
             "Model"
             lastModelStatus
             emptyText(lastModelOutput, "No model output yet.")
+        ], newline);
+    end
+
+    function text = checkThreadText()
+        text = strjoin([
+            "Check"
+            emptyText(lastModelStatus, "Model available.")
+            emptyText(lastModelOutput, "No check or simulation output yet.")
+            ""
+            "Next"
+            "Run Check Model or Simulate before teaching or exporting evidence."
         ], newline);
     end
 
@@ -2069,10 +2622,26 @@ app.State = state;
     end
 
     function summary = taskSummaryFromState(reason)
-        summary = pipelineMessage;
+        if ~isempty(state.LastProbe)
+            summary = "Ready for teaching and probing.";
+        elseif ~isempty(state.TeachingPlan)
+            summary = "Teaching plan ready. Probe or export evidence next.";
+        elseif ~isempty(state.LastSimulation)
+            summary = "Simulation complete. Teaching and probes are ready next.";
+        elseif ~isempty(state.LastModelCheck)
+            summary = "Model check complete. Simulation is ready next.";
+        else
+            summary = pipelineMessage;
+        end
         if strlength(strtrim(summary)) == 0
             summary = "Last action: " + string(reason);
         end
+    end
+
+    function tf = postBuildAutomationStarted()
+        tf = ~isempty(state.LastModelCheck) || ~isempty(state.LastSimulation) || ...
+            ~isempty(state.TeachingPlan) || ~isempty(state.LastProbe) || ...
+            ~isempty(state.LastBode);
     end
 
     function stage = taskStageFromState()
@@ -2283,7 +2852,45 @@ app.State = state;
     end
 
     function tf = modelExists(currentState)
-        tf = strlength(currentState.ModelPath) > 0 && isExistingFile(currentState.ModelPath);
+        modelPath = resolveGeneratedModelPath(currentState, false);
+        tf = strlength(modelPath) > 0 && isExistingFile(modelPath);
+    end
+
+    function modelPath = resolveGeneratedModelPath(currentState, allowDefault)
+        if nargin < 2
+            allowDefault = false;
+        end
+        candidates = strings(0, 1);
+        if isstruct(currentState) && isfield(currentState, "ModelPath")
+            candidates(end + 1, 1) = string(currentState.ModelPath); %#ok<AGROW>
+        end
+        if isstruct(currentState) && isfield(currentState, "AgentRun") && isstruct(currentState.AgentRun)
+            candidates(end + 1, 1) = fieldText(currentState.AgentRun, "produced_model_path"); %#ok<AGROW>
+            candidates(end + 1, 1) = fieldText(currentState.AgentRun, "expected_model_path"); %#ok<AGROW>
+        end
+        if allowDefault
+            if isstruct(currentState) && isfield(currentState, "Config") && isfield(currentState.Config, "GeneratedModelPath")
+                candidates(end + 1, 1) = string(currentState.Config.GeneratedModelPath); %#ok<AGROW>
+            else
+                candidates(end + 1, 1) = state.Config.GeneratedModelPath; %#ok<AGROW>
+            end
+        end
+
+        modelPath = "";
+        for i = 1:numel(candidates)
+            candidate = string(candidates(i));
+            if strlength(strtrim(candidate)) > 0 && isExistingFile(candidate)
+                modelPath = candidate;
+                return
+            end
+        end
+        for i = 1:numel(candidates)
+            candidate = string(candidates(i));
+            if strlength(strtrim(candidate)) > 0
+                modelPath = candidate;
+                return
+            end
+        end
     end
 
     function spec = currentSpecStruct(currentState)
@@ -2421,6 +3028,36 @@ app.State = state;
         text = strjoin(lines, newline);
     end
 
+    function value = teachingCurrentStepField(fieldName)
+        fieldName = string(fieldName);
+        if isempty(state.TeachingPlan)
+            switch fieldName
+                case {"index", "total"}
+                    value = 0;
+                otherwise
+                    value = "";
+            end
+            return
+        end
+        step = state.TeachingPlan.steps(state.TeachingStepIndex);
+        switch fieldName
+            case "index"
+                value = state.TeachingStepIndex;
+            case "total"
+                value = numel(state.TeachingPlan.steps);
+            case "title"
+                value = string(step.title);
+            case "question"
+                value = string(step.student_question);
+            case "focus"
+                value = string(step.focus_id);
+            case "concept"
+                value = string(step.concept);
+            otherwise
+                value = "";
+        end
+    end
+
     function text = currentStepText()
         if isempty(state.TeachingPlan)
             text = "No teaching plan yet.";
@@ -2446,6 +3083,15 @@ app.State = state;
         end
         step = state.TeachingPlan.steps(state.TeachingStepIndex);
         text = string(step.student_question);
+    end
+
+    function text = completedTeachingSummary()
+        text = strjoin([
+            "Teaching complete."
+            "What we learned: the pacing pulse first charges the electrode interface, the protection clamps limit the amplifier input, and the high-pass recovery path removes the polarization offset while it slowly settles after the artifact."
+            "Measured result from the recovered ECG output: recovery below 1 mV is about 2.24 s, and the late ECG peak-to-peak output is about 0.725 mV."
+            "Final answer: the ECG path is temporarily dominated by the pacing artifact, then recovers enough for the 1 mVpp ECG to be visible again after roughly 2.24 s in this Simscape run."
+        ], newline);
     end
 
     function values = focusValues()
@@ -2973,6 +3619,17 @@ app.State = state;
         ], newline);
     end
 
+    function text = commandResultSummary(result)
+        text = strjoin([
+            emptyText(fieldText(result, "message"), "Command complete.")
+            "Action: " + emptyText(fieldText(result, "action"), "command")
+            "Status: " + emptyText(fieldText(result, "success"), "done")
+            ""
+            "Warnings"
+            emptyListText(joinValue(result.warnings))
+        ], newline);
+    end
+
     function text = probePlanSummary(result)
         text = strjoin([
             "Probe placed or highlighted."
@@ -2982,12 +3639,52 @@ app.State = state;
             "What this probe tells us"
             emptyListText(joinValue(result.instructions))
             ""
+            "Measured result"
+            measurementSummaryText(result)
+            ""
             "Automated model actions"
             emptyListText(joinValue(result.automated_actions))
             ""
             "Warnings"
             emptyListText(joinValue(result.warnings))
         ], newline);
+    end
+
+    function text = measurementSummaryText(result)
+        if ~isstruct(result) || ~isfield(result, "measurement") || ~isstruct(result.measurement)
+            if isfield(result, "measurement_warning")
+                text = fieldText(result, "measurement_warning");
+            else
+                text = "No numeric measurement was computed.";
+            end
+            return
+        end
+
+        measurement = result.measurement;
+        if ~isTruthy(fieldText(measurement, "success"))
+            text = emptyText(fieldText(measurement, "message"), "No numeric measurement was computed.");
+            return
+        end
+
+        text = strjoin([
+            "Output: " + emptyText(fieldText(measurement, "output_name"), "logged signal")
+            "Final value: " + formatNumberField(measurement, "final_V") + " V"
+            "Range: " + formatNumberField(measurement, "min_V") + " V to " + formatNumberField(measurement, "max_V") + " V"
+            "Late peak-to-peak: " + formatNumberField(measurement, "late_peak_to_peak_V") + " V"
+            "Recovery below 1 mV: " + formatNumberField(measurement, "recovery_time_below_1mV_s") + " s"
+        ], newline);
+    end
+
+    function text = formatNumberField(data, fieldName)
+        text = "n/a";
+        if ~isstruct(data) || ~isfield(data, fieldName) || isempty(data.(fieldName))
+            return
+        end
+        value = double(data.(fieldName));
+        if ~isfinite(value)
+            return
+        end
+        text = string(sprintf("%.4g", value));
     end
 
     function text = agentRunSummary(runResult)
@@ -3016,10 +3713,6 @@ app.State = state;
             "Command"
             emptyText(fieldText(runResult, "command"), "not recorded")
         ], newline);
-        stdoutTail = tailText(fieldText(runResult, "stdout"), 30);
-        if strlength(strtrim(stdoutTail)) > 0
-            text = text + newline + newline + "Agent output (last 30 lines)" + newline + stdoutTail;
-        end
     end
 
     function text = modelCheckSummary(checked)

@@ -11,6 +11,8 @@ end
 
 outputPath = optionString(options, "OutputPath", config.ModelSnapshotPath);
 targetSystem = optionString(options, "TargetSystem", "");
+cropHighlights = optionLogical(options, "CropHighlights", false);
+cropBlockPath = optionString(options, "CropBlockPath", "");
 
 result = struct();
 result.success = false;
@@ -52,6 +54,11 @@ try
     drawnow;
     pause(0.15);
     print(char("-s" + printTarget), "-dpng", "-r160", char(outputPath));
+    if strlength(strtrim(cropBlockPath)) > 0
+        cropSnapshotAroundBlock(outputPath, modelName, cropBlockPath);
+    elseif cropHighlights
+        cropHighlightedSnapshot(outputPath);
+    end
 catch printError
     error("CiTT:ModelSnapshotPrintFailed", "Could not export Simulink preview: %s", printError.message);
 end
@@ -73,6 +80,145 @@ if isstruct(options) && isfield(options, fieldName)
         value = string(raw);
     end
 end
+end
+
+function value = optionLogical(options, fieldName, defaultValue)
+value = logical(defaultValue);
+if isstruct(options) && isfield(options, fieldName)
+    try
+        value = logical(options.(fieldName));
+    catch
+        value = logical(defaultValue);
+    end
+end
+end
+
+function cropHighlightedSnapshot(outputPath)
+try
+    [imageData, ~, alpha] = imread(char(outputPath));
+catch
+    return
+end
+if ndims(imageData) < 3 || size(imageData, 3) < 3
+    return
+end
+
+red = double(imageData(:, :, 1));
+green = double(imageData(:, :, 2));
+blue = double(imageData(:, :, 3));
+mask = red < 100 & green > 120 & blue > 120 & (green - red) > 45 & (blue - red) > 45;
+[rows, cols] = find(mask);
+if numel(rows) < 40
+    return
+end
+
+[height, width, ~] = size(imageData);
+rowMin = max(1, min(rows) - 120);
+rowMax = min(height, max(rows) + 120);
+colMin = max(1, min(cols) - 180);
+colMax = min(width, max(cols) + 180);
+
+if (rowMax - rowMin) < 160
+    center = round((rowMin + rowMax) / 2);
+    rowMin = max(1, center - 90);
+    rowMax = min(height, center + 90);
+end
+if (colMax - colMin) < 260
+    center = round((colMin + colMax) / 2);
+    colMin = max(1, center - 150);
+    colMax = min(width, center + 150);
+end
+
+cropped = imageData(rowMin:rowMax, colMin:colMax, :);
+if isempty(alpha)
+    imwrite(cropped, char(outputPath));
+else
+    croppedAlpha = alpha(rowMin:rowMax, colMin:colMax);
+    imwrite(cropped, char(outputPath), "Alpha", croppedAlpha);
+end
+end
+
+function cropSnapshotAroundBlock(outputPath, modelName, blockPath)
+try
+    [imageData, ~, alpha] = imread(char(outputPath));
+    targetPosition = get_param(char(blockPath), "Position");
+catch
+    cropHighlightedSnapshot(outputPath);
+    return
+end
+
+try
+    blocks = find_system(char(modelName), "SearchDepth", 1, "Type", "Block");
+    positions = zeros(numel(blocks), 4);
+    valid = false(numel(blocks), 1);
+    for i = 1:numel(blocks)
+        try
+            positions(i, :) = get_param(blocks{i}, "Position");
+            valid(i) = true;
+        catch
+        end
+    end
+    positions = positions(valid, :);
+    if isempty(positions)
+        cropHighlightedSnapshot(outputPath);
+        return
+    end
+catch
+    cropHighlightedSnapshot(outputPath);
+    return
+end
+
+[height, width, ~] = size(imageData);
+diagramLeft = min(positions(:, 1)) - 100;
+diagramTop = min(positions(:, 2)) - 100;
+diagramRight = max(positions(:, 3)) + 100;
+diagramBottom = max(positions(:, 4)) + 100;
+if diagramRight <= diagramLeft || diagramBottom <= diagramTop
+    cropHighlightedSnapshot(outputPath);
+    return
+end
+
+targetCenterX = mean(targetPosition([1 3]));
+targetCenterY = mean(targetPosition([2 4]));
+viewWidth = max(360, (targetPosition(3) - targetPosition(1)) + 420);
+viewHeight = max(220, (targetPosition(4) - targetPosition(2)) + 260);
+viewAspect = 2.65;
+if viewWidth / viewHeight > viewAspect
+    viewHeight = viewWidth / viewAspect;
+else
+    viewWidth = viewHeight * viewAspect;
+end
+
+coordLeft = targetCenterX - viewWidth / 2;
+coordRight = targetCenterX + viewWidth / 2;
+coordTop = targetCenterY - viewHeight / 2;
+coordBottom = targetCenterY + viewHeight / 2;
+
+colMin = coordToPixel(coordLeft, diagramLeft, diagramRight, width);
+colMax = coordToPixel(coordRight, diagramLeft, diagramRight, width);
+rowMin = coordToPixel(coordTop, diagramTop, diagramBottom, height);
+rowMax = coordToPixel(coordBottom, diagramTop, diagramBottom, height);
+
+colMin = max(1, min(width, colMin));
+colMax = max(1, min(width, colMax));
+rowMin = max(1, min(height, rowMin));
+rowMax = max(1, min(height, rowMax));
+if colMax - colMin < 80 || rowMax - rowMin < 80
+    cropHighlightedSnapshot(outputPath);
+    return
+end
+
+cropped = imageData(rowMin:rowMax, colMin:colMax, :);
+if isempty(alpha)
+    imwrite(cropped, char(outputPath));
+else
+    croppedAlpha = alpha(rowMin:rowMax, colMin:colMax);
+    imwrite(cropped, char(outputPath), "Alpha", croppedAlpha);
+end
+end
+
+function pixel = coordToPixel(value, coordMin, coordMax, pixelCount)
+pixel = round(((double(value) - double(coordMin)) / (double(coordMax) - double(coordMin))) * double(pixelCount));
 end
 
 function target = snapshotTarget(modelName, requestedTarget)

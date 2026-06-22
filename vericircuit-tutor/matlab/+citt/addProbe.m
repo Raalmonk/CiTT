@@ -22,12 +22,19 @@ outputPath = config.ProbeActionPlanPath;
 if isfield(options, "OutputPath")
     outputPath = string(options.OutputPath);
 end
+previewOnly = false;
+if isfield(options, "PreviewOnly")
+    previewOnly = logical(options.PreviewOnly);
+elseif isfield(options, "NoModify")
+    previewOnly = logical(options.NoModify);
+end
 
 result = struct();
 result.success = false;
 result.model_path = string(modelPath);
 result.target_id = string(targetId);
 result.used_probe_map = false;
+result.preview_only = previewOnly;
 result.instructions = strings(0, 1);
 result.automated_actions = strings(0, 1);
 result.warnings = strings(0, 1);
@@ -61,10 +68,14 @@ if ~isempty(paths)
     result.automated_actions(end + 1) = "Cleared previous highlights for model: " + clearResult.model_name;
     hilite_system(char(targetPath), "find");
     result.automated_actions(end + 1) = "Highlighted target block: " + targetPath;
-    [result, modelChanged] = ensureProbeLogging(modelName, probe, targetPath, result);
-    if modelChanged
-        save_system(char(modelName), char(modelPath));
-        result.automated_actions(end + 1) = "Saved model after adding probe logging.";
+    if previewOnly
+        result.automated_actions(end + 1) = "Preview-only measurement: no probe blocks, logging blocks, lines, or model saves were added.";
+    else
+        [result, modelChanged] = ensureProbeLogging(modelName, probe, targetPath, result);
+        if modelChanged
+            save_system(char(modelName), char(modelPath));
+            result.automated_actions(end + 1) = "Saved model after adding probe logging.";
+        end
     end
 else
     modelPaths = getPathList(probe, "model_paths");

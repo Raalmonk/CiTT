@@ -114,10 +114,15 @@ if hasAny(cmd, ["probe", "探针", "测量", "measure", "scope", "观察"])
     if strlength(probeId) == 0
         error("CiTT:CommandProbeMissing", "I could not match that command to a probe in: %s", probeMapPath);
     end
-    result.action = "place_probe";
-    result.details = feval('citt.addProbe', modelPath, probeId, probeMapPath, specPath);
+    result.action = "measure";
+    result.details = feval('citt.addProbe', modelPath, probeId, probeMapPath, specPath, struct("PreviewOnly", true));
+    try
+        result.details.measurement = summarizeLoggedMeasurement(modelPath, result.details);
+    catch measurementError
+        result.details.measurement_warning = "Measurement summary unavailable: " + string(measurementError.message);
+    end
     result.success = result.details.success;
-    result.message = "Placed or highlighted probe: " + probeId;
+    result.message = "Highlighted measurement target: " + probeId;
     return
 end
 
@@ -336,6 +341,24 @@ parts(parts == "") = [];
 drop = ["open", "please", "show", "highlight", "zoom", "probe", "measure", ...
     "the", "a", "an", "for", "to", "with", "打开", "高亮", "显示", "定位", "测量"];
 tokens = strings(0, 1);
+if contains(query, "电极")
+    tokens(end + 1) = "electrode";
+end
+if contains(query, "放大") || contains(query, "输入")
+    tokens(end + 1) = "amplifier";
+    tokens(end + 1) = "input";
+end
+if contains(query, "恢复") || contains(query, "ecg") || contains(query, "输出")
+    tokens(end + 1) = "recovered";
+    tokens(end + 1) = "ecg";
+    tokens(end + 1) = "output";
+end
+if contains(query, "电压")
+    tokens(end + 1) = "voltage";
+end
+if contains(query, "电流")
+    tokens(end + 1) = "current";
+end
 for i = 1:numel(parts)
     token = string(parts(i));
     if strlength(token) < 2 || any(token == drop)
@@ -376,6 +399,141 @@ elseif isnumeric(value) || islogical(value)
     text = string(mat2str(value));
 else
     text = string(value);
+end
+end
+
+function measurement = summarizeLoggedMeasurement(modelPath, probeResult)
+measurement = struct();
+measurement.success = false;
+measurement.output_name = measurementOutputName(probeResult);
+measurement.block_path = "";
+measurement.min_V = [];
+measurement.max_V = [];
+measurement.final_V = [];
+measurement.late_peak_to_peak_V = [];
+measurement.recovery_time_below_1mV_s = [];
+measurement.recovery_time_below_0p5mV_s = [];
+measurement.message = "No logged simulation output was available for this measurement.";
+
+modelPath = string(modelPath);
+if strlength(strtrim(modelPath)) == 0 || ~isfile(modelPath)
+    measurement.message = "Model file is not available for simulation measurement.";
+    return
+end
+
+[~, modelName, ~] = fileparts(modelPath);
+load_system(char(modelPath));
+simOut = sim(char(modelName));
+try
+    yout = simOut.yout;
+catch
+    measurement.message = "Simulation completed, but yout did not contain logged probe outputs.";
+    return
+end
+
+[signal, blockPath] = findLoggedSignal(yout, measurement.output_name, probeResult);
+if isempty(signal)
+    measurement.message = "Simulation completed, but the requested logged output was not found in yout.";
+    return
+end
+
+time = signal.Time(:);
+data = signal.Data(:);
+if isempty(time) || isempty(data)
+    measurement.message = "Logged output was found but contained no samples.";
+    return
+end
+
+measurement.success = true;
+measurement.block_path = blockPath;
+measurement.min_V = min(data);
+measurement.max_V = max(data);
+measurement.final_V = data(end);
+lateMask = time >= max(time(end) - 1, time(1));
+measurement.late_peak_to_peak_V = max(data(lateMask)) - min(data(lateMask));
+measurement.recovery_time_below_1mV_s = sustainedBelowTime(time, data, 1e-3);
+measurement.recovery_time_below_0p5mV_s = sustainedBelowTime(time, data, 5e-4);
+measurement.message = "Simulation measurement computed from yout.";
+end
+
+function outputName = measurementOutputName(probeResult)
+text = lower(valueText(probeResult));
+match = regexp(text, "output\s+([a-z][a-z0-9_]*_v)", "tokens", "once");
+if ~isempty(match)
+    outputName = string(match{1});
+    return
+end
+
+targetId = "";
+if isstruct(probeResult) && isfield(probeResult, "target_id")
+    targetId = lower(string(probeResult.target_id));
+end
+targetId = erase(targetId, "probe_");
+if contains(targetId, "recovered") && contains(targetId, "ecg")
+    outputName = "recovered_ecg_voltage_v";
+elseif contains(targetId, "amp") || contains(targetId, "amplifier")
+    outputName = "amp_input_voltage_v";
+elseif contains(targetId, "electrode")
+    outputName = "electrode_voltage_v";
+else
+    outputName = targetId;
+end
+end
+
+function [signal, blockPath] = findLoggedSignal(yout, outputName, probeResult)
+signal = [];
+blockPath = "";
+bestScore = -Inf;
+targetText = lower(valueText(probeResult));
+for i = 1:yout.numElements
+    element = yout.get(i);
+    pathText = loggedBlockPath(element);
+    lowerPath = lower(pathText);
+    score = 0;
+    if strlength(outputName) > 0 && contains(lowerPath, lower(outputName))
+        score = score + 20;
+    end
+    if contains(lowerPath, "recovered") && contains(targetText, "recovered")
+        score = score + 8;
+    end
+    if contains(lowerPath, "amp") && (contains(targetText, "amp") || contains(targetText, "amplifier"))
+        score = score + 8;
+    end
+    if contains(lowerPath, "electrode") && contains(targetText, "electrode")
+        score = score + 8;
+    end
+    if score > bestScore
+        bestScore = score;
+        blockPath = pathText;
+        signal = element.Values;
+    end
+end
+if bestScore <= 0
+    signal = [];
+    blockPath = "";
+end
+end
+
+function text = loggedBlockPath(element)
+text = "";
+try
+    text = string(element.BlockPath.getBlock(1));
+catch
+    try
+        text = string(element.BlockPath);
+    catch
+        text = "";
+    end
+end
+end
+
+function timeValue = sustainedBelowTime(time, data, threshold)
+timeValue = [];
+for i = 1:numel(data)
+    if all(abs(data(i:end)) <= threshold)
+        timeValue = time(i);
+        return
+    end
 end
 end
 

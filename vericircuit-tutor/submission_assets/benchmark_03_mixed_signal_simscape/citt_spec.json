@@ -1,0 +1,64 @@
+{
+  "benchmark": "mixed_signal_neural_clamp",
+  "components": [
+    {
+      "id": "membrane",
+      "parameters": [
+        "Cm",
+        "Rm",
+        "leak current"
+      ],
+      "type": "simscape_electrical_membrane"
+    },
+    {
+      "id": "electrode",
+      "type": "series_resistance"
+    },
+    {
+      "features": [
+        "rail saturation",
+        "current limit"
+      ],
+      "id": "amplifier",
+      "type": "finite_gain_nonideal"
+    },
+    {
+      "bits": 12,
+      "id": "adc",
+      "type": "sample_and_quantize"
+    },
+    {
+      "id": "logic",
+      "states": [
+        "idle",
+        "acquire",
+        "clamp",
+        "saturated",
+        "settled"
+      ],
+      "type": "digital_state_control"
+    }
+  ],
+  "focus_map": [
+    "command_path",
+    "membrane_node",
+    "feedback_loop",
+    "amplifier_saturation",
+    "adc_sampling",
+    "digital_control_logic",
+    "clamp_current_probe"
+  ],
+  "limitations": [
+    "Plots are illustrative until regenerated from a live Simscape/Simulink run."
+  ],
+  "probe_map": [
+    "Vm(t)",
+    "clamp current",
+    "amplifier output",
+    "ADC code sequence",
+    "digital control state",
+    "saturation flags"
+  ],
+  "source": "offline illustrative surrogate; live Simscape/Simulink model evidence pending",
+  "title": "Closed-Loop Neural Clamp With Nonideal Amplifier, ADC, and Digital Control Logic"
+}

@@ -1,0 +1,7 @@
+{
+  "probes": [
+    "Vout after R1 before C1",
+    "ADC sampled output"
+  ],
+  "source": "offline programmatic equivalent; Gemini parse not run in this environment"
+}

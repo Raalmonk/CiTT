@@ -770,6 +770,103 @@
       object-fit: contain;
     }
 
+    .learning-surface {
+      order: 2;
+      width: min(1360px, calc(100% - 16px));
+      max-width: 1360px;
+      margin: 0 auto 14px;
+      display: none;
+      gap: 12px;
+    }
+    .learning-surface.show { display: grid; }
+    .workspace.learning-ready .step-hud,
+    .workspace.learning-ready .thread,
+    .workspace.learning-ready .model-preview,
+    .workspace.learning-ready .tool-groups,
+    .workspace.learning-ready .composer {
+      display: none !important;
+    }
+    .learning-model {
+      min-height: 260px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #ffffff;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .learning-model img {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      object-fit: contain;
+    }
+    .learning-empty {
+      color: var(--faint);
+      font-weight: 700;
+      padding: 24px;
+      text-align: center;
+    }
+    .learning-dialog {
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .learning-step {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .learning-question {
+      color: var(--text);
+      font-size: 18px;
+      line-height: 1.45;
+      font-weight: 750;
+    }
+    .learning-concept {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .teaching-feedback {
+      color: var(--muted);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border-left: 3px solid #94bfa2;
+      padding-left: 10px;
+    }
+    .teaching-feedback.empty {
+      display: none;
+    }
+    .learning-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .student-reasoning {
+      min-height: 64px;
+    }
+    .probe-bar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+    }
+    .probe-result {
+      color: var(--muted);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     .thread {
       max-width: 960px;
       margin: 0 auto;
@@ -833,6 +930,17 @@
       font-size: 1.18em;
       line-height: 1.5;
       white-space: nowrap;
+    }
+    .message-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .message-actions .btn {
+      min-height: 32px;
+      padding: 7px 10px;
+      background: #ffffff;
     }
 
     .message-detail {
@@ -1189,9 +1297,8 @@
             <div class="model-preview-actions">
               <select id="previewFocusSelector" title="Focus target"></select>
               <button class="btn" data-action="highlight_focus">Highlight</button>
-              <button class="btn" data-action="zoom_focus">Zoom</button>
               <button class="btn" data-action="refresh_model_snapshot">Refresh</button>
-              <button class="btn" data-action="open_model">Open</button>
+              <button class="btn" data-action="open_model">Open Generated</button>
             </div>
           </div>
           <div class="model-preview-frame">
@@ -1199,14 +1306,43 @@
           </div>
         </section>
 
+        <section class="learning-surface" id="learningSurface">
+          <div class="learning-model" id="learningModel">
+            <img id="learningModelImage" alt="Simscape model view">
+            <div class="learning-empty" id="learningModelEmpty">Model view will appear here.</div>
+          </div>
+          <div class="learning-dialog">
+            <div class="learning-step">
+              <span id="learningStepLabel">Step 1 / 1</span>
+              <span id="learningFocusLabel"></span>
+            </div>
+            <div class="learning-question" id="learningQuestion">Teaching question will appear here.</div>
+            <div class="learning-concept" id="learningConcept"></div>
+            <div class="teaching-feedback empty" id="learningFeedback"></div>
+            <textarea id="learningAnswer" class="student-reasoning" placeholder="Try explaining what you think is happening in the model."></textarea>
+            <div class="preview empty" id="learningAnswerPreview">LaTeX preview</div>
+            <div class="learning-actions">
+              <button class="btn" data-action="next_hint">Hint</button>
+              <button class="btn" data-action="reveal">Reveal</button>
+              <button class="btn" data-action="highlight_focus">Highlight in model</button>
+              <button class="btn primary" id="learningNextButton" data-action="next_teaching_step">Next step</button>
+            </div>
+            <div class="probe-bar">
+              <input id="probeAsk" type="text" placeholder="Measure recovered ECG output after the pacing pulse">
+              <button class="btn primary" data-action="run_command">Measure</button>
+            </div>
+            <div class="probe-result" id="learningProbeResult">Ask for a measurement in plain language, for example: measure amplifier input voltage.</div>
+          </div>
+        </section>
+
         <section class="tool-groups">
-          <details>
+          <details id="buildTools">
             <summary>Build and model</summary>
             <div class="details-body">
               <div class="row">
                 <label>Model</label>
                 <input id="modelPath" type="text">
-                <button class="btn" data-action="select_model">Choose</button>
+                <button class="btn" data-action="select_model">Choose Existing</button>
               </div>
               <div class="row two">
                 <label>Command</label>
@@ -1215,7 +1351,7 @@
               <div class="actions">
                 <button class="btn" data-action="open_spec">Open Spec</button>
                 <button class="btn" data-action="open_task">Open Task</button>
-                <button class="btn" data-action="open_model">Open Model</button>
+                <button class="btn" data-action="open_model">Open Generated Model</button>
                 <button class="btn" data-action="run_simulation">Simulate</button>
                 <button class="btn" data-action="bode_plot">Bode</button>
                 <button class="btn" data-action="run_command">Run Command</button>
@@ -1224,7 +1360,7 @@
             </div>
           </details>
 
-          <details>
+          <details id="teachingTools">
             <summary>Teaching</summary>
             <div class="details-body">
               <div class="row two">
@@ -1248,13 +1384,12 @@
                 <button class="btn" data-action="next_hint">Hint</button>
                 <button class="btn" data-action="reveal">Reveal</button>
                 <button class="btn" data-action="highlight_focus">Highlight</button>
-                <button class="btn" data-action="zoom_focus">Zoom</button>
                 <button class="btn" data-action="clear_highlights">Clear</button>
               </div>
             </div>
           </details>
 
-          <details>
+          <details id="probeTools">
             <summary>Probe, lab delta, evidence</summary>
             <div class="details-body">
               <div class="row two">
@@ -1292,7 +1427,7 @@
             </div>
           </details>
 
-          <details>
+          <details id="assessmentTools">
             <summary>Assessment and planning</summary>
             <div class="details-body">
               <div class="row two">
@@ -1401,6 +1536,8 @@
     var readySent = false;
     var lastNewTaskSentAt = 0;
     var lastModelPreviewSrc = "";
+    var lastLearningModelSrc = "";
+    var learningSurfaceWasShown = false;
     var taskBackStack = [];
     var taskForwardStack = [];
 
@@ -1454,12 +1591,7 @@
     function wire() {
       if (wired) return;
       wired = true;
-      var actionButtons = document.querySelectorAll("[data-action]");
-      for (var i = 0; i < actionButtons.length; i += 1) {
-        actionButtons[i].addEventListener("click", function(event) {
-          runAction(event.currentTarget.getAttribute("data-action"));
-        });
-      }
+      bindInteractiveButtons(document);
       document.getElementById("newTaskButton").addEventListener("click", newTask);
       document.getElementById("sidebarToggleButton").addEventListener("click", toggleSidebar);
       document.getElementById("navBackButton").addEventListener("click", goBack);
@@ -1473,7 +1605,16 @@
       document.getElementById("studentAnswer").addEventListener("input", function() {
         renderPreview("answerPreview", value("studentAnswer"));
       });
+      document.getElementById("learningAnswer").addEventListener("input", function() {
+        renderPreview("learningAnswerPreview", value("learningAnswer"));
+      });
       document.querySelector(".main").addEventListener("wheel", routeMainWheel, { passive: false });
+      document.getElementById("probeAsk").addEventListener("keydown", function(event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          runAction("run_command");
+        }
+      });
       setInterval(updateThinkingElapsed, 1000);
       try {
         if (localStorage.getItem("cittSidebarCollapsed") === "1") {
@@ -1587,16 +1728,17 @@
     }
 
     function runAction(action) {
-      send(action, collectPayload());
+      send(action, collectPayload(action));
     }
 
-    function collectPayload() {
-      return {
+    function collectPayload(action) {
+      var naturalProbe = value("probeAsk");
+      var studentReasoning = value("learningAnswer") || value("studentAnswer");
+      var payload = {
         imagePath: value("imagePath"),
-        prompt: value("prompt"),
         modelPath: value("modelPath"),
-        command: value("commandField"),
-        studentAnswer: value("studentAnswer"),
+        command: naturalProbe ? ("measure " + naturalProbe) : value("commandField"),
+        studentAnswer: studentReasoning,
         teachingImagePath: value("teachingImagePath"),
         focus: value("previewFocusSelector") || value("focusSelector"),
         probe: value("probeSelector"),
@@ -1609,6 +1751,36 @@
         beforeAnswer: value("beforeAnswer"),
         afterAnswer: value("afterAnswer")
       };
+      if (action === "read" || action === "run_pipeline") {
+        payload.prompt = value("prompt");
+      }
+      return payload;
+    }
+
+    function bindInteractiveButtons(root) {
+      var actionButtons = root.querySelectorAll("[data-action]");
+      for (var i = 0; i < actionButtons.length; i += 1) {
+        if (actionButtons[i].getAttribute("data-wired") === "1") continue;
+        actionButtons[i].setAttribute("data-wired", "1");
+        actionButtons[i].addEventListener("click", function(event) {
+          runAction(event.currentTarget.getAttribute("data-action"));
+        });
+      }
+      var panelButtons = root.querySelectorAll("[data-panel]");
+      for (var j = 0; j < panelButtons.length; j += 1) {
+        if (panelButtons[j].getAttribute("data-panel-wired") === "1") continue;
+        panelButtons[j].setAttribute("data-panel-wired", "1");
+        panelButtons[j].addEventListener("click", function(event) {
+          openToolPanel(event.currentTarget.getAttribute("data-panel"));
+        });
+      }
+    }
+
+    function openToolPanel(panelId) {
+      var panel = document.getElementById(panelId);
+      if (!panel) return;
+      panel.open = true;
+      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
     function send(action, payload) {
@@ -1633,15 +1805,24 @@
       renderState();
     }
 
+    function hasLearningSurface(currentState) {
+      var preview = (currentState || {}).modelPreview || {};
+      var teach = (currentState || {}).teach || {};
+      var probe = (currentState || {}).probe || {};
+      return !!(preview.available || teach.currentQuestion || teach.currentStep || listHasItems(probe.probeItems));
+    }
+
     function renderState() {
       var paths = state.paths || {};
       var thread = state.thread || {};
       currentTaskId = thread.taskId || currentTaskId || "";
       updateNavButtons();
       var messages = (state.thread || {}).messages || [];
+      var learningReady = hasLearningSurface(state);
       var workspace = document.querySelector(".workspace");
-      setClass(workspace, "empty", messages.length === 0);
-      setClass(workspace, "has-thread", messages.length > 0);
+      setClass(workspace, "empty", messages.length === 0 && !learningReady);
+      setClass(workspace, "has-thread", messages.length > 0 || learningReady);
+      setClass(workspace, "learning-ready", learningReady);
       text("taskTitle", thread.title || "Circuit task");
       text("taskSubtitle", thread.subtitle || state.pipelineMessage || "");
       text("sidebarStatus", state.status || "Local workspace");
@@ -1655,15 +1836,17 @@
 
       setValue("imagePath", paths.imagePath);
       text("imageStatus", paths.imagePath ? "Image attached" : "No image attached");
-      setValue("prompt", paths.prompt);
+      updateComposerPrompt(paths.prompt, messages.length > 0);
       setValue("modelPath", paths.modelPath);
       setValue("teachingImagePath", paths.teachingImagePath);
       setValue("studentAnswer", paths.studentAnswer);
+      setValue("learningAnswer", paths.studentAnswer);
       setValue("labCsvPath", paths.labCsvPath);
       setValue("opAmpPart", paths.opAmpPart);
       setValue("evidencePath", paths.evidencePath);
       renderPreview("promptPreview", value("prompt"));
       renderPreview("answerPreview", value("studentAnswer"));
+      renderPreview("learningAnswerPreview", value("learningAnswer"));
       renderRunStatus(runStatus);
 
       var teach = state.teach || {};
@@ -1676,11 +1859,27 @@
 
       renderTasks(state.tasks || []);
       renderThread(messages);
+      renderLearningSurface(state);
       renderModelPreview(state.modelPreview || {});
       renderAssumptions(state.assumptions || {});
       renderStepHud(state.workflowSteps || []);
       renderSettings(state.settings || {});
       text("settingsStatus", state.settingsStatus || "");
+    }
+
+    function updateComposerPrompt(savedPrompt, hasThread) {
+      var prompt = document.getElementById("prompt");
+      if (!prompt) return;
+      if (!hasThread) {
+        prompt.placeholder = "Do anything";
+        setValue("prompt", savedPrompt);
+        return;
+      }
+      prompt.placeholder = "Ask a follow-up or start a new task";
+      if (document.activeElement === prompt) return;
+      if (prompt.value === String(savedPrompt || "")) {
+        prompt.value = "";
+      }
     }
 
     function renderTasks(tasks) {
@@ -1709,6 +1908,103 @@
       }
     }
 
+    function renderLearningSurface(currentState) {
+      var root = document.getElementById("learningSurface");
+      if (!root) return;
+      var show = hasLearningSurface(currentState);
+      root.classList.toggle("show", show);
+      if (!show) {
+        learningSurfaceWasShown = false;
+        return;
+      }
+      if (!learningSurfaceWasShown) {
+        var workspace = document.querySelector(".workspace");
+        if (workspace) workspace.scrollTop = 0;
+        learningSurfaceWasShown = true;
+      }
+
+      var preview = currentState.modelPreview || {};
+      var img = document.getElementById("learningModelImage");
+      var empty = document.getElementById("learningModelEmpty");
+      var available = !!preview.available && (!!preview.dataUri || !!preview.path);
+      if (available) {
+        var src = preview.dataUri || localFileUrl(preview.path, preview.updatedAt || "");
+        if (src && src !== lastLearningModelSrc) {
+          img.src = src;
+          lastLearningModelSrc = src;
+        }
+        img.style.display = "block";
+        empty.style.display = "none";
+      } else {
+        img.removeAttribute("src");
+        img.style.display = "none";
+        empty.style.display = "block";
+        lastLearningModelSrc = "";
+      }
+
+      var teach = currentState.teach || {};
+      var stepIndex = Number(teach.currentStepIndex || 0);
+      var stepTotal = Number(teach.totalSteps || 0);
+      var stepLabel = stepTotal > 0 ? ("Step " + stepIndex + " / " + stepTotal) : "Teaching";
+      text("learningStepLabel", stepLabel);
+      text("learningFocusLabel", teach.currentFocus || "");
+      text("learningNextButton", stepTotal > 0 && stepIndex >= stepTotal ? "Finish" : "Next step");
+      html("learningQuestion", richText(teach.currentQuestion || "Look at the model and describe what changed in the signal path."));
+      html("learningConcept", richText(teach.currentConcept || ""));
+      renderTeachingFeedback(teach.output, teach.currentQuestion);
+
+      var probe = currentState.probe || {};
+      var probeText = String(probe.probeOutput || "").trim();
+      var probeStatus = String(probe.probeStatus || "").trim();
+      text("learningProbeResult", studentProbeText(probeStatus, probeText));
+      bindInteractiveButtons(root);
+    }
+
+    function renderTeachingFeedback(output, currentQuestion) {
+      var root = document.getElementById("learningFeedback");
+      if (!root) return;
+      var feedback = String(output || "").trim();
+      var question = String(currentQuestion || "").trim();
+      var show = feedback && feedback !== question;
+      root.classList.toggle("empty", !show);
+      root.innerHTML = show ? richText(feedback) : "";
+    }
+
+    function studentProbeText(status, raw) {
+      var textValue = String(raw || "");
+      if (!textValue.trim()) return "Ask for a measurement in plain language.";
+      var targetMatch = textValue.match(/Probe target:\s*([^,\n]+)/i);
+      var quantityMatch = textValue.match(/Quantity:\s*([^,\n]+)/i);
+      var instructionMatch = textValue.match(/Agent instructions:\s*([^.\n]+(?:\.[^\n]*)?)/i);
+      var measuredMatch = textValue.match(/Measured result\s*([\s\S]*?)(?:\n\n|$)/i);
+      var target = targetMatch ? targetMatch[1].trim() : "";
+      var quantity = quantityMatch ? quantityMatch[1].trim() : "";
+      var instruction = instructionMatch ? instructionMatch[1].trim() : "";
+      var measured = measuredMatch ? measuredMatch[1].trim() : "";
+      var lines = [];
+      if (target) {
+        lines.push("Measuring: " + target + ".");
+      } else if (status) {
+        lines.push(status.replace(/^Placed or highlighted probe:\s*/i, "Measuring: "));
+      } else {
+        lines.push("Measurement ready.");
+      }
+      if (quantity) lines.push("Quantity: " + quantity + ".");
+      if (measured && !/^No numeric measurement/i.test(measured)) lines.push(measured);
+      if (instruction) lines.push(instruction);
+      return lines.join("\n");
+    }
+
+    function listHasItems(items) {
+      if (Array.isArray(items)) {
+        for (var i = 0; i < items.length; i += 1) {
+          if (String(items[i] || "").trim()) return true;
+        }
+        return false;
+      }
+      return !!String(items || "").trim();
+    }
+
     function renderThread(messages) {
       var root = document.getElementById("thread");
       root.innerHTML = "";
@@ -1717,26 +2013,43 @@
         var item = document.createElement("article");
         var role = message.role || "assistant";
         var detail = String(message.detail || "").trim();
-        var openDetail = i === messages.length - 1 && /agent|build|model/i.test(String(message.title || "") + " " + String(message.body || ""));
+        var openDetail = false;
         var detailHtml = detail
           ? "<details class=\"message-detail\"" + (openDetail ? " open" : "") + "><summary>Details</summary><div class=\"message-detail-body\">" + richText(detail) + "</div></details>"
           : "";
+        var actionHtml = messageActionsHtml(message);
         item.className = "message " + role;
         item.innerHTML =
           "<div class=\"avatar\">" + avatarText(role) + "</div>" +
           "<div class=\"message-content\">" +
           "<div class=\"message-title\">" + escapeHtml(message.title || "") + "</div>" +
           "<div class=\"message-body\">" + richText(message.body || "") + "</div>" +
+          actionHtml +
           detailHtml +
           "</div>";
         root.appendChild(item);
+        bindInteractiveButtons(item);
       }
-      requestAnimationFrame(function() {
-        var detailBodies = root.querySelectorAll(".message-detail-body");
-        for (var j = 0; j < detailBodies.length; j += 1) {
-          detailBodies[j].scrollTop = detailBodies[j].scrollHeight;
-        }
-      });
+    }
+
+    function messageActionsHtml(message) {
+      var title = String((message || {}).title || "");
+      var buttons = [];
+      if (title === "Teaching") {
+        buttons.push("<button class=\"btn\" data-panel=\"teachingTools\">Open Teaching</button>");
+        buttons.push("<button class=\"btn\" data-action=\"next_hint\">Hint</button>");
+        buttons.push("<button class=\"btn\" data-action=\"highlight_focus\">Highlight</button>");
+      } else if (title === "Probe and lab delta") {
+        buttons.push("<button class=\"btn\" data-panel=\"probeTools\">Open Probe</button>");
+        buttons.push("<button class=\"btn\" data-action=\"add_probe\">Probe</button>");
+      } else if (title === "Model build") {
+        buttons.push("<button class=\"btn\" data-action=\"open_model\">Open Model</button>");
+      } else if (title === "Evidence") {
+        buttons.push("<button class=\"btn\" data-panel=\"probeTools\">Open Evidence</button>");
+        buttons.push("<button class=\"btn\" data-action=\"export_evidence\">Export Pack</button>");
+      }
+      if (buttons.length === 0) return "";
+      return "<div class=\"message-actions\">" + buttons.join("") + "</div>";
     }
 
     function avatarText(role) {
@@ -1814,7 +2127,7 @@
     function renderModelPreview(preview) {
       var box = document.getElementById("modelPreview");
       var img = document.getElementById("modelPreviewImage");
-      var available = !!preview.available && !!preview.path;
+      var available = !!preview.available && (!!preview.dataUri || !!preview.path);
       setClass(box, "show", available);
       text("modelPreviewStatus", preview.status || "");
       if (!available) {
@@ -1824,7 +2137,7 @@
         }
         return;
       }
-      var src = localFileUrl(preview.path, preview.updatedAt || "");
+      var src = preview.dataUri || localFileUrl(preview.path, preview.updatedAt || "");
       if (src && src !== lastModelPreviewSrc) {
         img.src = src;
         lastModelPreviewSrc = src;
@@ -1982,6 +2295,11 @@
       if (el) el.textContent = valueToSet == null ? "" : String(valueToSet);
     }
 
+    function html(id, valueToSet) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = valueToSet == null ? "" : String(valueToSet);
+    }
+
     function value(id) {
       var el = document.getElementById(id);
       return el ? el.value : "";
@@ -2064,7 +2382,8 @@
       cdot: "·", times: "×", pm: "±", approx: "≈", neq: "≠",
       leq: "≤", geq: "≥", infty: "∞", rightarrow: "→",
       int: "∫", sum: "∑", prod: "∏", partial: "∂",
-      sin: "sin", cos: "cos", tan: "tan", log: "log", ln: "ln", exp: "exp"
+      sin: "sin", cos: "cos", tan: "tan", log: "log", ln: "ln", exp: "exp",
+      ",": " ", ";": " ", ":": " ", "!": "", " ": " "
     };
 
     function readGroup(src, start) {

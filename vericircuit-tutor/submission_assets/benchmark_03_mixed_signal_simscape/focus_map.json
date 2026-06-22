@@ -1,0 +1,12 @@
+{
+  "focus_points": [
+    "command_path",
+    "membrane_node",
+    "feedback_loop",
+    "amplifier_saturation",
+    "adc_sampling",
+    "digital_control_logic",
+    "clamp_current_probe"
+  ],
+  "source": "offline illustrative surrogate; live Simscape/Simulink model evidence pending"
+}

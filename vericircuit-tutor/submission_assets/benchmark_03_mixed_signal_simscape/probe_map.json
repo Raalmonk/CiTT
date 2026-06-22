@@ -1,0 +1,11 @@
+{
+  "probes": [
+    "Vm(t)",
+    "clamp current",
+    "amplifier output",
+    "ADC code sequence",
+    "digital control state",
+    "saturation flags"
+  ],
+  "source": "offline illustrative surrogate; live Simscape/Simulink model evidence pending"
+}

@@ -39,8 +39,7 @@ turn.next_hint_level = hintLevel;
 if action == "reveal"
     turn.reveal_allowed = true;
     turn.classification = "revealed";
-    turn.message = "Reasoning to compare with: " + string(step.expected_reasoning) + ...
-        newline + "Common mistake to watch: " + string(step.common_mistake);
+    turn.message = revealMessage(step);
     return
 end
 
@@ -66,6 +65,53 @@ else
     else
         turn.message = "Try checking this possible trap: " + string(step.common_mistake);
     end
+end
+end
+
+function message = revealMessage(step)
+focusId = lower(string(step.focus_id));
+concept = string(step.concept);
+
+if contains(focusId, "electrode_interface")
+    message = strjoin([
+        "Answer: the pacing pulse drives current through $R_{LEAD}$ into the electrode node. The double-layer capacitor $C_{DL}$ stores charge during the short pulse, so the electrode voltage makes a transient jump instead of instantly following a steady DC divider."
+        "After the pulse, the stored charge leaks back through $R_{ETI}$ toward body reference. The first-order recovery time constant is $tau=R_{ETI} C_{DL}=2 kOhm x 10 uF=20 ms$, so the electrode artifact itself should decay over a few tens of milliseconds."
+        "The learning check is polarity and node choice: this is the voltage at `electrode_node` relative to `body_ref_0V`, before the protection resistor and high-pass recovery path."
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
+elseif contains(focusId, "protection_clamp") || contains(focusId, "clamp")
+    message = strjoin([
+        "Answer: a positive pacing artifact reaches the protected amplifier node through $R_{PROT}$. If that node rises above the upper rail plus the diode drop, the high clamp conducts first; if it swings below ground by about a diode drop, the low clamp conducts."
+        "$R_{PROT}$ is what keeps the clamp current limited, so the right question is not just whether the node saturates, but how long the clamp is active and how much charge is pushed into the recovery filter."
+        "In this ECG case the 5 V positive pacing pulse makes the upper clamp the expected first limiter. The exact conduction interval should be read from the Simscape waveform."
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
+elseif contains(focusId, "high_pass") || contains(focusId, "recovery")
+    message = strjoin([
+        "Answer: the high-pass recovery filter removes the 300 mV electrode polarization offset while passing the 1.2 Hz ECG. Its time constant is $tau=R_{HP} C_{HP}=330 kOhm x 1 uF=0.33 s$, giving $f_c approx 1/(2*pi*tau)=0.48 Hz$."
+        "That cutoff is below the 1.2 Hz ECG, so the ECG can pass, but a large pacing artifact leaves a transient baseline recovery. You should expect the recovered ECG to become clean only after several recovery-filter time constants unless clamp charge extends the settling."
+        "The student-facing evidence is the recovered ECG probe: look for the 1 mVpp waveform reappearing around the settled baseline."
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
+elseif contains(focusId, "ecg_visibility") || contains(focusId, "visibility")
+    message = strjoin([
+        "Answer: the ECG is visible again when the recovered output shows a stable 1.2 Hz sinusoid with about 1 mV peak-to-peak amplitude, rather than a large monotonic recovery tail or clamp-limited plateau."
+        "Use the recovered-output plot to mark the first time after the pacing pulse where the baseline error is small enough that the 1 mVpp oscillation is distinguishable. That timestamp is the recovery time; it should be reported from the simulation evidence, not guessed from the prompt alone."
+        "The expected qualitative result is: pacing artifact first dominates, clamps/recovery filter settle, then the small ECG waveform becomes visible again."
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
+elseif strlength(strtrim(concept)) > 0
+    message = strjoin([
+        "Answer: " + concept
+        "Reasoning to compare with: " + string(step.expected_reasoning)
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
+else
+    message = strjoin([
+        "Answer: identify the measured node, its reference node, and the component that sets the dominant time constant or limit."
+        "Reasoning to compare with: " + string(step.expected_reasoning)
+        "Common mistake to watch: " + string(step.common_mistake)
+    ], newline);
 end
 end
 
