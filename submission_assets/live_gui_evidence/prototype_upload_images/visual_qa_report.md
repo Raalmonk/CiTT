@@ -3,7 +3,7 @@
 Generated image set: `release/prototype_upload_images/`.
 Image 1 generation method: PIL/vector composition; no external image-generation background used.
 No absolute local paths, BMES logos, or Medtronic logos are included in the images.
-Regeneration iterations: initial full redesign, Image 3 right-side cards were compacted after contact-sheet review, then Image 2 right column was expanded with tutor and lab-mistake dialogue cards.
+Regeneration iterations: initial full redesign, Image 2 right column was expanded with tutor and lab-mistake dialogue cards, then Image 3 was expanded with additional Socratic dialogue to fill the right column.
 
 ## 01_workflow_llm_vs_citt.png
 - exists: True
@@ -27,7 +27,8 @@ Regeneration iterations: initial full redesign, Image 3 right-side cards were co
 - no top-left upload label: pass
 - left model screenshot width fraction: 68.12% (pass)
 - TEVC source: `submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/screenshots/05_teach_reveal_feedback_loop.png` (highlight/teaching screenshot, pass)
-- visible Q-A-Q tutor dialogue card: pass
+- visible extended tutor dialogue card with three Q/A pairs: pass
+- right column filled from top dialogue through bottom probe card: pass
 
 ## 04_benchmark_mixed_signal_simscape_advantage.png
 - exists: True
@@ -43,7 +44,7 @@ Regeneration iterations: initial full redesign, Image 3 right-side cards were co
 - minimum generated main body text size: 25 px (pass)
 - Image 1 does not use a simple four-box flowchart (pass)
 - Image 3 uses a highlight/teaching screenshot, not the plain arranged model view (pass)
-- Images 3 and 4 include Q-A-Q tutor dialogue cards (pass)
+- Image 3 includes an extended Socratic tutor dialogue; Image 4 includes a Q-A-Q tutor dialogue card (pass)
 - right-side cards reviewed for large blank lower halves (pass)
 
 ## Source Screenshots Used
@@ -56,6 +57,6 @@ Regeneration iterations: initial full redesign, Image 3 right-side cards were co
 
 ## Contact Sheet Review
 - Contact sheet created: `visual_qa_contact_sheet.png`.
-- Manual preview criterion: Image 1 carries the product story; Images 3 and 4 add tutor/dialogue emphasis rather than reading as a random Simscape gallery.
+- Manual preview criterion: Image 1 carries the product story; Images 3 and 4 add tutor/dialogue emphasis rather than reading as a random Simscape gallery; Image 3 right column is filled with dialogue and supporting cards.
 
 Overall QA status: PASS
