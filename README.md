@@ -1,59 +1,131 @@
-# CiTT BMES Submission Branch
+# CiTT
 
-CiTT, also known as VeriCircuit Tutor, is a MATLAB-centered tutor for model-grounded biomedical circuit learning. The clean BMES submission branch is:
+CiTT, also known as VeriCircuit Tutor, is a MATLAB plugin for model-grounded biomedical circuit learning. It turns a circuit prompt or image into an agent-assisted circuit specification, builds a Simulink/Simscape model through a configured agent workflow, and supports teaching, highlighting, probing, and evidence export from the MATLAB UI.
 
-```text
-bmes-2026-submission
-```
+This branch is the clean BMES 2026 submission branch: `bmes-2026-submission`.
 
-## Main Demo Surface
+## Install The MATLAB Plugin
 
-The main demo surface is the MATLAB plugin.
-
-Run from MATLAB after cloning this repository:
+Option A: install the packaged toolbox from MATLAB.
 
 ```matlab
-addpath("matlab")
+matlab.addons.toolbox.installToolbox("release/CiTT_BMES_2026.mltbx")
+citt.checkSetup
 citt
 ```
 
-CiTT uses agent-assisted circuit interpretation for a circuit prompt or image, produces a structured circuit specification, uses a SATK/MCP-enabled agent flow to build a Simulink/Simscape model, and then teaches through a model-centered dialog with focus-map highlights, natural-language probes, and evidence export.
+Option B: run directly from this repository.
 
-The backend and frontend development workspaces are intentionally not included on this submission branch.
+```matlab
+addpath("matlab")
+citt.checkSetup
+citt
+```
 
-## Requirements
+Option C: use the source fallback package.
+
+```matlab
+unzip("release/CiTT_BMES_2026_Source.zip")
+addpath("CiTT_BMES_2026_Source/matlab")
+citt.checkSetup
+citt
+```
+
+## Configure Your Agent CLI
+
+CiTT needs a configured LLM/agent backend for the full read/build workflow. The simplest path is to point CiTT at your own CLI with `CITT_AGENT_COMMAND`.
+
+If your CLI accepts a task file path:
+
+```matlab
+setenv("CITT_AGENT_COMMAND", "your-agent-cli --task {taskPath}")
+```
+
+If your CLI reads the task from standard input:
+
+```matlab
+setenv("CITT_AGENT_COMMAND", "cat {taskPath} | your-agent-cli -")
+```
+
+Then verify setup and launch:
+
+```matlab
+citt.checkSetup
+citt
+```
+
+`{taskPath}` is replaced with the generated CiTT agent task. `{task}` works as an equivalent placeholder. If no placeholder is present, CiTT appends the task path to the end of the command.
+
+## Codex Or Gemini CLI
+
+CiTT can also auto-select a supported CLI backend.
+
+For Codex CLI:
+
+```matlab
+setenv("CITT_AGENT_BACKEND", "codex")
+citt.checkSetup
+```
+
+For Gemini CLI:
+
+```matlab
+setenv("CITT_AGENT_BACKEND", "gemini")
+setenv("GEMINI_MODEL", "gemini-3.5-flash")
+citt.checkSetup
+```
+
+For direct Gemini API parsing, also provide:
+
+```matlab
+setenv("GEMINI_API_KEY", "your_key_here")
+```
+
+Gemini is one supported provider, but CiTT does not require Gemini specifically; the requirement is a configured LLM/agent backend.
+
+## Make Configuration Persistent
+
+If MATLAB does not inherit shell environment variables, create a local `matlab/.env` file:
+
+```text
+CITT_AGENT_COMMAND="your-agent-cli --task {taskPath}"
+```
+
+For auto-selected Codex or Gemini CLI, use backend variables instead of `CITT_AGENT_COMMAND`:
+
+```text
+CITT_AGENT_BACKEND=codex
+```
+
+or:
+
+```text
+CITT_AGENT_BACKEND=gemini
+GEMINI_MODEL=your_gemini_model
+GEMINI_API_KEY=your_key_here
+```
+
+Only include the variables you need. `CITT_AGENT_COMMAND` takes priority when it is set. You can also configure the agent command from the CiTT UI settings panel.
+
+## Required MATLAB Components
 
 - MATLAB
 - Simulink
 - Simscape
 - Simscape Electrical, recommended for the live model-building flow
-- Simulink Agentic Toolkit (SATK) and MATLAB MCP Server
-- Configured LLM/agent backend for circuit interpretation and orchestration. This can be direct Gemini API credentials or a local Gemini/Codex-compatible CLI backend.
-- SATK-configured agent CLI, such as `CITT_AGENT_COMMAND`, Codex CLI, or Gemini CLI
+- Simulink Agentic Toolkit / SATK-compatible flow
+- MATLAB MCP Server for agent-controlled model building
 
-Local secrets and generated work products are intentionally not part of the release:
+Run `citt.checkSetup` after installation to see which products, paths, agent settings, and optional providers are visible to MATLAB.
 
-- Do not commit `.env` files.
-- Do not commit API keys.
-- Do not commit `slprj/`.
-- Do not commit `*.slxc`.
-- Do not commit `matlab/work/` unless a specific artifact is deliberately archived under `submission_assets/`.
+## Reviewer Materials
 
-## Release Docs
-
-- [Release setup](docs/release_setup.md)
-- [Live GUI evidence demo](docs/demo_live_gui_evidence.md)
-- [BMES application answers](paper_orchestra/bmes_application/application_answers_draft.md)
-- [MATLAB plugin details](matlab/README.md)
-
-## Submission Evidence
-
-Use the live GUI evidence package as the final evidence entry point:
-
-- [submission_assets/live_gui_evidence/](submission_assets/live_gui_evidence/)
-- [live evidence report](submission_assets/live_gui_evidence/bmes_live_evidence_report.md)
-
-This clean submission branch excludes older offline draft reports, placeholder panels, source benchmark folders, and generated draft screenshots. Reviewer-facing evidence is limited to the live GUI evidence package and release artifacts listed here.
+- Prototype overview image: [release/CiTT_Prototype_Overview.png](release/CiTT_Prototype_Overview.png)
+- Upload checklist: [release/BMES_Submission_Upload_Checklist.md](release/BMES_Submission_Upload_Checklist.md)
+- Setup details: [docs/release_setup.md](docs/release_setup.md)
+- Live GUI evidence map: [docs/demo_live_gui_evidence.md](docs/demo_live_gui_evidence.md)
+- Live evidence folder: [submission_assets/live_gui_evidence/](submission_assets/live_gui_evidence/)
+- BMES application draft: [paper_orchestra/bmes_application/application_answers_draft.md](paper_orchestra/bmes_application/application_answers_draft.md)
 
 ## Repository Map
 
@@ -76,6 +148,6 @@ paper_orchestra/
     application_answers_word_counts.md
 ```
 
-## Evidence Boundary
+## Scope
 
-CiTT separates LLM/agent help from numerical and model evidence. A configured model provider or local CLI runtime may perform agent-assisted circuit interpretation into a structured specification, and the tutor may explain the result, but final claims should be grounded in the generated Simulink/Simscape model, focus/probe artifacts, exported evidence, and explicit limitations recorded in `submission_assets/live_gui_evidence/`.
+CiTT is an educational MATLAB/Simscape tutoring demo. It provides model-linked teaching evidence for benchmark circuits and is not a patient-facing device.
