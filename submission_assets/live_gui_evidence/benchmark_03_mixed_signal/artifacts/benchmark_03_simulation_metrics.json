@@ -1,0 +1,196 @@
+{
+  "success": true,
+  "created_at": "2026-06-22 13:18:33 *",
+  "parameter_set_label": "educational scaled benchmark parameters",
+  "parameter_set_warning": "Not a clinically validated axon model.",
+  "model_path": "matlab/work/citt_generated_model.slx",
+  "simulation_source": "Simulink/Simscape model run",
+  "model_run": {
+    "success": true,
+    "error": "",
+    "outputs": [
+      "citt_adc_code_sequence",
+      "citt_amplifier_output",
+      "citt_clamp_current",
+      "citt_command_voltage",
+      "citt_control_update",
+      "citt_digital_control_state",
+      "citt_saturation_flags",
+      "citt_vm",
+      "simlog",
+      "tout"
+    ],
+    "warning": "Discontinuities detected in one or more algebraic loops might prevent the algebraic loop solver from solving the loop."
+  },
+  "metrics": {
+    "settling_time_ms": null,
+    "overshoot_percent": 413.85122364592644,
+    "final_tracking_error_mV": 186.2330506406669,
+    "saturation_duration_ms": 60,
+    "max_abs_clamp_current_nA": 5.098838924147211,
+    "max_abs_amplifier_output_V": 1.0000000000000002,
+    "adc_code_min": 2048,
+    "adc_code_max": 3750
+  },
+  "sweep": {
+    "A_ol_values": [
+      1000,
+      3000,
+      10000,
+      30000,
+      100000
+    ],
+    "R_e_values": [
+      200000,
+      500000,
+      1.0E+6,
+      2.0E+6,
+      5.0E+6
+    ],
+    "final_tracking_error_mV": [
+      [
+        -0.10619664507061088,
+        0.10552036426229872,
+        -0.0986733717743063,
+        0.10878878113220955,
+        -0.045588358776899734
+      ],
+      [
+        0.075761674844247034,
+        0.021922314340967058,
+        0.041706679695142912,
+        0.061982833938049181,
+        0.071477366551841309
+      ],
+      [
+        0.016975846968979996,
+        -0.12518263519533529,
+        -0.082026131737168717,
+        -0.11062004033686457,
+        -0.027537107792071497
+      ],
+      [
+        0.014245207005787047,
+        0.0047519174293346456,
+        -0.20287355377708247,
+        0.019895309641179693,
+        -0.0561877942740624
+      ],
+      [
+        0.0060550140043511,
+        0.0020200449665080944,
+        -0.022318007994404088,
+        0.080601015600260256,
+        -0.04546788394740181
+      ]
+    ],
+    "saturation_duration_ms": [
+      [
+        55.749999999997733,
+        58.539999999997612,
+        59.609999999997569,
+        59.819999999997563,
+        59.589999999997573
+      ],
+      [
+        49.139999999998,
+        57.479999999997659,
+        59.099999999997593,
+        59.439999999997575,
+        59.389999999997585
+      ],
+      [
+        7.1699999999997077,
+        54.819999999997769,
+        58.349999999997628,
+        59.169999999997586,
+        58.8999999999976
+      ],
+      [
+        6.9599999999997166,
+        9.8099999999996,
+        56.599999999997692,
+        57.939999999997639,
+        57.869999999997646
+      ],
+      [
+        6.7999999999997227,
+        6.8999999999997188,
+        51.609999999997896,
+        54.639999999997777,
+        54.389999999997791
+      ]
+    ]
+  },
+  "faults": {
+    "baseline": {
+      "settling_time_ms": 6.28,
+      "overshoot_percent": 0.52710700297741664,
+      "final_tracking_error_mV": -0.047867985528197293,
+      "saturation_duration_ms": 57.779999999997649,
+      "max_abs_clamp_current_nA": 5,
+      "max_abs_amplifier_output_V": 0.99999999999999967,
+      "adc_code_min": 1381,
+      "adc_code_max": 1846
+    },
+    "rows": [
+      {
+        "id": "wrong_Cm_10x",
+        "expected_effect": "slower settling",
+        "settling_time_ms": null,
+        "final_tracking_error_mV": -4.8178671704504978,
+        "overshoot_percent": 0,
+        "saturation_duration_ms": 55.089999999997751
+      },
+      {
+        "id": "low_adc_rate",
+        "expected_effect": "coarse digital timing / aliasing risk",
+        "settling_time_ms": 6.28,
+        "final_tracking_error_mV": -0.047867985528197293,
+        "overshoot_percent": 0.52710700297741664,
+        "saturation_duration_ms": 57.779999999997649
+      },
+      {
+        "id": "high_electrode_resistance",
+        "expected_effect": "larger tracking error / amplifier demand",
+        "settling_time_ms": 6.2900000000000009,
+        "final_tracking_error_mV": -0.072981458897468376,
+        "overshoot_percent": 0.52752238402595553,
+        "saturation_duration_ms": 47.199999999998077
+      },
+      {
+        "id": "low_current_limit",
+        "expected_effect": "clamp current saturation and slower response",
+        "settling_time_ms": null,
+        "final_tracking_error_mV": -27.305621166103332,
+        "overshoot_percent": 0,
+        "saturation_duration_ms": 54.77999999999777
+      },
+      {
+        "id": "narrow_rails",
+        "expected_effect": "amplifier voltage saturation",
+        "settling_time_ms": 4.8500000000000014,
+        "final_tracking_error_mV": -0.0108306090966237,
+        "overshoot_percent": 0.68692825132021185,
+        "saturation_duration_ms": 22.389999999999088
+      },
+      {
+        "id": "unit_mistake_capacitance",
+        "expected_effect": "unrealistic time constant and failed settling",
+        "settling_time_ms": null,
+        "final_tracking_error_mV": -44.449154944438312,
+        "overshoot_percent": 0,
+        "saturation_duration_ms": 55.349999999997749
+      }
+    ]
+  },
+  "required_plots": [
+    "mixed_signal_full_timeline.png",
+    "membrane_voltage_and_clamp_current.png",
+    "amplifier_saturation.png",
+    "adc_codes_and_digital_logic.png",
+    "digital_state_machine_trace.png",
+    "parameter_sweep_heatmap.png",
+    "fault_injection_summary.png"
+  ]
+}

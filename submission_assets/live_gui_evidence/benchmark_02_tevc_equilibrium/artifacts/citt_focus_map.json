@@ -1,0 +1,179 @@
+[
+  {
+    "focus_id": "fp_feedback_loop",
+    "label": "Feedback loop",
+    "explanation": "Vm is sensed through R_e and subtracted from the buffered command; the finite-gain controlled source drives R_o and R_m.",
+    "model_paths": [
+      "matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/V_c_Command_Source",
+      "citt_generated_model/BUF1_Ideal_Buffer",
+      "citt_generated_model/Buffer_Output_Sensor",
+      "citt_generated_model/Feedback_Sense_Sensor",
+      "citt_generated_model/AMP1_Diff_Subtract",
+      "citt_generated_model/AMP1_Finite_Gain_100",
+      "citt_generated_model/AMP1_Finite_Gain_Output",
+      "citt_generated_model/I_CLAMP_PROBE",
+      "citt_generated_model/R_o_10_Ohm",
+      "citt_generated_model/R_m_10_Ohm",
+      "citt_generated_model/R_e_Symbolic"
+    ],
+    "line_handles_or_descriptions": [
+      "V_c source n_vc to V_c sensor",
+      "V_c sensor physical signal drives BUF1 controlled voltage source",
+      "BUF1 output sensor drives AMP1_Diff_Subtract.I1",
+      "Feedback_Sense_Sensor drives AMP1_Diff_Subtract.I2",
+      "AMP1_Diff_Subtract output drives AMP1_Finite_Gain_100",
+      "AMP1_Finite_Gain_100 drives AMP1 controlled voltage source",
+      "AMP1 output current path through I_CLAMP_PROBE and R_o to n_vm",
+      "R_e connects n_vm to n_feedback_sense"
+    ],
+    "related_components": [
+      "V_c",
+      "BUF1",
+      "AMP1",
+      "R_o",
+      "R_m",
+      "R_e"
+    ],
+    "related_nodes": [
+      "n_vc",
+      "n_buffer_out",
+      "n_feedback_sense",
+      "n_amp_out",
+      "n_vm",
+      "n_ref"
+    ],
+    "teaching_question": "What signal does the differential amplifier compare against the buffered command voltage?"
+  },
+  {
+    "focus_id": "fp_vm_probe",
+    "label": "Membrane voltage Vm",
+    "explanation": "VM_PROBE measures the membrane node n_vm relative to the reference node n_ref.",
+    "model_paths": [
+      "matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/R_o_10_Ohm",
+      "citt_generated_model/R_m_10_Ohm",
+      "citt_generated_model/VM_PROBE",
+      "citt_generated_model/Vm_To_Simulink",
+      "citt_generated_model/Vm_Log",
+      "citt_generated_model/Electrical_Reference_n_ref"
+    ],
+    "line_handles_or_descriptions": [
+      "R_o.n, R_m.p, R_e.p, and VM_PROBE.p share n_vm",
+      "VM_PROBE.n is connected to n_ref",
+      "VM_PROBE.V is logged through Vm_To_Simulink to Vm_Log"
+    ],
+    "related_components": [
+      "R_o",
+      "R_m",
+      "R_e",
+      "VM_PROBE"
+    ],
+    "related_nodes": [
+      "n_vm",
+      "n_ref"
+    ],
+    "teaching_question": "Where is Vm measured relative to the reference node in this equivalent circuit?"
+  },
+  {
+    "focus_id": "fp_clamp_current",
+    "label": "Clamp current through Ro",
+    "explanation": "The current sensor is in series between AMP1 output and R_o, so positive current is measured from n_amp_out toward n_vm.",
+    "model_paths": [
+      "matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/AMP1_Finite_Gain_Output",
+      "citt_generated_model/I_CLAMP_PROBE",
+      "citt_generated_model/R_o_10_Ohm",
+      "citt_generated_model/IClamp_To_Simulink",
+      "citt_generated_model/IClamp_Log"
+    ],
+    "line_handles_or_descriptions": [
+      "AMP1_Finite_Gain_Output.p connects to I_CLAMP_PROBE.p",
+      "I_CLAMP_PROBE.n connects to R_o.p",
+      "R_o.n connects to n_vm",
+      "I_CLAMP_PROBE.I is logged through IClamp_To_Simulink to IClamp_Log"
+    ],
+    "related_components": [
+      "AMP1",
+      "I_CLAMP_PROBE",
+      "R_o",
+      "R_m"
+    ],
+    "related_nodes": [
+      "n_amp_out",
+      "n_vm"
+    ],
+    "teaching_question": "Why must the amplifier output current pass through Ro before reaching the membrane node?"
+  },
+  {
+    "focus_id": "fp_finite_gain_error",
+    "label": "Finite amplifier gain",
+    "explanation": "AMP1_Diff_Subtract and AMP1_Finite_Gain_100 implement Vout = 100*(Vbuffer - Vfeedback), preserving finite loop gain.",
+    "model_paths": [
+      "matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/Buffer_Output_Sensor",
+      "citt_generated_model/Feedback_Sense_Sensor",
+      "citt_generated_model/AMP1_Diff_Subtract",
+      "citt_generated_model/AMP1_Finite_Gain_100",
+      "citt_generated_model/AMP1_Finite_Gain_Output",
+      "citt_generated_model/R_e_Symbolic"
+    ],
+    "line_handles_or_descriptions": [
+      "Buffer_Output_Sensor.V to AMP1_Diff_Subtract.I1",
+      "Feedback_Sense_Sensor.V to AMP1_Diff_Subtract.I2",
+      "AMP1_Diff_Subtract.O to AMP1_Finite_Gain_100.I",
+      "AMP1_Finite_Gain_100.O to AMP1_Finite_Gain_Output.vT"
+    ],
+    "related_components": [
+      "AMP1",
+      "BUF1",
+      "R_e",
+      "R_m",
+      "R_o"
+    ],
+    "related_nodes": [
+      "n_buffer_out",
+      "n_feedback_sense",
+      "n_amp_out",
+      "n_vm"
+    ],
+    "teaching_question": "How does finite differential gain change the error needed to produce a nonzero clamp output?"
+  },
+  {
+    "focus_id": "fp_electrode_resistance",
+    "label": "Voltage electrode resistance Re",
+    "explanation": "R_e is modeled as a symbolic resistor from n_vm to n_feedback_sense; the feedback sensor has ideal high impedance.",
+    "model_paths": [
+      "matlab/work/citt_generated_model.slx"
+    ],
+    "block_paths": [
+      "citt_generated_model/R_e_Symbolic",
+      "citt_generated_model/Feedback_Sense_Sensor",
+      "citt_generated_model/AMP1_Diff_Subtract",
+      "citt_generated_model/AMP1_Finite_Gain_100",
+      "citt_generated_model/AMP1_Finite_Gain_Output"
+    ],
+    "line_handles_or_descriptions": [
+      "R_e.p connects to n_vm",
+      "R_e.n connects to Feedback_Sense_Sensor.p",
+      "Feedback_Sense_Sensor.V feeds AMP1_Diff_Subtract.I2"
+    ],
+    "related_components": [
+      "R_e",
+      "AMP1"
+    ],
+    "related_nodes": [
+      "n_vm",
+      "n_feedback_sense"
+    ],
+    "teaching_question": "What assumption would make the voltage drop across Re negligible?"
+  }
+]
