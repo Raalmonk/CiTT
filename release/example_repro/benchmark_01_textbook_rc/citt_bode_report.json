@@ -1,0 +1,42 @@
+{
+  "success": true,
+  "created_at": "23-Jun-2026 00:16:20",
+  "analysis_type": "bode_frequency_response",
+  "report_path": "release/example_repro/benchmark_01_textbook_rc/citt_bode_report.json",
+  "markdown_path": "release/example_repro/benchmark_01_textbook_rc/citt_bode_report.md",
+  "plot_path": "release/example_repro/benchmark_01_textbook_rc/citt_bode_plot.png",
+  "spec_path": "release/example_repro/benchmark_01_textbook_rc/citt_spec_reproduced.json",
+  "model_path": "release/example_repro/benchmark_01_textbook_rc/rc_reproduced_model.slx",
+  "curves": {
+    "curve_id": "analytic_rc_lowpass",
+    "source": "analytic_spec",
+    "label": "LOWPASS RC estimate from R1 and C1",
+    "input": "spec input",
+    "output": "spec output",
+    "frequency_hz": [
+      5,
+      39.9887,
+      60,
+      250
+    ],
+    "magnitude_db": [
+      -0.067371662290564724,
+      -3.0103022189969626,
+      -5.1205358900845566,
+      -16.029777750769753
+    ],
+    "phase_deg": [
+      -7.1270127078266876,
+      -45.000014923454941,
+      -56.31741738556525,
+      -80.9122528780435
+    ],
+    "cutoff_frequency_hz": 39.988679168817931,
+    "notes": [
+      "Computed from numeric R and C values in the circuit spec.",
+      "This is an analytic first-order estimate, not a full Simscape linearization."
+    ]
+  },
+  "messages": "No linearization I/O paths were provided. Pass InputPath and OutputPathBlock for full Simulink Bode.",
+  "next_action": "Use the analytic Bode as a sanity check, then add Simulink linearization I/O points for full model response."
+}

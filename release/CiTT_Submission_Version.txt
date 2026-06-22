@@ -1,0 +1,19 @@
+CiTT BMES 2026 Release Candidate
+Version: 0.9.0-bmes2026-rc1
+Date: 2026-06-22
+Release type: BMES 2026 submission release candidate
+Git commit: 388f14a783e0e47c55521769eeb816fe85367a83
+Git status: dirty with release-preparation files, installed-toolbox work-dir fix, exporter artifact check fix, and test hardening
+Main entry: citt
+Repository launch:
+  addpath("matlab")
+  citt
+Toolbox launch after install:
+  citt
+MATLAB package:
+  release/CiTT_BMES_2026.mltbx
+Source fallback:
+  release/CiTT_BMES_2026_Source.zip
+Smoke status:
+  Repository-path smoke passed.
+  Installed-toolbox smoke passed.
