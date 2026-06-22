@@ -1,2 +1,0 @@
-"""VeriCircuit Tutor backend package."""
-

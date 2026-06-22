@@ -12,7 +12,7 @@
     "Simscape Electrical preferred",
     "Simulink Agentic Toolkit / SATK-compatible flow",
     "MATLAB MCP Server",
-    "Gemini API key",
+    "configured LLM/agent backend (Gemini supported)",
     "agent CLI"
   ],
   "artifacts": {
@@ -39,7 +39,7 @@
     "docs/matlab_agentic_plugin_demo.md",
     "docs/release_setup.md",
     "docs/demo_live_gui_evidence.md",
-    "docs/bmes_application_answers_draft.md"
+    "paper_orchestra/bmes_application/application_answers_draft.md"
   ],
   "excluded_files_summary": [
     ".env and API keys",
@@ -56,8 +56,8 @@
   "git_commit": "388f14a783e0e47c55521769eeb816fe85367a83",
   "git_status": "dirty with release-preparation files, installed-toolbox work-dir fix, exporter artifact check fix, and test hardening",
   "known_limitations": [
-    "Full Gemini/SATK/MCP model generation requires configured external services and agent CLI.",
-    "Benchmark 3 is educational scaled benchmark evidence, not clinical validation.",
+    "Full agent-assisted circuit interpretation and SATK/MCP model generation require configured external services and agent CLI.",
+    "Benchmark 3 is educational scaled benchmark evidence, not medical-use validation.",
     "Lab Delta CSV comparison is not completed without an external lab CSV.",
     "Gemini-only baseline is a no-tools comparison artifact, not an exhaustive evaluation.",
     "Smoke tests verify package install, setup, resources, app launch, and close; they do not rerun every live benchmark."

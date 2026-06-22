@@ -1,9 +1,0 @@
-{
-  "confirmedNone": true,
-  "notes": [
-    "Default assumption confirmed by user on 2026-06-22.",
-    "No custom Simscape libraries.",
-    "No custom project-specific block libraries.",
-    "Use built-in MATLAB, Simulink, Simscape, and Simscape Electrical blocks whenever possible."
-  ]
-}

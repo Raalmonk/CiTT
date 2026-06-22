@@ -38,7 +38,7 @@ Version: `0.9.0-bmes2026-rc1`
 - [x] The app closed cleanly.
 - [x] No Node/npm/web server was required for launch.
 - [x] No custom Simscape library was required by default.
-- [x] No `.env` was required for launch; Gemini key is required for configured parsing.
+- [x] No `.env` was required for launch; a configured LLM/agent backend is required for agent-assisted circuit interpretation.
 - [x] MATLAB plugin regression suite passed: `matlab/tests/run_all` completed 7 tests.
 
 ## Installed Toolbox Smoke
@@ -58,10 +58,10 @@ Version: `0.9.0-bmes2026-rc1`
 
 ## Evidence Package
 
-- [x] `submission_assets/README.md` points to `live_gui_evidence/` as final evidence.
+- [x] Repository README points to `submission_assets/live_gui_evidence/` as reviewer-facing evidence.
 - [x] `live_gui_evidence/README.md` describes all three current benchmarks.
 - [x] `bmes_live_evidence_report.md` says all three benchmarks are complete.
-- [x] Benchmark 3 is labeled educational scaled benchmark evidence, not clinical validation.
+- [x] Benchmark 3 is labeled educational scaled benchmark evidence, not medical-use validation.
 - [x] Lab Delta CSV comparison is not claimed as completed.
 - [x] Gemini-only no-tools baseline outputs exist for all three benchmarks.
 - [x] Scorecard reflects honest Gemini-only and CiTT comparisons.
@@ -70,4 +70,4 @@ Version: `0.9.0-bmes2026-rc1`
 
 - [ ] Full live benchmark regeneration was not rerun during package creation.
 - [ ] Full Lab Delta CSV comparison is not complete without an external CSV.
-- [ ] Benchmark 3 is not clinical validation.
+- [ ] Benchmark 3 is not patient-facing or medical-use validation.

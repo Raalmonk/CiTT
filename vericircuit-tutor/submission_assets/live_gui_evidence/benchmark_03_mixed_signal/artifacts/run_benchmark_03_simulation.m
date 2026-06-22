@@ -509,11 +509,11 @@ notes = [
     ""
     "manual_arrangement: completed-by-user"
     "simulation_source: " + result.simulation_source
-    "parameter_set: educational scaled benchmark parameters, not a clinically validated axon model"
+    "parameter_set: educational scaled benchmark parameters, not a validated axon or patient model"
     "timestamp: " + string(datetime("now", "Format", "yyyy-MM-dd HH:mm:ss z"))
     ""
     "Functional evidence now includes transient plots, ADC/digital logic plots, parameter sweep, and fault injection summary."
-    "If the Simulink/Simscape model cannot execute in the local MATLAB install, the deterministic educational fallback is explicitly labeled in the report and plots are not represented as clinical validation."
+    "If the Simulink/Simscape model cannot execute in the local MATLAB install, the deterministic educational fallback is explicitly labeled in the report and plots are not represented as medical-use validation."
 ];
 writeText(fullfile(benchDir, "citt_run_notes.md"), strjoin(notes, newline));
 comparison = [

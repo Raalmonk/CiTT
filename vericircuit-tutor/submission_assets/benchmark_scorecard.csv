@@ -1,7 +1,0 @@
-benchmark,system,status,topology_model_understanding,numerical_simulation_correctness,unit_sign_reference_correctness,executable_model_evidence,teaching_usefulness,honest_assumptions_limitations,total,notes
-benchmark_01_textbook_rc,Gemini-only no-tools,completed,3,4,3,0,2,2,14,Strong textbook RC hand calculation; no executable model evidence.
-benchmark_01_textbook_rc,CiTT live GUI,live-complete,3,3,3,3,3,3,18,Live model evidence; visible probe placement; focus-map teaching; natural-language probe; Bode plots.
-benchmark_02_tevc_equilibrium,Gemini-only no-tools,completed,3,2,2,0,2,2,11,Conceptually good TEVC feedback explanation; mild Re/Vc limitation contradiction and formula-readability risk.
-benchmark_02_tevc_equilibrium,CiTT live GUI,live-structural-teaching-complete-symbolic-numeric-limited,3,1,2,3,3,3,15,Live Simscape/SATK model and teaching/probe evidence; numeric simulation limited because V_c and R_e remain symbolic.
-benchmark_03_mixed_signal_simscape,Gemini-only no-tools,completed,3,1,1,0,2,2,9,Correctly says simulation is needed; contains unit-scale/model-assumption risks on complex mixed-signal case.
-benchmark_03_mixed_signal_simscape,CiTT live GUI,live-parameterized-simulation-complete-educational,3,2,2,3,2,3,15,Live generated model; user-arranged screenshot; educational parameterized Simulink/Simscape timeline; sweep/fault plots; not clinical validation.
