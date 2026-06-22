@@ -4,7 +4,7 @@ Biomedical engineering education depends heavily on electrical and computer engi
 
 The rise of LLM tutoring creates both opportunity and risk. Language models can explain concepts, ask Socratic questions, and help students explore unfamiliar material. Yet they are not rigorous engineering solvers. In open-ended tutor mode, attention can drift from the physical model; outputs can be unstable; and generic workflows more often fall back to text or Python than to MATLAB/Simulink/Simscape artifacts. For circuit learning, students need more than a fluent answer: they need to see the circuit, inspect assumptions, measure signals, and relate explanations to executable models.
 
-CiTT addresses this gap by grounding an AI tutor in MATLAB, Simulink, and Simscape. The system uses Gemini-based parsing to convert a prompt or image into a structured circuit specification, uses SATK/MCP-style agent tooling to build or prepare Simscape models, and presents teaching interactions around focus maps, highlights, natural-language probes, and evidence export. The result is not a replacement for instructor review. It is a model-grounded tutoring loop that makes AI assistance inspectable.
+CiTT addresses this gap by grounding an AI tutor in MATLAB, Simulink, and Simscape. The system uses a configurable LLM/agent backend to interpret prompts or images into structured circuit specifications, uses SATK/MCP-style agent tooling to build or prepare Simscape models, and presents teaching interactions around focus maps, highlights, natural-language probes, and evidence export. Depending on configuration, the interpretation layer can run through direct model-provider APIs or through the same local CLI/agent runtime used by the later model-building path. The result is not a replacement for instructor review. It is a model-grounded tutoring loop that makes AI assistance inspectable.
 
 \begin{figure*}[t]
 \centering
@@ -14,7 +14,7 @@ CiTT addresses this gap by grounding an AI tutor in MATLAB, Simulink, and Simsca
     arrow/.style={-{Latex[length=2.2mm]}, thick}
 ]
 \node[box] (input) {Circuit image\\or prompt};
-\node[box, right=of input] (spec) {Gemini parser\\structured spec};
+\node[box, right=of input] (spec) {LLM/agent backend\\structured spec};
 \node[box, right=of spec] (agent) {SATK/MCP agent\\Simscape build};
 \node[box, right=of agent] (teach) {Socratic teach\\highlight/probe};
 \node[box, right=of teach] (evidence) {Evidence export\\screenshots/maps/plots};

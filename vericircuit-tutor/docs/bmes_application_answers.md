@@ -8,7 +8,7 @@ CiTT, also known as VeriCircuit Tutor, is a MATLAB-native AI tutor for biomedica
 
 The product need is clear: biomedical engineering students increasingly use AI tools while learning ECG front ends, anti-aliasing filters, electrode interfaces, sensor bridges, and mixed-signal biomedical instrumentation. General-purpose chatbots can produce fluent explanations while hiding unit mistakes, sign errors, unsupported assumptions, or missing nonideal behavior. CiTT addresses that risk by making assumptions, generated models, measurements, and limitations visible.
 
-The current release candidate demonstrates three live GUI benchmarks: an RC anti-aliasing filter, a two-electrode voltage clamp equivalent circuit, and a mixed-signal neural clamp benchmark. The goal is educational feasibility, not clinical validation or medical-device certification.
+The current release candidate demonstrates three live GUI benchmarks: an RC anti-aliasing filter, a two-electrode voltage clamp equivalent circuit, and a mixed-signal neural clamp benchmark. The goal is educational feasibility and model-grounded learning evidence, not medical-device certification.
 
 ## Problem
 
@@ -44,7 +44,7 @@ citt
 Design components:
 
 - MATLAB plugin UI: the main learning surface. Students enter prompts/images, trigger parse/build steps, inspect teaching output, ask probes, and export evidence.
-- Gemini parsing layer: converts natural language or schematic images into structured circuit/model specifications. Gemini is not treated as numerical authority.
+- LLM/agent interpretation layer: converts natural language or schematic images into structured circuit/model specifications through a configured provider or local CLI route. This layer is not treated as numerical authority.
 - SATK/MCP model-building flow: hands the structured spec to an agent that uses MATLAB/Simulink model tools to construct a Simulink/Simscape model.
 - Simulink/Simscape artifact layer: stores generated `.slx` models, focus maps, probe maps, agent reports, simulation outputs, and plots.
 - Teaching layer: converts model/focus/probe artifacts into guided explanation and highlight actions.

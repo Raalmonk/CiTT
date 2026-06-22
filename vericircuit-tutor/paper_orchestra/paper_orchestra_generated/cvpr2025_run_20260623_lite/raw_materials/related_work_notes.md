@@ -9,7 +9,7 @@ Use only real citations. Current BibTeX entries are in `paper/references.bib`.
 - Circuit simulation: modified nodal analysis and SPICE are relevant background for why an internal solver became unattractive.
 - Model-based design: Simulink and Simscape official documentation support the simulation/modeling claims.
 - Agentic MATLAB/Simulink workflows: Simulink Agentic Toolkit and MATLAB MCP Server sources support the agentic model-building framing.
-- Gemini API: official Gemini API docs support the multimodal/LLM parsing dependency.
+- LLM/agent provider configuration: official Gemini API docs are relevant because Gemini remains one supported provider, but the release narrative should also allow local CLI/agent routing.
 - Biomedical instrumentation and voltage clamp: the draft cites Webster and Nimunkar's medical instrumentation textbook and Hodgkin, Huxley, and Katz's voltage-clamp current-voltage paper.
 
 ## References Already Added

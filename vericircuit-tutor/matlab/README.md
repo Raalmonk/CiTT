@@ -1,6 +1,6 @@
 # CiTT MATLAB Plugin
 
-CiTT is a MATLAB-native plugin shell around Gemini, Codex/SATK-style model building, and Simulink/Simscape evidence.
+CiTT is a MATLAB-native plugin shell around a configurable LLM/agent backend, SATK/MCP-style model building, and Simulink/Simscape evidence.
 
 Run it from MATLAB:
 
@@ -40,13 +40,14 @@ Default release assumption:
 
 ## Required For The Real Flow
 
-- `GEMINI_API_KEY`
-- Gemini model `gemini-3.5-flash` unless `GEMINI_MODEL` is explicitly set
 - Simulink
 - Simscape, preferably Simscape Electrical
 - Simulink Agentic Toolkit initialized with `satk_initialize`
 - MATLAB MCP Server
-- A SATK-configured agent CLI via `CITT_AGENT_COMMAND`, Codex CLI, or Gemini CLI
+- A configured LLM/agent backend for circuit interpretation and orchestration. This can be direct Gemini API credentials, a local Gemini-compatible CLI, a Codex-compatible CLI, or another configured agent route.
+- A SATK-configured agent CLI via `CITT_AGENT_COMMAND`, Codex CLI, or Gemini CLI for the model-building path.
+
+For the release evidence path, the first circuit-interpretation step and the later Simulink/Simscape build step may both run through the same local CLI/agent workflow. Gemini remains one supported model provider, but the direct Gemini API is not the only parsing route.
 
 If MATLAB was opened from the Dock and cannot see shell environment variables, create a local untracked file:
 
@@ -57,7 +58,10 @@ vericircuit-tutor/matlab/.env
 with:
 
 ```text
+CITT_AGENT_COMMAND=your-agent-cli-command
+# Optional if using direct Gemini API or a Gemini-backed local CLI:
 GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=your_model_here
 ```
 
 ## Agent Build
@@ -79,7 +83,7 @@ CITT_USE_LOCAL_SIMSCAPE_FALLBACK=1
 
 Do not enable the fallback for release testing unless the goal is explicitly to test that fallback path.
 
-External agent runs retry transient API failures such as `503 Service Unavailable` by default. Tune with `CITT_AGENT_MAX_ATTEMPTS` and `CITT_AGENT_RETRY_DELAY_SECONDS` if the selected agent endpoint is noisy.
+External agent runs retry transient service errors by default. Tune with `CITT_AGENT_MAX_ATTEMPTS` and `CITT_AGENT_RETRY_DELAY_SECONDS` if the selected agent endpoint is noisy.
 
 ## Evidence Boundaries
 

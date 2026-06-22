@@ -28,7 +28,7 @@ AI Research Institute\\
 
 \begin{abstract}
 %%%%%%%%% ABSTRACT %%%%%%%%%
-The increasing reliance of students on Large Language Models (LLMs) for educational support presents a challenge in rigorous engineering domains like biomedical circuits, where LLMs alone can produce inaccurate or unverifiable artifacts. This paper introduces CiTT (Circuit and Instrumentation Tutor), a novel MATLAB-native agentic tutor that grounds LLM communication in executable Simscape models. CiTT leverages Gemini for prompt and image parsing, agentic tooling (SATK/MCP) for Simscape model generation, and a Socratic teaching loop that relies on inspectable model artifacts, focus maps, and natural-language probe maps. We demonstrate CiTT's capabilities across three benchmarks: an RC anti-aliasing filter, a two-electrode voltage clamp equilibrium, and a mixed-signal neural clamp using educational scaled parameters. Our results show that CiTT successfully generates verifiable engineering artifacts, facilitates model-grounded teaching, and provides a structured evidence export path suitable for educational review. CiTT establishes a new model-grounded authority structure for AI tutoring in engineering education.
+The increasing reliance of students on Large Language Models (LLMs) for educational support presents a challenge in rigorous engineering domains like biomedical circuits, where LLMs alone can produce inaccurate or unverifiable artifacts. This paper introduces CiTT (Circuit and Instrumentation Tutor), a MATLAB-native agentic tutor that grounds LLM/agent communication in executable Simscape models. CiTT uses a configurable LLM/agent backend for prompt and image interpretation, agentic tooling (SATK/MCP) for Simscape model generation, and a Socratic teaching loop that relies on inspectable model artifacts, focus maps, and natural-language probe maps. We demonstrate CiTT's capabilities across three benchmarks: an RC anti-aliasing filter, a two-electrode voltage clamp equilibrium, and a mixed-signal neural clamp using educational scaled parameters. Our results show that CiTT generates verifiable engineering artifacts, facilitates model-grounded teaching, and provides a structured evidence export path suitable for educational review. CiTT establishes a model-grounded authority structure for AI tutoring in engineering education.
 %%%%%%%%% ABSTRACT %%%%%%%%%
 \end{abstract}
 
@@ -43,7 +43,7 @@ To bridge this gap, we introduce CiTT (Circuit and Instrumentation Tutor), a nov
 
 Our contributions in this work are threefold:
 \begin{enumerate}
-    \item We present a MATLAB-native agentic tutor workflow specifically tailored for biomedical circuit learning, integrating Gemini, SATK/MCP-style tooling, and Simscape.
+    \item We present a MATLAB-native agentic tutor workflow specifically tailored for biomedical circuit learning, integrating a configurable LLM/agent backend, SATK/MCP-style tooling, and Simscape.
     \item We establish a model-grounded authority structure that distinctly separates the LLM's communication role from the generation and validation of executable engineering evidence.
     \item We provide live evidence across three diverse benchmarks—an RC anti-aliasing filter, a two-electrode voltage clamp equilibrium, and a mixed-signal neural clamp—demonstrating CiTT's ability to generate inspectable artifacts, perform model-grounded teaching, and facilitate a submission-oriented evidence export.
 \end{enumerate}
@@ -72,22 +72,22 @@ The CiTT system is designed to provide a model-grounded agentic tutoring experie
 
 \subsection{System Architecture}
 \label{sec:method_architecture}
-The CiTT framework follows a modular architecture, enabling distinct roles for language understanding and engineering execution. The overall workflow is illustrated in \cref{fig:framework_overview}. At its core, CiTT separates the LLM's role in communication and initial parsing from the authoritative role of executable Simscape models.
+The CiTT framework follows a modular architecture, enabling distinct roles for language understanding and engineering execution. The overall workflow is illustrated in \cref{fig:framework_overview}. At its core, CiTT separates the LLM/agent layer's role in communication, interpretation, and orchestration from the authoritative role of executable Simscape models.
 
-The process begins with Gemini \cite{gemini_api_docs} assisting in parsing user prompts or circuit images into a structured circuit specification. This specification then guides the agentic generation of Simulink/Simscape models using tooling inspired by the Simulink Agentic Toolkit (SATK) and Model Context Protocol (MCP) workflows \cite{mathworks_satk, matlab_agentic_toolkit}. These tools are responsible for creating executable \texttt{.slx} model files. The generated models undergo Simscape/Simulink artifact checks to identify obvious construction or configuration issues.
+The process begins with a configured LLM/agent backend interpreting user prompts or circuit images into a structured circuit specification. Gemini-compatible APIs remain one supported provider option \cite{gemini_api_docs}, but the release evidence path can also use a local CLI/agent runtime that shares the later model-building route. This specification then guides the agentic generation of Simulink/Simscape models using tooling inspired by the Simulink Agentic Toolkit (SATK) and Model Context Protocol (MCP) workflows \cite{mathworks_satk, matlab_agentic_toolkit}. These tools are responsible for creating executable \texttt{.slx} model files. The generated models undergo Simscape/Simulink artifact checks to identify obvious construction or configuration issues.
 
 CiTT employs a Socratic teaching loop, where the LLM engages the student in dialogue. This dialogue is not arbitrary but is grounded in inspectable model artifacts. Specific aspects of the model are highlighted using "focus maps," which guide the tutor's attention to relevant circuit elements or behaviors. Similarly, "probe maps" enable natural-language querying of simulation results and model states, allowing students to ask questions about the circuit's behavior in a contextually aware manner. Finally, CiTT facilitates a submission-oriented evidence export path, compiling all relevant artifacts for review.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.9\linewidth]{figures/fig2_app_open.png}
-  \caption{Conceptual overview of the CiTT framework, illustrating the interplay between Gemini-assisted parsing, agentic model generation (SATK/MCP), Simscape/Simulink execution, and the Socratic teaching loop grounded in model focus and probe maps.}
+  \caption{Conceptual overview of the CiTT framework, illustrating the interplay between agent-assisted circuit interpretation, agentic model generation (SATK/MCP), Simscape/Simulink execution, and the Socratic teaching loop grounded in model focus and probe maps.}
   \label{fig:framework_overview}
 \end{figure}
 
-\subsection{Gemini-Assisted Prompt and Image Parsing}
+\subsection{Agent-Assisted Prompt and Image Interpretation}
 \label{sec:method_parsing}
-The initial step involves understanding the student's request, which may be presented as a textual prompt describing a circuit problem or, in future iterations, potentially as an image of a circuit diagram. Gemini \cite{gemini_api_docs}, a powerful multimodal LLM, is employed to parse this input. It interprets the user's intent, identifies key circuit components, their parameters, and the desired analysis or simulation objectives. The output of this stage is a structured circuit specification that serves as the input for the model generation module. This ensures that the subsequent engineering artifacts are directly derived from the student's stated problem.
+The initial step involves understanding the student's request, which may be presented as a textual prompt describing a circuit problem or, in future iterations, potentially as an image of a circuit diagram. CiTT uses a configured LLM/agent provider to interpret this input. Gemini-compatible APIs are one provider option \cite{gemini_api_docs}; local Gemini/Codex-compatible CLI routing is another deployment route. The backend identifies the user's intent, key circuit components, parameters, and desired analysis or simulation objectives. The output of this stage is a structured circuit specification that serves as the input for the model generation module. This keeps the subsequent engineering artifacts tied to the student's stated problem while avoiding a claim that direct API access is the only interpretation path.
 
 \subsection{Agentic Model Generation with SATK/MCP}
 \label{sec:method_model_gen}
@@ -105,7 +105,7 @@ To support educational review processes, such as course evaluations or design co
 \section{Experiments}
 \label{sec:experiments}
 %%%%%%%%% EXPERIMENTS %%%%%%%%%
-We evaluated the CiTT system across three distinct biomedical engineering circuit benchmarks, demonstrating its capability to generate inspectable artifacts, engage in model-grounded teaching, and provide comprehensive evidence export. The implementation utilizes MATLAB, Simulink, and Simscape \cite{mathworks_matlab, mathworks_simulink, mathworks_simscape}, with agentic model generation facilitated by tooling inspired by SATK/MCP \cite{mathworks_satk, matlab_agentic_toolkit}. For natural language understanding and dialogue, we employed Gemini \cite{gemini_api_docs}. The LLM-only baseline involved comparing Gemini's unaided output for conceptual understanding and basic arithmetic against CiTT's model-grounded approach.
+We evaluated the CiTT system across three distinct biomedical engineering circuit benchmarks, demonstrating its capability to generate inspectable artifacts, engage in model-grounded teaching, and provide comprehensive evidence export. The implementation utilizes MATLAB, Simulink, and Simscape \cite{mathworks_matlab, mathworks_simulink, mathworks_simscape}, with agentic model generation facilitated by tooling inspired by SATK/MCP \cite{mathworks_satk, matlab_agentic_toolkit}. For natural language understanding and dialogue, CiTT uses a configurable LLM/agent backend; Gemini remains a supported provider and the Gemini-only no-tools output is retained as the baseline comparison \cite{gemini_api_docs}. The LLM-only baseline involved comparing Gemini's unaided output for conceptual understanding and basic arithmetic against CiTT's model-grounded approach.
 
 \subsection{Experimental Setup}
 \label{sec:exp_setup}

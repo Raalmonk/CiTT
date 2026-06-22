@@ -17,7 +17,7 @@ addpath("vericircuit-tutor/matlab")
 citt
 ```
 
-CiTT reads a circuit prompt or image, calls Gemini for structured parsing, uses a SATK/MCP-enabled agent flow to build a Simulink/Simscape model, and then teaches through a model-centered dialog with focus-map highlights, natural-language probes, and evidence export.
+CiTT reads a circuit prompt or image through a configured LLM/agent backend, produces a structured circuit specification, uses a SATK/MCP-enabled agent flow to build a Simulink/Simscape model, and then teaches through a model-centered dialog with focus-map highlights, natural-language probes, and evidence export.
 
 The backend and frontend workspaces are legacy/supporting development surfaces. They are not the release demo path.
 
@@ -28,7 +28,7 @@ The backend and frontend workspaces are legacy/supporting development surfaces. 
 - Simscape
 - Simscape Electrical, recommended for the live model-building flow
 - Simulink Agentic Toolkit (SATK) and MATLAB MCP Server
-- Gemini API key, supplied through the MATLAB process environment or an untracked local `.env`
+- Configured LLM/agent provider for circuit interpretation and orchestration. This can be direct Gemini API credentials or a local Gemini/Codex-compatible CLI backend.
 - SATK-configured agent CLI, such as `CITT_AGENT_COMMAND`, Codex CLI, or Gemini CLI
 
 Local secrets and generated work products are intentionally not part of the release:
@@ -75,4 +75,4 @@ vericircuit-tutor/
 
 ## Evidence Boundary
 
-CiTT separates language-model help from numerical and model evidence. Gemini may parse a prompt or image into a structured specification, and the tutor may explain the result, but final claims should be grounded in the generated Simulink/Simscape model, focus/probe artifacts, exported evidence, and explicit limitations recorded in `submission_assets/live_gui_evidence/`.
+CiTT separates LLM/agent help from numerical and model evidence. A configured model provider or local CLI runtime may interpret a prompt or image into a structured specification, and the tutor may explain the result, but final claims should be grounded in the generated Simulink/Simscape model, focus/probe artifacts, exported evidence, and explicit limitations recorded in `submission_assets/live_gui_evidence/`.

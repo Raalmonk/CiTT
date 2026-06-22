@@ -21,7 +21,7 @@
             "title": "CiTT Framework Overview",
             "plot_type": "diagram",
             "data_source": "idea.md",
-            "objective": "A high-level diagram illustrating the components of the CiTT system: Gemini-assisted prompt/image parsing, agentic Simulink/Simscape model generation (SATK/MCP), Simscape/Simulink artifact checks, Socratic teaching loop, model highlight/zoom, natural-language probe maps, and evidence export. This provides a conceptual understanding of the system architecture.",
+            "objective": "A high-level diagram illustrating the components of the CiTT system: agent-assisted circuit interpretation, agentic Simulink/Simscape model generation (SATK/MCP), Simscape/Simulink artifact checks, Socratic teaching loop, model highlight/zoom, natural-language probe maps, and evidence export. This provides a conceptual understanding of the system architecture.",
             "aspect_ratio": "16:9"
         },
         {
@@ -111,7 +111,7 @@
                     "content_bullets": [
                         "Highlight the challenge of teaching complex biomedical circuits to students who increasingly rely on LLMs.",
                         "Introduce CiTT, a MATLAB-native agentic tutor grounding LLM communication in executable Simscape models.",
-                        "Describe the core components: Gemini-assisted parsing, agentic model generation via SATK/MCP, Socratic dialogue, and evidence export.",
+                        "Describe the core components: configurable LLM/agent interpretation, agentic model generation via SATK/MCP, Socratic dialogue, and evidence export.",
                         "Summarize key results across three benchmarks (RC anti-aliasing, TEVC, mixed-signal neural clamp), emphasizing inspectable artifacts, model-grounded teaching, and evidence generation.",
                         "State the contribution of a novel model-grounded authority structure for AI tutoring in engineering."
                     ],
