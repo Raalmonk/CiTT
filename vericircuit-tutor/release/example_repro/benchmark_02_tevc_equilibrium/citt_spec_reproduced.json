@@ -1,0 +1,95 @@
+{
+  "circuit_type": "two_electrode_voltage_clamp_equilibrium",
+  "components": [
+    {
+      "id": "V_c",
+      "type": "voltage_source",
+      "label": "V_c",
+      "value": "V_c",
+      "unit": "V",
+      "terminals": [
+        "positive",
+        "negative"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "BUF1",
+      "type": "ideal_buffer",
+      "label": "BUF1",
+      "value": "ideal",
+      "unit": "",
+      "terminals": [
+        "input",
+        "output"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "AMP1",
+      "type": "finite_gain_amplifier",
+      "label": "AMP1",
+      "value": 100,
+      "unit": "V/V",
+      "terminals": [
+        "plus",
+        "minus",
+        "output"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "R_o",
+      "type": "resistor",
+      "label": "R_o",
+      "value": 10,
+      "unit": "Ohm",
+      "terminals": [
+        "left",
+        "right"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "R_m",
+      "type": "resistor",
+      "label": "R_m",
+      "value": 10,
+      "unit": "Ohm",
+      "terminals": [
+        "top",
+        "bottom"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "R_e",
+      "type": "resistor",
+      "label": "R_e",
+      "value": "R_e",
+      "unit": "Ohm",
+      "terminals": [
+        "left",
+        "right"
+      ],
+      "confidence": 1
+    }
+  ],
+  "nodes": [
+    "n_vc",
+    "n_buffer_out",
+    "n_feedback_sense",
+    "n_amp_out",
+    "n_vm",
+    "n_ref"
+  ],
+  "requested_outputs": [
+    "Vm",
+    "amplifier_output",
+    "clamp_current"
+  ],
+  "likely_analysis": "dc_equilibrium_feedback",
+  "assumptions": "Membrane capacitance and ion-channel dynamics ignored at equilibrium.",
+  "ambiguities": "V_c and R_e are symbolic in the source benchmark.",
+  "unsupported_or_unclear_regions": []
+}

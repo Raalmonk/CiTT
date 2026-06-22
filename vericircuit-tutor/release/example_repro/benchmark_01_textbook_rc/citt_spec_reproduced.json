@@ -1,0 +1,96 @@
+{
+  "circuit_type": "rc_low_pass_anti_aliasing",
+  "components": [
+    {
+      "id": "V1",
+      "type": "voltage_source",
+      "label": "V1",
+      "value": 1,
+      "unit": "V",
+      "terminals": [
+        "positive",
+        "negative"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "label": "R1",
+      "value": 39800,
+      "unit": "Ohm",
+      "terminals": [
+        "left",
+        "right"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "C1",
+      "type": "capacitor",
+      "label": "C1",
+      "value": 1E-7,
+      "unit": "F",
+      "terminals": [
+        "top",
+        "bottom"
+      ],
+      "confidence": 1
+    }
+  ],
+  "nodes": [
+    "n_in",
+    "n_out",
+    "0"
+  ],
+  "connections": [
+    {
+      "from": "V1.positive",
+      "to": "R1.left",
+      "label": "n_in",
+      "confidence": 1
+    },
+    {
+      "from": "R1.right",
+      "to": "C1.top",
+      "label": "n_out",
+      "confidence": 1
+    },
+    {
+      "from": "V1.negative",
+      "to": "C1.bottom",
+      "label": "0",
+      "confidence": 1
+    }
+  ],
+  "ground_node": "0",
+  "sources": "V1",
+  "requested_outputs": "V(n_out)",
+  "likely_analysis": "ac_frequency_response",
+  "assumptions": [
+    "500 Hz ADC",
+    "first-order educational RC stage"
+  ],
+  "ambiguities": [],
+  "unsupported_or_unclear_regions": [],
+  "suggested_simscape_blocks": [
+    "Resistor",
+    "Capacitor",
+    "Electrical Reference",
+    "Solver Configuration",
+    "Voltage Sensor"
+  ],
+  "focus_points": {
+    "focus_id": "rc_output",
+    "label": "RC output node",
+    "explanation": "The low-pass output is the node between R1 and C1.",
+    "model_paths": [],
+    "block_paths": [],
+    "related_components": [
+      "R1",
+      "C1"
+    ],
+    "related_nodes": "n_out",
+    "teaching_question": "Why is n_out the correct place to probe the filtered signal?"
+  }
+}

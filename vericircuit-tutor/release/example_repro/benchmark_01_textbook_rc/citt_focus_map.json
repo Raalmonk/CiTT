@@ -1,0 +1,17 @@
+{
+  "focus_id": "focus_1",
+  "label": "RC output node",
+  "explanation": "",
+  "model_paths": "rc_reproduced_model",
+  "block_paths": [
+    "rc_reproduced_model/R1",
+    "rc_reproduced_model/C1"
+  ],
+  "line_handles_or_descriptions": [],
+  "related_components": [
+    "R1",
+    "C1"
+  ],
+  "related_nodes": "n_out",
+  "teaching_question": "Why is n_out the correct place to probe the filtered signal?"
+}

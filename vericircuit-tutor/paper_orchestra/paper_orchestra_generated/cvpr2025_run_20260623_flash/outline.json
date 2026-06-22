@@ -1,0 +1,297 @@
+{
+    "plotting_plan": [
+        {
+            "figure_id": "fig_citt_system_architecture",
+            "title": "CiTT System Architecture for Biomedical Circuit Tutoring",
+            "plot_type": "diagram",
+            "data_source": "idea.md",
+            "objective": "Illustrate the interaction between Gemini-assisted parsing, the Simulink Agentic Toolkit (SATK) for model generation, Simscape/Simulink for executable evidence, and the Socratic teaching loop, culminating in evidence export.",
+            "aspect_ratio": "16:9"
+        },
+        {
+            "figure_id": "fig_bode_plot_rc_filter_comparison",
+            "title": "RC Anti-Aliasing Filter Performance: Bode Plot and Unit Error Impact",
+            "plot_type": "plot",
+            "data_source": "experimental_log.md",
+            "objective": "Demonstrate the frequency response of the RC anti-aliasing filter, showing correct operation (fc \u2248 40 Hz) and the significant impact of a common unit error (100 nF vs 100 \u00b5F) on cutoff frequency and ECG signal attenuation. Specific chart type: Line plot with log scale for frequency.",
+            "aspect_ratio": "16:9"
+        },
+        {
+            "figure_id": "fig_tevc_model_with_focus_map",
+            "title": "Two-Electrode Voltage Clamp Model with Agentic Focus and Probe Maps",
+            "plot_type": "diagram",
+            "data_source": "experimental_log.md",
+            "objective": "Show an arranged Simscape model screenshot of the Two-Electrode Voltage Clamp (TEVC) circuit, overlaid with visual cues (focus/highlight) and natural-language probe annotations to exemplify CiTT's model-grounded teaching mechanism and interactive debugging.",
+            "aspect_ratio": "4:3"
+        },
+        {
+            "figure_id": "fig_neural_clamp_transient_and_saturation",
+            "title": "Mixed-Signal Neural Clamp Transient Response and Saturation under Educational Parameters",
+            "plot_type": "plot",
+            "data_source": "experimental_log.md",
+            "objective": "Present a multi-panel line plot showing key simulation results for the mixed-signal neural clamp: membrane voltage/current, amplifier saturation, and ADC/digital logic signals over time. This highlights non-settling behavior, saturation, and current limiting, demonstrating CiTT's capability for limitation discovery. Specific chart type: Multi-panel line plots.",
+            "aspect_ratio": "16:9"
+        }
+    ],
+    "intro_related_work_plan": {
+        "introduction_strategy": {
+            "hook_hypothesis": "Modern biomedical engineering education requires sophisticated circuit understanding, often facilitated by interactive learning tools. The rise of LLMs offers new avenues for tutoring, but their inherent limitations in executable rigor pose challenges for engineering domains.",
+            "problem_gap_hypothesis": "While LLMs excel at fluent explanations, they lack the intrinsic ability to execute, verify, or ground engineering claims in rigorous simulations, leading to potential inaccuracies, unit errors, and unexecuted simulation claims. This gap is particularly critical in fields like biomedical circuits, where precision and verifiable performance are paramount.",
+            "search_directions": [
+                "Highly cited papers on challenges and importance of simulation-based learning in biomedical engineering education.",
+                "Survey or review papers on the application and limitations of Large Language Models (LLMs) in STEM or engineering education.",
+                "Foundational work on intelligent tutoring systems that emphasize interactivity and problem-solving in technical domains."
+            ]
+        },
+        "related_work_strategy": {
+            "overview": "To contextualize CiTT, we will investigate existing approaches to engineering education and AI tutoring, focusing on their capabilities and limitations in providing verifiable, executable engineering knowledge.",
+            "subsections": [
+                {
+                    "subsection_title": "2.1 LLM-Only Tutoring Systems for STEM",
+                    "methodology_cluster": "Language-based AI Tutoring",
+                    "sota_investigation_mission": "Identify and analyze recent (2024-2025) LLM-based tutoring systems designed for science, technology, engineering, and mathematics (STEM) fields. Focus on their pedagogical strategies, depth of conceptual understanding, and reported performance in problem-solving and explanation generation.",
+                    "limitation_hypothesis": "These systems, despite their linguistic fluency, inherently struggle with rigorous, executable verification of engineering principles, unit consistency, and the execution of complex simulations, often producing plausible but technically incorrect or ungrounded explanations.",
+                    "limitation_search_queries": [
+                        "LLM hallucination in engineering education",
+                        "Limitations of conversational AI for physics/circuit problems",
+                        "Lack of executable validation in LLM-based tutors"
+                    ],
+                    "bridge_to_our_method": "CiTT directly addresses this by establishing a model-grounded authority structure, ensuring that all engineering claims are derived from and verifiable through executable MATLAB/Simulink/Simscape models, rather than relying solely on LLM-generated text."
+                },
+                {
+                    "subsection_title": "2.2 Model-Based Design and Simulation Tools in Education",
+                    "methodology_cluster": "Traditional Engineering Simulation & CAE",
+                    "sota_investigation_mission": "Examine the current state-of-the-art in educational applications of traditional Computer-Aided Engineering (CAE) tools, specifically focusing on MATLAB, Simulink, and Simscape. Identify how these tools are integrated into curricula for teaching circuit design, signal processing, and control systems.",
+                    "limitation_hypothesis": "While providing unparalleled rigor and simulation capabilities, these tools typically lack interactive, Socratic tutoring functionalities. They require significant manual effort for problem setup, interpretation, and generating pedagogical feedback, often failing to provide automated, context-specific explanations for model behavior.",
+                    "limitation_search_queries": [
+                        "Challenges of integrating Simulink/Simscape into interactive learning",
+                        "Automated feedback generation for engineering simulation models",
+                        "Limitations of traditional CAE tools for Socratic tutoring"
+                    ],
+                    "bridge_to_our_method": "CiTT bridges this gap by integrating agentic model generation and a Socratic teaching loop directly within the Simulink/Simscape environment, providing automated focus maps, natural-language probes, and pedagogical guidance grounded in live model execution."
+                },
+                {
+                    "subsection_title": "2.3 Agentic Programming and Tool-Use for Engineering",
+                    "methodology_cluster": "LLM-Powered Code/Model Generation",
+                    "sota_investigation_mission": "Investigate recent advancements (2024-2025) in agentic frameworks that leverage LLMs for code generation, model building, or tool-use in engineering domains. Focus on systems that aim to produce executable artifacts or automate complex design tasks.",
+                    "limitation_hypothesis": "Many existing agentic approaches primarily focus on task completion and code generation efficiency, rather than pedagogical grounding. They often lack mechanisms for interactive model inspection, explicit error highlighting for learning, or systematic evidence export for educational review, treating generated artifacts as end products rather than teaching tools.",
+                    "limitation_search_queries": [
+                        "Pedagogical value of agentic code generation in education",
+                        "Interpretability and explainability of LLM-generated engineering models",
+                        "Challenges in using agentic programming for teaching circuit design"
+                    ],
+                    "bridge_to_our_method": "CiTT structures the agentic interaction explicitly for learning, enabling students to inspect prompts, assumptions, generated models, and simulation results through dedicated teaching artifacts (focus maps, probe maps) and a comprehensive evidence export path, thereby transforming artifact generation into a learning opportunity."
+                }
+            ]
+        }
+    },
+    "section_plan": [
+        {
+            "section_title": "Abstract",
+            "subsections": [
+                {
+                    "subsection_title": "Abstract Content",
+                    "content_bullets": [
+                        "Introduce the challenge of effectively teaching biomedical circuits, highlighting the limitations of current LLM-only tutoring approaches in providing rigorous, executable engineering validation.",
+                        "Present CiTT (Circuits in Time-Domain Tutor), a novel model-grounded agentic tutoring system that leverages Gemini, the Simulink Agentic Toolkit (SATK), and Simscape for verifiable circuit learning.",
+                        "Detail CiTT's architecture, which establishes a robust authority structure where the LLM handles communication, but engineering rigor is exclusively derived from inspectable, executable MATLAB/Simulink/Simscape models and their simulation outputs.",
+                        "Summarize key contributions: a MATLAB-native agentic tutor workflow, a clear separation of LLM communication from executable engineering evidence, and live evidence across three distinct biomedical circuit benchmarks: RC anti-aliasing, two-electrode voltage clamp equilibrium, and a mixed-signal neural clamp with educational scaled parameters.",
+                        "Conclude by emphasizing CiTT's ability to facilitate deep learning, limitation discovery, and robust evidence export for course review and design documentation, enhancing engineering education beyond linguistic fluency."
+                    ],
+                    "citation_hints": []
+                }
+            ]
+        },
+        {
+            "section_title": "1. Introduction",
+            "subsections": [
+                {
+                    "subsection_title": "Introduction Content",
+                    "content_bullets": [
+                        "Establish the critical need for robust circuit and instrumentation knowledge in biomedical engineering, referencing typical curriculum requirements.",
+                        "Discuss the growing trend of students using Large Language Models (LLMs) for tutoring and their benefits in language processing and attention-based tasks.",
+                        "Identify the fundamental problem: LLMs, by themselves, are not rigorous engineering solvers and can produce fluent but incorrect explanations, unit errors, or unexecuted claims.",
+                        "Introduce CiTT as the solution, a system that grounds AI tutoring in executable MATLAB/Simulink/Simscape artifacts.",
+                        "Outline CiTT's core philosophy: leveraging LLMs for interaction while assigning engineering authority to inspectable models, plots, and simulation evidence.",
+                        "Provide a high-level overview of CiTT's claimed contributions: a MATLAB-native agentic tutor, model-grounded authority, live evidence across three benchmarks, and a submission-oriented evidence export path."
+                    ],
+                    "citation_hints": []
+                }
+            ]
+        },
+        {
+            "section_title": "2. Related Work",
+            "subsections": [
+                {
+                    "subsection_title": "2.1 LLM-Only Tutoring Systems for STEM",
+                    "content_bullets": [
+                        "Review existing LLM-based tutors in STEM education, highlighting their strengths in natural language interaction and personalized explanations.",
+                        "Discuss the inherent limitations of these systems in guaranteeing engineering rigor, performing complex simulations, and preventing 'hallucinations' in numerical or conceptual aspects, as hypothesized."
+                    ],
+                    "citation_hints": [
+                        "research paper or technical report introducing 'Gemini LLM'"
+                    ]
+                },
+                {
+                    "subsection_title": "2.2 Model-Based Design and Simulation Tools in Education",
+                    "content_bullets": [
+                        "Survey the role of professional engineering tools like MATLAB, Simulink, and Simscape in engineering curricula.",
+                        "Acknowledge their rigor and simulation capabilities but point out their conventional lack of integrated, interactive, Socratic tutoring features that interpret model behavior pedagogically."
+                    ],
+                    "citation_hints": [
+                        "research paper or technical report introducing 'MATLAB'",
+                        "research paper or technical report introducing 'Simulink'",
+                        "research paper or technical report introducing 'Simscape'"
+                    ]
+                },
+                {
+                    "subsection_title": "2.3 Agentic Programming and Tool-Use for Engineering",
+                    "content_bullets": [
+                        "Explore recent developments in agentic AI frameworks that utilize LLMs for code generation and tool interaction in engineering contexts.",
+                        "Identify the gap between these systems, which often prioritize task execution, and the pedagogical requirements of explanation, interactive debugging, and explicit limitation discovery for learning."
+                    ],
+                    "citation_hints": [
+                        "research paper or technical report introducing 'Simulink Agentic Toolkit (SATK)'"
+                    ]
+                }
+            ]
+        },
+        {
+            "section_title": "3. Methodology",
+            "subsections": [
+                {
+                    "subsection_title": "3.1 CiTT System Overview and Workflow",
+                    "content_bullets": [
+                        "Present the overall architectural overview of CiTT, as depicted in the system diagram (refer to fig_citt_system_architecture).",
+                        "Detail the end-to-end workflow, beginning with the user prompt (text or image) and progressing through model generation, simulation, Socratic interaction, and culminating in evidence export.",
+                        "Explain the role of the Gemini-assisted module in parsing complex user prompts or circuit images into a structured circuit specification suitable for agentic processing."
+                    ],
+                    "citation_hints": []
+                },
+                {
+                    "subsection_title": "3.2 Agentic Model Generation and Verification",
+                    "content_bullets": [
+                        "Describe the agentic Simulink/Simscape model generation process, emphasizing the use of SATK/MCP-style tooling to translate structured specifications into executable `.slx` models.",
+                        "Elaborate on the mechanisms for Simscape/Simulink artifact checks, which ensure model correctness, completeness, and adherence to physical principles.",
+                        "Explain how the system verifies the health of generated models, referencing the 'SATK model check reported healthy' observation from `experimental_log.md`."
+                    ],
+                    "citation_hints": []
+                },
+                {
+                    "subsection_title": "3.3 Model-Grounded Socratic Tutoring",
+                    "content_bullets": [
+                        "Detail the implementation of the Socratic teaching loop, which leverages the generated executable models.",
+                        "Explain how model focus maps are dynamically generated to highlight specific components or signal paths relevant to a teaching point, providing visual guidance.",
+                        "Describe the natural-language probe maps, allowing students to query specific model elements and receive explanations directly grounded in simulation data or component properties."
+                    ],
+                    "citation_hints": []
+                },
+                {
+                    "subsection_title": "3.4 Evidence Export and Verification Path",
+                    "content_bullets": [
+                        "Outline the submission-oriented evidence export path, designed for review and documentation purposes.",
+                        "Specify the comprehensive set of artifacts included in the export: initial prompts, underlying assumptions, generated models, interactive teaching/probe artifacts, simulation plots, performance metrics, identified limitations, and release verification metadata.",
+                        "Discuss the utility of this feature for academic course review, design competition documentation (e.g., BMES/Medtronic-style), and fostering reproducibility."
+                    ],
+                    "citation_hints": []
+                }
+            ]
+        },
+        {
+            "section_title": "4. Experiments",
+            "subsections": [
+                {
+                    "subsection_title": "4.1 Experimental Setup",
+                    "content_bullets": [
+                        "Detail the experimental environment, confirming the use of MATLAB, Simulink, and Simscape as the foundational simulation and modeling platforms.",
+                        "Describe the general evaluation methodology, which involves parsing problem statements, agentically generating models, performing simulations, extracting pedagogical artifacts, and analyzing quantitative and qualitative outputs.",
+                        "Explicitly state the evaluation scope: CiTT is assessed as educational design-assistance software for coursework and design-competition review. Reiterate the claim avoidance regarding patient care, real biological models (for Benchmark 3), or exhaustive LLM-only baseline comparisons."
+                    ],
+                    "citation_hints": []
+                },
+                {
+                    "subsection_title": "4.2 Benchmark Cases",
+                    "content_bullets": [
+                        "Overview of the three distinct biomedical circuit benchmarks used to validate CiTT's capabilities."
+                    ],
+                    "subsections": [
+                        {
+                            "subsection_title": "4.2.1 Benchmark 1: RC Anti-Aliasing Filter",
+                            "content_bullets": [
+                                "Describe the task: designing an ECG-style RC low-pass anti-aliasing filter for ADC sampling.",
+                                "Present the generated evidence, including the parsed problem, Simscape model screenshots, a teaching page explaining cutoff frequency reasoning, a signal-path highlight, natural-language probe evidence, and annotated Bode plots (refer to fig_bode_plot_rc_filter_comparison).",
+                                "Quantify measured and derived values: R (39.8 kOhm), C (100 nF), tau (0.00398 s), fc (39.9887 Hz), and attenuation values at 60 Hz (-5.1205 dB) and 250 Hz (-16.0298 dB).",
+                                "Illustrate a critical learning point: the impact of unit mistakes (e.g., 100 \u00b5F instead of 100 nF) on the cutoff frequency (dropping to ~0.03999 Hz) and ECG frequency attenuation.",
+                                "Compare CiTT's executable, verifiable outputs against the Gemini-only baseline, which provided conceptual reasoning but lacked executable artifacts, focus maps, probe maps, or GUI evidence."
+                            ],
+                            "citation_hints": []
+                        },
+                        {
+                            "subsection_title": "4.2.2 Benchmark 2: Two-Electrode Voltage Clamp Equilibrium",
+                            "content_bullets": [
+                                "Detail the task: modeling a TEVC equivalent circuit, including command source, buffer path, finite-gain amplifier, membrane branch, electrode resistance, probes, and solver configuration.",
+                                "Showcase the generated evidence: read/build/teach/probe screenshots, an arranged Simscape-first model screenshot (refer to fig_tevc_model_with_focus_map), feedback-loop teaching highlight, probe screenshots for membrane voltage and clamp current, the generated `.slx` model, a focus map with 5 items, a probe map with 5 items, and a healthy SATK model check report.",
+                                "Highlight a caveat: `V_c` and `R_e` remained symbolic due to unspecified numeric values in the benchmark prompt, requiring explicit assignment for numeric simulation/probe values.",
+                                "Contrast CiTT's model-grounded approach with the Gemini-only baseline, which offered plausible conceptual reasoning but mixed symbolic limitations and failed to produce executable model artifacts."
+                            ],
+                            "citation_hints": []
+                        },
+                        {
+                            "subsection_title": "4.2.3 Benchmark 3: Mixed-Signal Neural Clamp",
+                            "content_bullets": [
+                                "Describe the complex task: a closed-loop mixed-signal neural clamp involving a command path, ADC/digital logic, feedback path, amplifier/current limit behavior, transient response, parameter sweep, and fault sensitivity, all utilizing educational scaled parameters.",
+                                "Present the rich evidence produced: generated/opened model screenshots, a user-arranged model screenshot, a parameterized model after simulation, command/ADC/feedback highlight screenshots, teaching/probe UI evidence, a comprehensive exported evidence pack, and simulation metrics JSON.",
+                                "Showcase the extensive array of plots (refer to fig_neural_clamp_transient_and_saturation): timeline, membrane voltage/current, amplifier saturation, ADC/digital logic, parameter sweep, and fault-injection plots.",
+                                "Report key simulation metrics from the live report: non-settling behavior within 60 ms, 413.9% overshoot, 186.2 mV final tracking error, 60 ms saturation duration, 5.099 nA max clamp current, 1 V max amplifier output, and model warnings regarding discontinuities.",
+                                "Interpret these results as crucial teaching signals for limitation discovery under educational parameters, explicitly stating that saturation, current-limit, and non-settling behaviors are for learning, not patient or biological validation.",
+                                "Contrast with the Gemini-only baseline, which correctly identified the need for executable simulation but introduced unsupported assumptions and unit/model-assumption mistakes."
+                            ],
+                            "citation_hints": []
+                        }
+                    ]
+                },
+                {
+                    "subsection_title": "4.3 Quantitative Analysis and Discussion",
+                    "content_bullets": [
+                        "Summarize the quantitative performance of CiTT across all benchmarks, emphasizing its accuracy in model generation, simulation execution, and extraction of precise metrics (e.g., cutoff frequency, attenuation, transient response characteristics).",
+                        "Discuss the effectiveness of CiTT's model-grounded authority structure in mitigating LLM-specific issues like hallucination and ensuring engineering rigor, as demonstrated by the detailed and verifiable outputs.",
+                        "Analyze how CiTT uniquely facilitates limitation discovery and understanding, using specific examples from Benchmark 3 (saturation, non-settling) to illustrate its pedagogical value in identifying non-ideal behaviors.",
+                        "Elaborate on the role of the evidence export path in promoting reproducibility, enabling thorough course review, and supporting design competition documentation.",
+                        "Reiterate the conservative claims for CiTT as educational software for design assistance, explicitly avoiding patient-facing, diagnostic, or clinical use claims, consistent with the `idea.md` and `experimental_log.md`."
+                    ],
+                    "citation_hints": []
+                }
+            ]
+        },
+        {
+            "section_title": "5. Conclusion",
+            "subsections": [
+                {
+                    "subsection_title": "Conclusion Content",
+                    "content_bullets": [
+                        "Recapitulate the core problem CiTT addresses: bridging the gap between LLM fluency and verifiable engineering rigor in biomedical circuit education.",
+                        "Reiterate CiTT's primary contributions: a novel MATLAB-native agentic tutor workflow, a robust model-grounded authority structure, and successful demonstration across three critical biomedical circuit benchmarks.",
+                        "Summarize the key experimental findings, highlighting CiTT's capability to generate inspectable and executable models, provide effective Socratic teaching through interactive maps, and facilitate deep learning by enabling limitation discovery and evidence-based verification.",
+                        "Discuss the broader implications for biomedical engineering education, emphasizing how CiTT fosters a deeper, more robust understanding of complex systems and promotes best practices in design and documentation.",
+                        "Propose future research directions, such as expanding the scope to additional biomedical domains, integrating more complex fault injection scenarios, or exploring personalized learning trajectories.",
+                        "Reconfirm the specific claims used conservatively throughout the paper and explicitly state avoidance of the forbidden claims, ensuring alignment with the project's scope and ethical boundaries."
+                    ],
+                    "citation_hints": []
+                }
+            ]
+        },
+        {
+            "section_title": "Appendix",
+            "subsections": [
+                {
+                    "subsection_title": "A. Release Verification Details",
+                    "content_bullets": [
+                        "List the exact package artifacts included in the `vericircuit-tutor/release/` directory: `CiTT_BMES_2026.mltbx`, `CiTT_BMES_2026_Source.zip`, `CiTT_Release_Notes.md`, `CiTT_Reproducibility_Checklist.md`, `install_and_smoke_test.md`, `example_repro/verification_summary.md`, and `example_repro/installed_gui_smoke.png`.",
+                        "Detail the installed toolbox verification process: successful `.mltbx` installation, `which citt` command resolving to the MATLAB Add-Ons path, execution of `citt.checkSetup`, successful GUI launch and closure, and verified reproduction of all three example workflows (`Benchmark 1`, `Benchmark 2`, `Benchmark 3`) as outlined in `experimental_log.md`."
+                    ],
+                    "citation_hints": []
+                }
+            ]
+        }
+    ]
+}

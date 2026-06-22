@@ -1,0 +1,41 @@
+{
+  "started_at": "23-Jun-2026 00:16:01",
+  "toolbox_file": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/release/CiTT_BMES_2026.mltbx",
+  "output_root": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/release/example_repro",
+  "examples": [
+    {
+      "name": "benchmark_01_textbook_rc",
+      "status": "passed",
+      "output_dir": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/release/example_repro/benchmark_01_textbook_rc",
+      "model_path": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/release/example_repro/benchmark_01_textbook_rc/rc_reproduced_model.slx",
+      "bode_plot": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/release/example_repro/benchmark_01_textbook_rc/citt_bode_plot.png",
+      "teaching_steps": 1,
+      "metrics_path": ""
+    },
+    {
+      "name": "benchmark_02_tevc_equilibrium",
+      "status": "passed",
+      "output_dir": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/release/example_repro/benchmark_02_tevc_equilibrium",
+      "model_path": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/artifacts/citt_generated_model_tevc.slx",
+      "bode_plot": "",
+      "teaching_steps": 5,
+      "metrics_path": ""
+    },
+    {
+      "name": "benchmark_03_mixed_signal",
+      "status": "passed",
+      "output_dir": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/release/example_repro/benchmark_03_mixed_signal",
+      "model_path": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/submission_assets/live_gui_evidence/benchmark_03_mixed_signal/artifacts/citt_generated_model.slx",
+      "bode_plot": "",
+      "teaching_steps": 8,
+      "metrics_path": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/submission_assets/live_gui_evidence/benchmark_03_mixed_signal/artifacts/benchmark_03_simulation_metrics.json"
+    }
+  ],
+  "installed_citt_path": "/Users/Raalm/Library/Application Support/MathWorks/MATLAB Add-Ons/CiTT_BMES_2026@0.9.0(4)/matlab/citt.m",
+  "installed_work_dir": "/Users/Raalm/Library/Application Support/MathWorks/MATLAB/R2026b/CiTT/work",
+  "setup_guidance": "Setup looks ready for the MATLAB-native SATK agent flow.",
+  "gui_screenshot": "/Users/Raalm/Documents/GitHub/CiTT/vericircuit-tutor/release/example_repro/installed_gui_smoke.png",
+  "gui_launch": "passed",
+  "status": "passed",
+  "finished_at": "23-Jun-2026 00:16:29"
+}

@@ -1,0 +1,54 @@
+[
+  {
+    "name": "fig2_app_open.png",
+    "caption": "CiTT MATLAB app opened during the live GUI evidence pass."
+  },
+  {
+    "name": "fig2_read_page.png",
+    "caption": "Read/parse page showing the student-facing circuit prompt workflow."
+  },
+  {
+    "name": "fig2_teach_page.png",
+    "caption": "Teaching page showing model-grounded tutoring output."
+  },
+  {
+    "name": "fig3_rc_model.png",
+    "caption": "Benchmark 1 RC anti-aliasing Simscape model evidence."
+  },
+  {
+    "name": "fig3_rc_bode.png",
+    "caption": "Benchmark 1 RC Bode evidence including the intended component values and unit-mistake comparison."
+  },
+  {
+    "name": "fig3_rc_probe.png",
+    "caption": "Benchmark 1 natural-language probe evidence."
+  },
+  {
+    "name": "fig4_tevc_model.png",
+    "caption": "Benchmark 2 two-electrode voltage clamp Simscape model evidence."
+  },
+  {
+    "name": "fig4_tevc_feedback.png",
+    "caption": "Benchmark 2 teaching/highlight evidence for the feedback loop."
+  },
+  {
+    "name": "fig4_tevc_probe.png",
+    "caption": "Benchmark 2 natural-language probe evidence."
+  },
+  {
+    "name": "fig5_mixed_model.png",
+    "caption": "Benchmark 3 mixed-signal neural clamp model evidence using educational scaled parameters."
+  },
+  {
+    "name": "fig5_mixed_timeline.png",
+    "caption": "Benchmark 3 mixed-signal simulation timeline evidence."
+  },
+  {
+    "name": "fig5_mixed_adc.png",
+    "caption": "Benchmark 3 ADC and digital logic evidence."
+  },
+  {
+    "name": "fig5_mixed_faults.png",
+    "caption": "Benchmark 3 fault/sweep behavior evidence under educational scaled parameters."
+  }
+]

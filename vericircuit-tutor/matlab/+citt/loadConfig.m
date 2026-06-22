@@ -2,10 +2,7 @@ function config = loadConfig()
 %LOADCONFIG Resolve local CiTT configuration from MATLAB path and env vars.
 
 matlabRoot = fileparts(fileparts(mfilename("fullpath")));
-workDir = fullfile(matlabRoot, "work");
-if exist(workDir, "dir") ~= 7
-    mkdir(workDir);
-end
+workDir = resolveWorkDir(matlabRoot);
 settingsPath = fullfile(workDir, "citt_settings.json");
 taskHistoryPath = fullfile(workDir, "citt_task_history.json");
 
@@ -68,6 +65,48 @@ config.EconomicsPlanPath = string(fullfile(workDir, "citt_economics_plan.json"))
 config.EconomicsMarkdownPath = string(fullfile(workDir, "citt_economics_plan.md"));
 config.ScopeGuardrailPath = string(fullfile(workDir, "citt_scope_guardrail.json"));
 config.ScopeGuardrailMarkdownPath = string(fullfile(workDir, "citt_scope_guardrail.md"));
+end
+
+function workDir = resolveWorkDir(matlabRoot)
+repoWorkDir = fullfile(matlabRoot, "work");
+if ensureWritableDir(repoWorkDir)
+    workDir = repoWorkDir;
+    return
+end
+
+fallbackRoot = fullfile(prefdir, "CiTT");
+fallbackWorkDir = fullfile(fallbackRoot, "work");
+if ensureWritableDir(fallbackWorkDir)
+    workDir = fallbackWorkDir;
+    return
+end
+
+error("CiTT:WorkDirUnavailable", ...
+    "Could not create a writable CiTT work directory under '%s' or '%s'.", ...
+    repoWorkDir, fallbackWorkDir);
+end
+
+function ok = ensureWritableDir(pathValue)
+ok = false;
+try
+    if exist(pathValue, "dir") ~= 7
+        mkdir(pathValue);
+    end
+    probePath = fullfile(pathValue, ".citt_write_probe");
+    fid = fopen(probePath, "w");
+    if fid < 0
+        return
+    end
+    cleaner = onCleanup(@() fclose(fid));
+    fprintf(fid, "ok\n");
+    clear cleaner
+    if exist(probePath, "file") == 2
+        delete(probePath);
+    end
+    ok = true;
+catch
+    ok = false;
+end
 end
 
 function toolkit = discoverAgenticToolkit()

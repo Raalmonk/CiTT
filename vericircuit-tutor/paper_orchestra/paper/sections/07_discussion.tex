@@ -1,0 +1,9 @@
+\section{Discussion}
+
+CiTT reframes AI tutoring for engineering courses as a model-grounding problem. A tutor can ask helpful questions and explain concepts, but for circuits and biomedical instrumentation, the strongest teaching moment often comes from seeing where a quantity is measured, how a model behaves, and which assumptions are missing. CiTT therefore treats LLM output as one component in a broader MATLAB-centered workflow.
+
+The evidence also shows that LLM-only tutoring should not be dismissed. The Gemini-only baseline performed well on the RC arithmetic and gave plausible TEVC intuition. The limitation is not language itself; it is the absence of executable, inspectable artifacts. CiTT's advantage grows as tasks require topology, symbolic caveats, probes, transients, ADC behavior, saturation, or fault reasoning.
+
+For educational deployment, CiTT is most natural in courses and labs already using MATLAB/Simulink/Simscape. The distribution format is a MATLAB toolbox package or source zip. Costs are mostly software access, setup time, API usage, and maintenance rather than hardware manufacturing.
+
+\input{tables/table_bmes_mapping}
