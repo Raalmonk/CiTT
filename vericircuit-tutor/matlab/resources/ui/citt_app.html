@@ -1826,7 +1826,8 @@
       currentTaskId = thread.taskId || currentTaskId || "";
       updateNavButtons();
       var messages = (state.thread || {}).messages || [];
-      var learningReady = hasLearningSurface(state);
+      var activePage = String(state.activePage || "");
+      var learningReady = hasLearningSurface(state) && activePage !== "evidence";
       var workspace = document.querySelector(".workspace");
       setClass(workspace, "empty", messages.length === 0 && !learningReady);
       setClass(workspace, "has-thread", messages.length > 0 || learningReady);
@@ -1874,6 +1875,11 @@
       renderAssumptions(state.assumptions || {});
       renderStepHud(state.workflowSteps || []);
       renderSettings(state.settings || {});
+      if (activePage === "evidence" && workspace) {
+        requestAnimationFrame(function() {
+          workspace.scrollTop = workspace.scrollHeight;
+        });
+      }
       text("settingsStatus", state.settingsStatus || "");
     }
 
@@ -2052,8 +2058,9 @@
         var message = messages[i] || {};
         var item = document.createElement("article");
         var role = message.role || "assistant";
+        var messageTitle = String(message.title || "");
         var detail = String(message.detail || "").trim();
-        var openDetail = false;
+        var openDetail = messageTitle === "Evidence";
         var detailHtml = detail
           ? "<details class=\"message-detail\"" + (openDetail ? " open" : "") + "><summary>Details</summary><div class=\"message-detail-body\">" + richText(detail) + "</div></details>"
           : "";
@@ -2062,7 +2069,7 @@
         item.innerHTML =
           "<div class=\"avatar\">" + avatarText(role) + "</div>" +
           "<div class=\"message-content\">" +
-          "<div class=\"message-title\">" + escapeHtml(message.title || "") + "</div>" +
+          "<div class=\"message-title\">" + escapeHtml(messageTitle) + "</div>" +
           "<div class=\"message-body\">" + richText(message.body || "") + "</div>" +
           actionHtml +
           detailHtml +

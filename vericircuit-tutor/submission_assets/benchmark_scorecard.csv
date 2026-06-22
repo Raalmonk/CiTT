@@ -1,7 +1,7 @@
 benchmark,system,status,topology_model_understanding,numerical_simulation_correctness,unit_sign_reference_correctness,executable_model_evidence,teaching_usefulness,honest_assumptions_limitations,total,notes
-benchmark_01_textbook_rc,LLM-only,manual-pending,,,,,,,,Prompt prepared. Baseline not run because no verified pure no-tool LLM baseline invocation was executed.
-benchmark_01_textbook_rc,CiTT offline package,offline-generated-live-matlab-pending,3,3,3,1,3,2,15,Analytical plots/specs generated; live Simscape screenshot/model evidence still pending.
-benchmark_02_tevc_equilibrium,LLM-only,manual-pending,,,,,,,,Prompt prepared. Baseline not run because no verified pure no-tool LLM baseline invocation was executed.
-benchmark_02_tevc_equilibrium,CiTT offline package,offline-generated-live-matlab-pending,3,2,2,1,3,2,13,Equilibrium feedback evidence generated; live Simscape/SATK arrangement still pending.
-benchmark_03_mixed_signal_simscape,LLM-only,manual-pending,,,,,,,,Prompt prepared. Baseline not run because no verified pure no-tool LLM baseline invocation was executed.
-benchmark_03_mixed_signal_simscape,CiTT offline package,offline-illustrative-live-matlab-pending,3,2,2,1,3,2,13,Mixed-signal plots are explicitly illustrative until Simscape/Simulink is run locally.
+benchmark_01_textbook_rc,LLM-only,live-not-run,,,,,,,,Prompt saved. No verified pure no-tool baseline invocation was rerun during this live evidence pass.
+benchmark_01_textbook_rc,CiTT live GUI,live-complete,3,3,3,3,3,3,18,Live model evidence; teaching; natural-language probe; Bode plots.
+benchmark_02_tevc_equilibrium,LLM-only,live-not-run,,,,,,,,Prompt saved. No verified pure no-tool baseline invocation was rerun during this live evidence pass.
+benchmark_02_tevc_equilibrium,CiTT live GUI,live-structural-teaching-complete-symbolic-numeric-limited,3,1,2,3,3,3,15,Live Simscape/SATK model and teaching/probe evidence; numeric simulation limited because V_c and R_e remain symbolic.
+benchmark_03_mixed_signal_simscape,LLM-only,live-not-run,,,,,,,,Prompt saved. Baseline output explicitly says it was not run in this environment.
+benchmark_03_mixed_signal_simscape,CiTT live GUI,live-parameterized-simulation-complete-educational,3,2,2,3,2,3,15,Live generated model; user-arranged screenshot; educational parameterized Simulink/Simscape timeline; sweep/fault plots; not clinical validation.

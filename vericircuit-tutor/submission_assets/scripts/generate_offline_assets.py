@@ -320,7 +320,7 @@ def bmes_alignment() -> None:
         ("Budget/economics", "Uses MATLAB/SATK/Gemini setup; report includes dependency limits"),
         ("Writing clarity", "Per-benchmark problem, comparison, run notes, scorecard"),
         ("Product performance", "RC, TEVC, and mixed-signal benchmarks with requirements"),
-        ("Limitations", "No clinical verification; live Simscape capture pending in this run"),
+        ("Limitations", "No clinical verification; Benchmark 3 uses educational scaled parameters"),
         ("Presentation clarity", "Architecture, workflow, score, and evidence figures"),
     ]
     y = 0.88
@@ -338,7 +338,7 @@ def score_rows():
         {
             "benchmark": "benchmark_01_textbook_rc",
             "system": "LLM-only",
-            "status": "manual-pending",
+            "status": "live-not-run",
             "topology_model_understanding": "",
             "numerical_simulation_correctness": "",
             "unit_sign_reference_correctness": "",
@@ -350,47 +350,47 @@ def score_rows():
         },
         {
             "benchmark": "benchmark_01_textbook_rc",
-            "system": "CiTT offline package",
-            "status": "offline-generated-live-matlab-pending",
+            "system": "CiTT live GUI",
+            "status": "live-complete",
             "topology_model_understanding": 3,
             "numerical_simulation_correctness": 3,
             "unit_sign_reference_correctness": 3,
-            "executable_model_evidence": 1,
+            "executable_model_evidence": 3,
             "teaching_usefulness": 3,
-            "honest_assumptions_limitations": 2,
+            "honest_assumptions_limitations": 3,
+            "total": 18,
+            "notes": "Live model evidence; teaching; natural-language probe; Bode plots.",
+        },
+        {
+            "benchmark": "benchmark_02_tevc_equilibrium",
+            "system": "LLM-only",
+            "status": "live-not-run",
+            "topology_model_understanding": "",
+            "numerical_simulation_correctness": "",
+            "unit_sign_reference_correctness": "",
+            "executable_model_evidence": "",
+            "teaching_usefulness": "",
+            "honest_assumptions_limitations": "",
+            "total": "",
+            "notes": "Prompt prepared. Baseline not run because no verified pure no-tool LLM baseline invocation was executed.",
+        },
+        {
+            "benchmark": "benchmark_02_tevc_equilibrium",
+            "system": "CiTT live GUI",
+            "status": "live-structural-teaching-complete-symbolic-numeric-limited",
+            "topology_model_understanding": 3,
+            "numerical_simulation_correctness": 1,
+            "unit_sign_reference_correctness": 2,
+            "executable_model_evidence": 3,
+            "teaching_usefulness": 3,
+            "honest_assumptions_limitations": 3,
             "total": 15,
-            "notes": "Analytical plots/specs generated; live Simscape screenshot/model evidence still pending.",
-        },
-        {
-            "benchmark": "benchmark_02_tevc_equilibrium",
-            "system": "LLM-only",
-            "status": "manual-pending",
-            "topology_model_understanding": "",
-            "numerical_simulation_correctness": "",
-            "unit_sign_reference_correctness": "",
-            "executable_model_evidence": "",
-            "teaching_usefulness": "",
-            "honest_assumptions_limitations": "",
-            "total": "",
-            "notes": "Prompt prepared. Baseline not run because no verified pure no-tool LLM baseline invocation was executed.",
-        },
-        {
-            "benchmark": "benchmark_02_tevc_equilibrium",
-            "system": "CiTT offline package",
-            "status": "offline-generated-live-matlab-pending",
-            "topology_model_understanding": 3,
-            "numerical_simulation_correctness": 2,
-            "unit_sign_reference_correctness": 2,
-            "executable_model_evidence": 1,
-            "teaching_usefulness": 3,
-            "honest_assumptions_limitations": 2,
-            "total": 13,
-            "notes": "Equilibrium feedback evidence generated; live Simscape/SATK arrangement still pending.",
+            "notes": "Live Simscape/SATK model and teaching/probe evidence; numeric simulation limited because V_c and R_e remain symbolic.",
         },
         {
             "benchmark": "benchmark_03_mixed_signal_simscape",
             "system": "LLM-only",
-            "status": "manual-pending",
+            "status": "live-not-run",
             "topology_model_understanding": "",
             "numerical_simulation_correctness": "",
             "unit_sign_reference_correctness": "",
@@ -402,28 +402,28 @@ def score_rows():
         },
         {
             "benchmark": "benchmark_03_mixed_signal_simscape",
-            "system": "CiTT offline package",
-            "status": "offline-illustrative-live-matlab-pending",
+            "system": "CiTT live GUI",
+            "status": "live-parameterized-simulation-complete-educational",
             "topology_model_understanding": 3,
             "numerical_simulation_correctness": 2,
             "unit_sign_reference_correctness": 2,
-            "executable_model_evidence": 1,
-            "teaching_usefulness": 3,
-            "honest_assumptions_limitations": 2,
-            "total": 13,
-            "notes": "Mixed-signal plots are explicitly illustrative until Simscape/Simulink is run locally.",
+            "executable_model_evidence": 3,
+            "teaching_usefulness": 2,
+            "honest_assumptions_limitations": 3,
+            "total": 15,
+            "notes": "Live generated model; user-arranged screenshot; educational parameterized Simulink/Simscape timeline; sweep/fault plots; not clinical validation.",
         },
     ]
 
 
 def comparison_score_figures() -> None:
-    rows = [r for r in score_rows() if r["system"] == "CiTT offline package"]
+    rows = [r for r in score_rows() if r["system"] == "CiTT live GUI"]
     labels = ["RC", "TEVC", "Mixed"]
     totals = [r["total"] for r in rows]
     fig, ax = fig_ax(9, 5.2)
-    add_title(ax, "Benchmark Score Bars", "LLM baseline pending; CiTT bars show offline package score with live MATLAB evidence pending")
+    add_title(ax, "Benchmark Score Bars", "LLM baseline not rerun; CiTT bars show current live GUI evidence")
     x = np.arange(len(labels))
-    ax.bar(x, totals, color=[COLORS["blue"], COLORS["green"], COLORS["purple"]], width=0.55, label="CiTT offline package")
+    ax.bar(x, totals, color=[COLORS["blue"], COLORS["green"], COLORS["purple"]], width=0.55, label="CiTT live GUI")
     ax.set_ylim(0, 20)
     ax.set_ylabel("Score out of 20")
     ax.set_xticks(x, labels)
@@ -444,11 +444,11 @@ def comparison_score_figures() -> None:
         "Limits",
     ]
     vals = np.array([
-        [3, 3, 3, 1, 3, 2],
-        [3, 2, 2, 1, 3, 2],
-        [3, 2, 2, 1, 3, 2],
+        [3, 3, 3, 3, 3, 3],
+        [3, 1, 2, 3, 3, 3],
+        [3, 2, 2, 3, 2, 3],
     ], dtype=float)
-    maxes = np.array([4, 4, 3, 4, 3, 2], dtype=float)
+    maxes = np.array([3, 3, 3, 3, 3, 3], dtype=float)
     avg = vals.mean(axis=0) / maxes
     angles = np.linspace(0, 2 * np.pi, len(cats), endpoint=False)
     closed_angles = np.r_[angles, angles[0]]
@@ -460,7 +460,7 @@ def comparison_score_figures() -> None:
     ax.set_xticks(angles, cats)
     ax.set_yticks([0.25, 0.5, 0.75, 1.0], ["25%", "50%", "75%", "100%"])
     ax.set_ylim(0, 1)
-    ax.set_title("CiTT Offline Evidence Radar\nLive Simscape evidence pending", pad=22, fontsize=15, color=COLORS["ink"], fontweight="bold")
+    ax.set_title("CiTT Live Evidence Radar\nBenchmark 3 is educational parameterized evidence", pad=22, fontsize=15, color=COLORS["ink"], fontweight="bold")
     savefig(fig, ASSET_DIR / "figures/comparison_score_radar.png")
 
 
