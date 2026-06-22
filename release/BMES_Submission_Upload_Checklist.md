@@ -12,16 +12,20 @@
 
 ## Prototype Upload Images
 
-Recommended upload order if the portal accepts multiple images:
+Prototype upload recommendation:
+
+If the portal accepts only one image, upload `01_workflow_llm_vs_citt.png` if it clearly explains the product. If the form needs a single collage instead, upload `00_contact_sheet_optional.png`.
+
+If the portal accepts multiple images, upload in this order:
 
 - `01_workflow_llm_vs_citt.png`
 - `02_benchmark_rc_model_teach_probe.png`
 - `03_benchmark_tevc_feedback_tutor.png`
 - `04_benchmark_mixed_signal_simscape_advantage.png`
 
-If the portal accepts only one image, upload `01_workflow_llm_vs_citt.png`. If the reviewer-facing form needs a single collage instead, use `00_contact_sheet_optional.png`.
-
 The same image set is mirrored under `submission_assets/live_gui_evidence/prototype_upload_images/` with `visual_qa_report.md` and `visual_qa_contact_sheet.png`.
+
+These are graphical prototype representations for the submission portal. The full release and evidence package remain in the GitHub release/source package. The images do not claim clinical validation.
 
 ## Upload Artifacts
 
