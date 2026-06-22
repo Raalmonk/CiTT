@@ -1,19 +1,46 @@
 # Comparison: Mixed-Signal Neural Clamp
 
-LLM-only text is not enough for this benchmark. The requested outputs depend on transient dynamics, saturation timing, ADC quantization, digital state transitions, parameter sweeps, and fault injection.
+Benchmark 3 is the strongest baseline contrast because the requested outputs depend on transient dynamics, saturation timing, ADC quantization, digital state transitions, parameter sweeps, and fault injection.
 
-CiTT evidence now includes an educational scaled parameter set and executable simulation outputs. The parameter set is explicitly not a clinically validated axon model; it is chosen to make device-performance and limitation behavior visible for teaching and product evaluation.
+CiTT evidence includes an educational scaled parameter set and executable simulation outputs. The parameter set is explicitly not a clinically validated axon model; it is chosen to make device-performance and limitation behavior visible for teaching and product evaluation.
 
 Key proof artifacts: `mixed_signal_full_timeline.png`, `amplifier_saturation.png`, `adc_codes_and_digital_logic.png`, `parameter_sweep_heatmap.png`, and `fault_injection_summary.png`.
 
-Live result summary:
+## CiTT Live Result Summary
 
 - The nominal timeline was run through Simulink/Simscape.
-- The generated model produced a visible limitation case: it did not settle within 60 ms, reached the amplifier rail, and hit the clamp-current limit.
-- This result is valuable precisely because it exposes dynamic behavior and failure modes that a text-only LLM answer would likely smooth over or invent.
+- The generated model produced a visible limitation case: it did not settle within `60 ms`, reached the amplifier rail, and hit the clamp-current limit.
+- The live metrics record non-settling, overshoot, tracking error, saturation duration, clamp current, and amplifier output.
+- This result is valuable precisely because it exposes dynamic behavior and failure modes that a text-only answer could smooth over or invent.
 
-Baseline status:
+## Gemini-Only No-Tools Baseline
 
-- The LLM-only prompt is saved in `llm_baseline_prompt.md`.
-- `llm_baseline_output.md` explicitly records that a verified no-tool baseline was not run in this environment.
-- No LLM-only numeric result is claimed here.
+Baseline prompt saved in `llm_baseline_prompt.md`.
+
+Gemini-only no-tools output saved in `llm_baseline_output_gemini_no_tools.md`.
+
+The Gemini-only baseline correctly states that exact values require executable simulation:
+
+- exact `Vm(t)`,
+- clamp-current waveform,
+- ADC code sequence,
+- saturation intervals,
+- settling time,
+- overshoot.
+
+This supports CiTT's core value: model-grounded evidence is necessary for complex mixed-signal cases.
+
+## Gemini-Only Issues
+
+The Gemini-only response is useful, but it shows risks that should be called out:
+
+- Unit slip: it writes the current limit as `nF` instead of `nA` in one version.
+- Unsupported model assumption: it describes the nonlinear membrane current as exponential even though the prompt only specifies a maximum, threshold, and slope.
+- Capacitance-scale error: it describes the `500 nF` fault as `500 uF` and a `1e6` scale change in one version, while the benchmark fault is `500e-9 F`, or `500 nF`, which is `1000x` nominal `500 pF`.
+- Over-strong qualitative claim: it says low ADC rate will likely cause severe oscillations or limit cycles. A more careful no-tools statement is that lower sampling may reduce phase margin and can cause poor settling or oscillation depending on loop dynamics.
+
+## Observed Difference
+
+Gemini-only correctly recognizes the need for simulation but cannot produce executable proof. CiTT adds Simscape/Simulink artifacts, highlightable model paths, probe maps, simulation plots, metrics JSON, model warnings, and explicit limitation evidence.
+
+CiTT Benchmark 3 should not be presented as a perfect design success. It is stronger as evidence that the workflow exposes non-settling, saturation, current limits, ADC/digital timing, and model warnings instead of hiding them.

@@ -32,6 +32,7 @@ Benchmark 1 folder:
 
 - `benchmark_01_textbook_rc/problem_statement.md`
 - `benchmark_01_textbook_rc/llm_baseline_prompt.md`
+- `benchmark_01_textbook_rc/llm_baseline_output_gemini_no_tools.md`
 - `benchmark_01_textbook_rc/run_notes.md`
 - `benchmark_01_textbook_rc/comparison.md`
 - `benchmark_01_textbook_rc/screenshots/`
@@ -42,6 +43,7 @@ Benchmark 2 folder:
 
 - `benchmark_02_tevc_equilibrium/problem_statement.md`
 - `benchmark_02_tevc_equilibrium/llm_baseline_prompt.md`
+- `benchmark_02_tevc_equilibrium/llm_baseline_output_gemini_no_tools.md`
 - `benchmark_02_tevc_equilibrium/run_notes.md`
 - `benchmark_02_tevc_equilibrium/comparison.md`
 - `benchmark_02_tevc_equilibrium/workflow_total_prompt.md`
@@ -52,7 +54,7 @@ Benchmark 3 folder:
 
 - `benchmark_03_mixed_signal/problem_statement.md`
 - `benchmark_03_mixed_signal/llm_baseline_prompt.md`
-- `benchmark_03_mixed_signal/llm_baseline_output.md`
+- `benchmark_03_mixed_signal/llm_baseline_output_gemini_no_tools.md`
 - `benchmark_03_mixed_signal/run_notes.md`
 - `benchmark_03_mixed_signal/comparison.md`
 - `benchmark_03_mixed_signal/artifacts/citt_generated_model.slx`
@@ -150,13 +152,15 @@ Interpretation:
 - The failure to settle is an intended evidence point: it shows that the generated model exposes nonideal amplifier, current-limit, rail-saturation, and mixed-signal timing effects that a text-only LLM answer would likely miss or hand-wave.
 - The plot set demonstrates transient behavior, ADC quantization, digital state, saturation, parameter sensitivity, and fault sensitivity.
 
-## LLM Baseline Status
+## Gemini-Only Baseline Comparison
 
-The LLM-only baseline prompts are saved for each benchmark. They were not fully rerun as verified live no-tool baselines during this evidence pass, and no baseline output is fabricated.
+A Gemini-only no-tools baseline was run on the same three benchmark prompts. The baseline was instructed not to use MATLAB, Simulink, Simscape, SATK, Python, calculators, or executable tools.
 
-- Benchmark 1: prompt saved in the live folder; legacy source-folder baseline output is not treated as live evidence.
-- Benchmark 2: prompt saved in the live folder; legacy source-folder baseline output is not treated as live evidence.
-- Benchmark 3: prompt and explicit `llm_baseline_output.md` are saved; the output states that the baseline was not run in this environment.
+On the textbook RC benchmark, Gemini-only performed well: it correctly estimated the cutoff frequency, attenuation at `5 Hz`, `60 Hz`, and Nyquist, and diagnosed the `100 uF` vs `100 nF` lab mistake. This shows that CiTT is not merely competing on simple arithmetic. CiTT's added value is model grounding: the same task produced an inspectable Simscape/Simulink model, visible probe location, focus-map teaching, natural-language probe output, Lab Delta/unit-mistake diagnosis, and annotated Bode evidence.
+
+On the TEVC benchmark, Gemini-only gave a plausible feedback explanation and the correct tracking-ratio intuition. However, it mixed two limitations: it stated that both `Vc` and `Re` prevent a numerical `Vm`, while under the ideal-buffer assumption `Re` does not affect the DC tracking solution. Its formula formatting is also easy to misread. CiTT instead preserved symbolic parameters, built a Simscape-first model, and connected the feedback explanation to actual focus and probe maps.
+
+On the mixed-signal neural-clamp benchmark, Gemini-only correctly stated that exact transients, ADC code sequences, saturation intervals, settling time, and overshoot require executable simulation. However, it also introduced unsupported assumptions and unit-scale errors, including writing a current limit as `nF` instead of `nA` and describing a `500 nF` capacitance fault as `500 uF` in one version. CiTT's advantage is therefore not that LLM reasoning is useless, but that Gemini-only reasoning lacks executable model grounding. CiTT adds Simscape/Simulink artifacts, highlightable model paths, probe maps, simulation plots, metrics JSON, warnings, and explicit limitation evidence.
 
 ## Probe And Lab Delta Status
 
