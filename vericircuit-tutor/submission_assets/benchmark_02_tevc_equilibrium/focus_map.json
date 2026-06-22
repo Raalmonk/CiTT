@@ -1,9 +1,0 @@
-{
-  "focus_points": [
-    "feedback_loop",
-    "membrane_node",
-    "finite_gain_error",
-    "electrode_resistance_assumption"
-  ],
-  "source": "offline programmatic equivalent; Gemini parse not run in this environment"
-}

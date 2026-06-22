@@ -1,8 +1,0 @@
-{
-  "probes": [
-    "Vm",
-    "amplifier output",
-    "clamp current"
-  ],
-  "source": "offline programmatic equivalent; Gemini parse not run in this environment"
-}

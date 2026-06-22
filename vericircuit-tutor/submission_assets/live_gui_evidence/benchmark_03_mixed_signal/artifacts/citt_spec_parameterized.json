@@ -174,7 +174,7 @@
     "fault_injection_summary.png"
   ],
   "limitations": [
-    "Educational scaled parameters are selected for stable, visible benchmark behavior and are not clinical validation.",
+    "Educational scaled parameters are selected for stable, visible benchmark behavior and are not medical-use validation.",
     "If the generated Simscape model cannot execute in a local MATLAB install, deterministic fallback plots must be labeled as fallback evidence."
   ]
 }

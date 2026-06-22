@@ -86,7 +86,7 @@ Previously observed UI issues:
 - Recorded Benchmark 3 simulation summary at `benchmark_03_mixed_signal/artifacts/benchmark_03_simulation_report.md`.
 - Nominal model result: not settled in 60 ms, overshoot `413.9 %`, final tracking error `186.2 mV`, saturation duration `60 ms`, max clamp current `5.099 nA`, max amplifier output `1 V`.
 - Recorded the model warning about discontinuities in algebraic loops as limitation evidence, not as a hidden failure.
-- Parameter sweep and fault-injection plots are deterministic educational comparisons generated from the same parameter set for fast visual evidence; they are not represented as clinical validation.
+- Parameter sweep and fault-injection plots are deterministic educational comparisons generated from the same parameter set for fast visual evidence; they are not represented as medical-use validation.
 - Captured Benchmark 3 highlight screenshots:
   - `benchmark_03_mixed_signal/screenshots/09_highlight_command_path.png`
   - `benchmark_03_mixed_signal/screenshots/10_highlight_adc_sampling_path.png`

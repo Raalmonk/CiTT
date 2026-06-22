@@ -2,7 +2,7 @@
 
 This folder is for real MATLAB/CiTT/Simulink GUI evidence only.
 
-Offline draft assets remain outside this folder and are not final submission proof. Screenshots here should come from the visible MATLAB app, CiTT UI, opened Simulink/Simscape models, or generated plots tied to the live benchmark run.
+Offline draft assets remain outside this folder as provenance-only material. Screenshots here should come from the visible MATLAB app, CiTT UI, opened Simulink/Simscape models, or generated plots tied to the live benchmark run.
 
 Current checkpoint:
 

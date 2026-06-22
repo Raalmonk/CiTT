@@ -55,15 +55,15 @@ Minimum release target:
 - Simscape Electrical preferred
 - Simulink Agentic Toolkit / SATK-compatible flow
 - MATLAB MCP Server
-- Configured LLM/agent provider for circuit interpretation and orchestration
-- Direct Gemini API credentials or a local Gemini/Codex-compatible CLI backend, depending on configuration
+- Configured LLM/agent backend for agent-assisted circuit interpretation and orchestration
+- Backend route such as direct Gemini API credentials, Gemini CLI, Codex-compatible CLI, or another configured agent path
 - Configured agent CLI for SATK/MCP model building
 
 The release evidence assumes no custom Simscape libraries and no custom project-specific block libraries. CiTT should prefer built-in MATLAB, Simulink, Simscape, and Simscape Electrical blocks.
 
 ## Environment Variables
 
-Required for the full AI-backed flow: either Gemini API credentials or a configured local LLM/agent CLI. For the release evidence path, the local CLI/agent route may be used for both circuit interpretation and model-building.
+Required for the full agent-assisted flow: a configured LLM/agent backend. Gemini API credentials are one supported route; the release evidence path may also use a local CLI/agent route for both circuit interpretation and model-building.
 
 ```bash
 export CITT_AGENT_COMMAND="your-agent-cli-command"
@@ -146,7 +146,7 @@ For the final BMES evidence map, see [demo_live_gui_evidence.md](demo_live_gui_e
 | Agent CLI unavailable | No `CITT_AGENT_COMMAND`, Codex CLI, or Gemini CLI found | Set `CITT_AGENT_COMMAND` or install/configure a supported CLI |
 | Build finishes without `.slx` or maps | Agent failed or wrote to the wrong path | Check `matlab/work/citt_agent_stdout.log` and `matlab/work/citt_agent_report.md` |
 | Benchmark 2 has symbolic values | The source problem omits `V_c` and `R_e` | Treat this as structural teaching evidence until numeric values are supplied |
-| Benchmark 3 does not settle | Educational parameter set exposes rail/current limits | Report as limitation-discovery evidence, not as clinical validation |
+| Benchmark 3 does not settle | Educational parameter set exposes rail/current limits | Report as limitation-discovery evidence, not as a medical-use validation claim |
 | Lab Delta CSV cannot run | No external lab CSV was supplied | Leave Lab Delta marked incomplete rather than fabricating a comparison |
 | Old artifacts appear in the UI | Stale `matlab/work/` cache | Clear `vericircuit-tutor/matlab/work/` locally and rerun |
 
