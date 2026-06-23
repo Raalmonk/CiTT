@@ -1963,7 +1963,7 @@
       var stepTotal = Number(teach.totalSteps || 0);
       var stepLabel = stepTotal > 0 ? ("Step " + stepIndex + " / " + stepTotal) : "Teaching";
       text("learningStepLabel", stepLabel);
-      text("learningFocusLabel", teach.currentFocus || "");
+      text("learningFocusLabel", focusDisplayLabel(teach.currentFocus));
       text("learningNextButton", stepTotal > 0 && stepIndex >= stepTotal ? "Finish" : "Next step");
       html("learningQuestion", richText(latexifyCircuitSymbols(teach.currentQuestion || "Look at the model and describe what changed in the signal path.")));
       html("learningConcept", richText(latexifyCircuitSymbols(teach.currentConcept || "")));
@@ -1974,6 +1974,24 @@
       var probeStatus = String(probe.probeStatus || "").trim();
       html("learningProbeResult", richText(latexifyCircuitSymbols(studentProbeText(probeStatus, probeText))));
       bindInteractiveButtons(root);
+    }
+
+    function focusDisplayLabel(focusId) {
+      var raw = String(focusId || "").trim();
+      if (!raw) return "";
+      var labels = {
+        fp_command_step: "Command step",
+        fp_amplifier_limits: "Amplifier limits",
+        fp_electrode_series_resistance: "Electrode resistance",
+        fp_membrane_dynamics: "Membrane dynamics",
+        fp_vm_probe: "Voltage and current probes",
+        fp_adc_quantization: "ADC quantization",
+        fp_digital_control: "Digital control",
+        fp_feedback_path: "Feedback path"
+      };
+      if (labels[raw]) return labels[raw];
+      var cleaned = raw.replace(/^fp_/, "").replace(/_/g, " ");
+      return cleaned.replace(/\b\w/g, function(match) { return match.toUpperCase(); });
     }
 
     function renderTeachingFeedback(output, currentQuestion) {

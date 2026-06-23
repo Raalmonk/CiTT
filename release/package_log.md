@@ -49,13 +49,13 @@ release/CiTT_BMES_2026.mltbx
 Size:
 
 ```text
-241225 bytes
+241571 bytes
 ```
 
 SHA-256:
 
 ```text
-3aaf14f05f7be699db2825a7f751e0eb00b0190fa7e11496291c6fb9d6c42d8d
+78899072b12d5107bf4931bbee69d97720789c42baa69eb24bcd08cf3df5ac35
 ```
 
 Notes from packaging attempts:
@@ -76,13 +76,13 @@ release/CiTT_BMES_2026_Source.zip
 Size:
 
 ```text
-200377 bytes
+200652 bytes
 ```
 
 SHA-256:
 
 ```text
-37e4eda8b208ab46ef759754e396e948e54a64b75acff7bbd4ad3cb7ffdb4237
+9be37b88db7a5f25f6aa6d0860c2b8255c6b628ab32c50481c484c5360cf321c
 ```
 
 Zip entry count:
@@ -95,6 +95,7 @@ Late UI rendering fix:
 
 ```text
 Rebuilt after adding Benchmark 3 symbol rendering rules for V_m, A_ol, C_m, T_s, N_bits, K_ctrl, I_leak, and related node labels in matlab/resources/ui/citt_app.html.
+Rebuilt again after replacing raw focus IDs such as fp_amplifier_limits with reviewer-readable labels such as Amplifier limits.
 ```
 
 ## Smoke Results
