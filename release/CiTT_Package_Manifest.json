@@ -18,14 +18,14 @@
   "artifacts": {
     "toolbox": {
       "path": "release/CiTT_BMES_2026.mltbx",
-      "bytes": 241193,
-      "sha256": "46c3eceadadd0d43c66ebd4b59f9aa9ab0dfd59317fa16b94de27b0aae746cb9",
+      "bytes": 241225,
+      "sha256": "3aaf14f05f7be699db2825a7f751e0eb00b0190fa7e11496291c6fb9d6c42d8d",
       "smoke_status": "installed-toolbox launch smoke passed"
     },
     "source_zip": {
       "path": "release/CiTT_BMES_2026_Source.zip",
-      "bytes": 203974,
-      "sha256": "f605af5781a3b7ff75378d78a17209cc3f9c4a90a274a6ea1e326e280f73d988"
+      "bytes": 200377,
+      "sha256": "37e4eda8b208ab46ef759754e396e948e54a64b75acff7bbd4ad3cb7ffdb4237"
     }
   },
   "packaged_files_summary": [

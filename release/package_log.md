@@ -49,13 +49,13 @@ release/CiTT_BMES_2026.mltbx
 Size:
 
 ```text
-241193 bytes
+241225 bytes
 ```
 
 SHA-256:
 
 ```text
-46c3eceadadd0d43c66ebd4b59f9aa9ab0dfd59317fa16b94de27b0aae746cb9
+3aaf14f05f7be699db2825a7f751e0eb00b0190fa7e11496291c6fb9d6c42d8d
 ```
 
 Notes from packaging attempts:
@@ -76,19 +76,25 @@ release/CiTT_BMES_2026_Source.zip
 Size:
 
 ```text
-203974 bytes
+200377 bytes
 ```
 
 SHA-256:
 
 ```text
-f605af5781a3b7ff75378d78a17209cc3f9c4a90a274a6ea1e326e280f73d988
+37e4eda8b208ab46ef759754e396e948e54a64b75acff7bbd4ad3cb7ffdb4237
 ```
 
 Zip entry count:
 
 ```text
-69
+68
+```
+
+Late UI rendering fix:
+
+```text
+Rebuilt after adding Benchmark 3 symbol rendering rules for V_m, A_ol, C_m, T_s, N_bits, K_ctrl, I_leak, and related node labels in matlab/resources/ui/citt_app.html.
 ```
 
 ## Smoke Results
