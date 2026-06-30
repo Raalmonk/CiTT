@@ -1,0 +1,1 @@
+Build an ECG front-end teaching model with an analog filter, a pacing artifact input case, and optional ADC threshold/state logic. Use Simscape for analog behavior and Stateflow for artifact-detected or recovery states if that is clearer than switch blocks. Expose filtered output, ADC code or threshold state, and artifact-detected probe evidence.

@@ -1375,6 +1375,10 @@
         padding: 12px;
       }
       .progress { min-width: 0; }
+      .inspector {
+        top: 12px;
+        right: 12px;
+      }
       .workspace { padding: 12px; }
       .workspace.has-thread { padding-bottom: 238px; }
       .workspace.has-thread .composer {
@@ -1602,10 +1606,14 @@
                 <button class="btn" data-action="compare_delta">Compare</button>
                 <button class="btn" data-action="analyze_lab_error">Analyze</button>
                 <button class="btn" data-action="requirements">Requirements</button>
+                <button class="btn" data-action="run_model_tests">Model Tests</button>
+                <button class="btn" data-action="teaching_review">Teaching Review</button>
+                <button class="btn" data-action="simulation_scenarios">Scenarios</button>
                 <button class="btn" data-action="sweep">Sweep</button>
                 <button class="btn" data-action="faults">Faults</button>
                 <button class="btn" data-action="build_explainability">Map</button>
                 <button class="btn" data-action="highlight_explainability">Highlight Map</button>
+                <button class="btn" data-action="learning_traceability">Traceability</button>
                 <button class="btn" data-action="open_evidence">Open Pack</button>
               </div>
             </div>
@@ -2493,6 +2501,8 @@
         buttons.push("<button class=\"btn\" data-action=\"open_model\">Open Model</button>");
       } else if (title === "Evidence") {
         buttons.push("<button class=\"btn\" data-panel=\"probeTools\">Open Evidence</button>");
+        buttons.push("<button class=\"btn\" data-action=\"run_model_tests\">Model Tests</button>");
+        buttons.push("<button class=\"btn\" data-action=\"learning_traceability\">Traceability</button>");
         buttons.push("<button class=\"btn\" data-action=\"export_evidence\">Export Pack</button>");
       }
       if (buttons.length === 0) return "";

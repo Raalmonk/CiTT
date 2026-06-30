@@ -3,6 +3,7 @@ function config = loadConfig()
 
 matlabRoot = fileparts(fileparts(mfilename("fullpath")));
 workDir = resolveWorkDir(matlabRoot);
+satkProjectRoot = fileparts(matlabRoot);
 settingsPath = fullfile(workDir, "citt_settings.json");
 taskHistoryPath = fullfile(workDir, "citt_task_history.json");
 
@@ -17,6 +18,8 @@ agenticToolkit = discoverAgenticToolkit();
 config = struct();
 config.MatlabRoot = string(matlabRoot);
 config.WorkDir = string(workDir);
+config.SatkProjectRoot = string(satkProjectRoot);
+config.SatkDir = string(fullfile(satkProjectRoot, ".satk"));
 config.AgenticToolkitRoot = agenticToolkit.root;
 config.SatkInstallPath = agenticToolkit.simulink_path;
 config.MatlabAgenticToolkitPath = agenticToolkit.matlab_path;
@@ -44,6 +47,21 @@ config.AgentReportPath = string(fullfile(workDir, "citt_agent_report.md"));
 config.TeachingPlanPath = string(fullfile(workDir, "citt_teaching_plan.json"));
 config.ModelCheckReportPath = string(fullfile(workDir, "citt_model_check_report.md"));
 config.SimulationSummaryPath = string(fullfile(workDir, "citt_simulation_summary.json"));
+config.ModelTestFeaturePath = string(fullfile(workDir, "citt_model_tests.feature"));
+config.ModelTestManifestPath = string(fullfile(workDir, "citt_model_test_manifest.json"));
+config.ModelTestTaskPath = string(fullfile(workDir, "citt_model_test_task.md"));
+config.ModelTestReportPath = string(fullfile(workDir, "citt_model_test_report.json"));
+config.ModelTestMarkdownPath = string(fullfile(workDir, "citt_model_test_report.md"));
+config.LearningTraceabilityPath = string(fullfile(workDir, "citt_learning_traceability.json"));
+config.LearningTraceabilityMarkdownPath = string(fullfile(workDir, "citt_learning_traceability.md"));
+config.LearningObjectivesYamlPath = string(fullfile(workDir, "citt_learning_objectives.yaml"));
+config.LearningObjectivesSlreqxPath = string(fullfile(workDir, "citt_learning_objectives.slreqx"));
+config.TeachingReviewTaskPath = string(fullfile(workDir, "citt_teaching_review_task.md"));
+config.TeachingReviewReportPath = string(fullfile(workDir, "citt_teaching_review_report.json"));
+config.TeachingReviewMarkdownPath = string(fullfile(workDir, "citt_teaching_review_report.md"));
+config.SimulationScenarioSpecPath = string(fullfile(workDir, "citt_simulation_scenarios_spec.json"));
+config.SimulationScenarioReportPath = string(fullfile(workDir, "citt_simulation_scenarios.json"));
+config.SimulationScenarioMarkdownPath = string(fullfile(workDir, "citt_simulation_scenarios.md"));
 config.ProbeActionPlanPath = string(fullfile(workDir, "citt_probe_action_plan.json"));
 config.LabDeltaReportPath = string(fullfile(workDir, "citt_lab_delta_report.json"));
 config.LabErrorMarkdownPath = string(fullfile(workDir, "citt_lab_error_report.md"));
@@ -68,6 +86,12 @@ config.ScopeGuardrailMarkdownPath = string(fullfile(workDir, "citt_scope_guardra
 end
 
 function workDir = resolveWorkDir(matlabRoot)
+envWorkDir = strtrim(string(getenv("CITT_WORK_DIR")));
+if strlength(envWorkDir) > 0 && ensureWritableDir(envWorkDir)
+    workDir = char(envWorkDir);
+    return
+end
+
 repoWorkDir = fullfile(matlabRoot, "work");
 if ensureWritableDir(repoWorkDir)
     workDir = repoWorkDir;

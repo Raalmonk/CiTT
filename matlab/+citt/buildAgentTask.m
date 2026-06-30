@@ -18,10 +18,23 @@ end
 
 [spec, specSource] = readSpec(specInput);
 rejectBlockingSpec(spec);
+presetResult = [];
+presetError = [];
+try
+    presetResult = feval('citt.ensureSatkProjectPreset', struct("AllowMissingApi", true));
+    if isfield(presetResult, "success") && ~presetResult.success
+        presetError = string(strjoin(presetResult.messages, newline));
+    end
+catch caughtPresetError
+    presetError = string(caughtPresetError.message);
+end
 promptPath = fullfile(config.MatlabRoot, "resources", "prompts", "agent_build_simscape_model.txt");
 basePrompt = string(fileread(promptPath));
 satkInstructionsSection = repoLocalSatkInstructionsSection(config);
+satkPolicySection = satkProjectPolicySection(config, presetResult, presetError);
 simscapeContractSection = simscapeUtilizationContractSection();
+testInterfaceSection = signalLevelTestInterfaceSection();
+stateflowSection = stateflowTeachingLogicContractSection();
 specJson = string(feval('citt.util.jsonEncode', spec));
 nonidealProfiles = feval('citt.opAmpNonidealProfile', spec);
 nonidealSection = nonidealProfileSection(nonidealProfiles);
@@ -48,7 +61,13 @@ taskText = strjoin([
     ""
     satkInstructionsSection
     ""
+    satkPolicySection
+    ""
     simscapeContractSection
+    ""
+    testInterfaceSection
+    ""
+    stateflowSection
     ""
     "## Product Boundary"
     "The selected CLI parsed the circuit image/prompt into a structured model specification. Treat that spec as a starting point, not as numerical authority."
@@ -61,6 +80,7 @@ taskText = strjoin([
     "- Include Electrical Reference and Solver Configuration blocks as needed."
     "- Add voltage/current sensors or logging for requested outputs."
     "- Route physical measurements through sensors and PS-Simulink Converter blocks before logging or ADC/math blocks."
+    "- If model_test may be used, add a signal-level subsystem named CiTT_TestInterface with Simulink Inport/Outport blocks around the physical network."
     "- Use model_query_params and model_resolve_params for symbolic or workspace parameters before making numeric claims."
     "- If a source/component value is symbolic or omitted, keep it as a named model parameter instead of inventing a number."
     "- Values outside the requested/connected teaching path should not block structural model generation."
@@ -221,6 +241,49 @@ text = strjoin([
     "- Log requested outputs through sensors, PS-Simulink converters, To Workspace blocks, scopes, or outports."
     "- Run model_check after structural edits and report any unresolved unconnected ports, dangling lines, or lint failures."
     "- Write focus/probe maps that prove which physical blocks, sensors, and logged outputs support the lesson."
+], newline);
+end
+
+function text = satkProjectPolicySection(config, presetResult, presetError)
+lines = [
+    "## SATK Project Library Policy"
+    "CiTT project root: `" + string(config.SatkProjectRoot) + "`"
+    ""
+    "CiTT has no custom teaching block library configured for this release."
+    "The SATK library gate should be satisfied by `.satk/reuse-libraries.json` with `confirmedNone=true`."
+    "Do not stop to ask about reusable libraries for this build."
+    "Use built-in MATLAB, Simulink, Simscape, and Simscape Electrical blocks unless the user later configures a CiTT teaching library."
+];
+if isstruct(presetResult) && ~isempty(presetResult) && isfield(presetResult, "messages")
+    lines = [lines; ""; "Preset status:"; "- " + string(presetResult.messages(:))];
+elseif ~isempty(presetError) && strlength(strtrim(string(presetError))) > 0
+    lines = [lines; ""; "Preset status:"; "- CiTT could not confirm the SATK preset before writing this task: " + string(presetError)];
+end
+text = strjoin(lines, newline);
+end
+
+function text = signalLevelTestInterfaceSection()
+text = strjoin([
+    "## Signal-Level Teaching/Test Interface Contract"
+    "- Keep the physical circuit in a subsystem named `CiTT_PhysicalCircuit` when practical."
+    "- Add a signal-level wrapper subsystem named `CiTT_TestInterface` when the model includes Simscape physical ports or when CiTT model tests are expected."
+    "- `CiTT_TestInterface` should expose standard Simulink Inport/Outport signals such as `Vin` and `Vout`."
+    "- Inside the wrapper, use Simulink-PS Converter blocks to drive physical sources and sensor + PS-Simulink Converter blocks to expose measurements."
+    "- Do not run behavioral model tests directly against Simscape physical modeling ports; test the signal-based wrapper."
+    "- Add wrapper paths and measurement outputs to the probe map when they support the lesson."
+], newline);
+end
+
+function text = stateflowTeachingLogicContractSection()
+text = strjoin([
+    "## Stateflow Teaching Logic Contract"
+    "If the circuit spec includes ADC logic, threshold detection, artifact detection, mode switching, digital control, or state-dependent behavior:"
+    "- Use Stateflow for explicit decision/state logic when it is clearer than ad hoc Simulink switch blocks."
+    "- Keep analog and physical behavior in Simscape."
+    "- Expose Stateflow state or decision outputs through named Simulink signals when they are part of requested teaching or probe evidence."
+    "- Add Stateflow chart paths and state names to the focus map when they support a teaching question."
+    "- Add probe entries for ADC code, threshold decision, mode state, or artifact-detected signals when requested."
+    "- Run model_check with stateflow_lint after chart editing."
 ], newline);
 end
 

@@ -4,6 +4,7 @@ function report = checkSetup()
 config = feval('citt.loadConfig');
 toolkitSetup = feval('citt.ensureAgenticToolkit', config);
 toolboxes = feval('citt.util.findAvailableToolboxes');
+satkProject = feval('citt.satkProjectStatus');
 
 report = struct();
 report.checked_at = string(datetime("now"));
@@ -28,6 +29,13 @@ report.satk_setup_message = toolkitSetup.message;
 report.setup_agentic_toolkit_available = exist("setupAgenticToolkit", "file") == 2;
 report.satk_path_hint = findSatkPathHint();
 report.satk_install_path = config.SatkInstallPath;
+report.satk_project_root = config.SatkProjectRoot;
+report.satk_dir = config.SatkDir;
+report.satk_reuse_libraries_path = satkProject.reuse_libraries_path;
+report.satk_library_preset_present = logical(satkProject.reuse_libraries_exists);
+report.satk_library_confirmed_none = logical(satkProject.confirmed_none);
+report.satk_library_policy_ready = logical(satkProject.ready);
+report.satk_library_policy_messages = satkProject.messages;
 report.matlab_agentic_toolkit_path = config.MatlabAgenticToolkitPath;
 report.matlab_mcp_server_path = config.MatlabMcpServerPath;
 report.agent_clis = findAgentClis(config);
@@ -179,6 +187,9 @@ end
 if ~report.satk_initialize_available
     lines(end + 1) = "Install or initialize Simulink Agentic Toolkit. If installed, run addpath(""~/.matlab/agentic-toolkits/simulink"") and satk_initialize.";
 end
+if ~report.satk_library_policy_ready
+    lines(end + 1) = "Run citt.ensureSatkProjectPreset after SATK initialization so the project records that no custom teaching libraries are configured.";
+end
 if ~report.matlab_mcp_available
     lines(end + 1) = "If your SATK workflow uses MATLAB MCP Server, add it to the MATLAB path and start it before running the external agent.";
 end
@@ -211,6 +222,8 @@ lines = [
     "setupAgenticToolkit: " + foundMissing(report.setup_agentic_toolkit_available)
     "SATK path hint: " + report.satk_path_hint
     "SATK install path: " + report.satk_install_path
+    "SATK project root: " + report.satk_project_root
+    "SATK library policy: " + foundMissing(report.satk_library_policy_ready) + " (" + report.satk_reuse_libraries_path + ")"
     "MATLAB Agentic Toolkit path: " + report.matlab_agentic_toolkit_path
     "MCP server binary: " + report.matlab_mcp_server_path
     "Selected CLI command: " + report.configured_agent_command

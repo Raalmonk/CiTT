@@ -28,6 +28,10 @@ explainabilityReport = loadReport(context, "LastExplainability", config.Explaina
 assessmentReport = loadReport(context, "LastAssessment", config.AssessmentReportPath);
 economicsReport = loadReport(context, "LastEconomics", config.EconomicsPlanPath);
 scopeReport = loadReport(context, "LastScopeGuardrail", config.ScopeGuardrailPath);
+modelTestReport = loadReport(context, "LastModelTests", config.ModelTestReportPath);
+teachingReviewReport = loadReport(context, "LastTeachingReview", config.TeachingReviewReportPath);
+simulationScenarioReport = loadReport(context, "LastSimulationScenarios", config.SimulationScenarioReportPath);
+learningTraceabilityReport = loadReport(context, "LastLearningTraceability", config.LearningTraceabilityPath);
 
 requirements = buildRequirementRows(context, spec, focusMap, probeMap, modelCheck, simulation, labDelta, requirementReport);
 limitations = buildLimitations(spec, requirements, simulation, labDelta);
@@ -60,6 +64,10 @@ lines = appendLines(lines, featureReportSection("10C. Explainability Action Map"
 lines = appendLines(lines, featureReportSection("10D. Learning Gain / Student Assessment", config.AssessmentMarkdownPath, assessmentReport));
 lines = appendLines(lines, featureReportSection("10E. BOM / Cost + Licensing Reality", config.EconomicsMarkdownPath, economicsReport));
 lines = appendLines(lines, featureReportSection("10F. Regulatory / Scope Guardrail", config.ScopeGuardrailMarkdownPath, scopeReport));
+lines = appendLines(lines, featureReportSection("10G. SATK Behavioral Model Tests", config.ModelTestMarkdownPath, modelTestReport));
+lines = appendLines(lines, featureReportSection("10H. CiTT Teaching Model Review", config.TeachingReviewMarkdownPath, teachingReviewReport));
+lines = appendLines(lines, featureReportSection("10I. SimulationInput Teaching Scenarios", config.SimulationScenarioMarkdownPath, simulationScenarioReport));
+lines = appendLines(lines, learningTraceabilitySection(learningTraceabilityReport, config));
 lines = appendLines(lines, limitationsSection(limitations));
 lines = appendLines(lines, riskSection(risks));
 lines = appendLines(lines, functionalProofSection(functionalProofDraft));
@@ -101,6 +109,10 @@ defaults.LastExplainability = [];
 defaults.LastAssessment = [];
 defaults.LastEconomics = [];
 defaults.LastScopeGuardrail = [];
+defaults.LastModelTests = [];
+defaults.LastLearningTraceability = [];
+defaults.LastTeachingReview = [];
+defaults.LastSimulationScenarios = [];
 
 names = fieldnames(defaults);
 for i = 1:numel(names)
@@ -674,9 +686,42 @@ lines = appendLines(lines, [
 ]);
 end
 
+function lines = learningTraceabilitySection(report, config)
+lines = [
+    "## 11. Learning Traceability"
+    ""
+    "This section links learning objectives to focus/probe/model-test/simulation/student evidence."
+    artifactLine("Markdown report", config.LearningTraceabilityMarkdownPath)
+];
+if ~isstruct(report) || isempty(report) || ~isfield(report, "objectives") || isempty(report.objectives)
+    lines = appendLines(lines, [
+        "Learning traceability has not been generated yet."
+        ""
+    ]);
+    return
+end
+
+lines = appendLines(lines, [
+    artifactLine("JSON report", firstFieldText(report, ["report_path"], config.LearningTraceabilityPath))
+    ""
+    "| Objective | Focus | Probes | Tests | Simulation Evidence | Mastery |"
+    "| --- | --- | --- | --- | --- | --- |"
+]);
+for i = 1:numel(report.objectives)
+    objective = report.objectives(i);
+    lines(end + 1) = "| " + mdCell(firstFieldText(objective, ["learning_objective_id"], "LO_" + string(i)) + ": " + firstFieldText(objective, ["title"], "")) + ...
+        " | " + mdCell(firstFieldText(objective, ["focus_id"], "")) + ...
+        " | " + mdCell(firstFieldText(objective, ["probe_ids"], "")) + ...
+        " | " + mdCell(firstFieldText(objective, ["model_test_scenarios"], "")) + ...
+        " | " + mdCell(firstFieldText(objective, ["simulation_evidence"], "")) + ...
+        " | " + mdCell(firstFieldText(objective, ["mastery_status"], "")) + " |"; %#ok<AGROW>
+end
+lines = appendLines(lines, "");
+end
+
 function lines = limitationsSection(limitations)
 lines = [
-    "## 11. Limitations"
+    "## 12. Limitations"
     ""
     listBlock(limitations, 20)
     ""
@@ -685,7 +730,7 @@ end
 
 function lines = riskSection(risks)
 lines = [
-    "## 12. Risk Table"
+    "## 13. Risk Table"
     ""
     "| Risk | Evidence / Trigger | Mitigation | Severity |"
     "| --- | --- | --- | --- |"
@@ -699,7 +744,7 @@ end
 
 function lines = functionalProofSection(draft)
 lines = [
-    "## 13. BMES Functional Proof Draft"
+    "## 14. BMES Functional Proof Draft"
     ""
     draft
     ""
@@ -726,6 +771,11 @@ lines = [
     artifactLine("Assessment report", config.AssessmentMarkdownPath)
     artifactLine("Economics plan", config.EconomicsMarkdownPath)
     artifactLine("Scope guardrail", config.ScopeGuardrailMarkdownPath)
+    artifactLine("SATK model tests", config.ModelTestMarkdownPath)
+    artifactLine("Teaching model review", config.TeachingReviewMarkdownPath)
+    artifactLine("Simulation scenarios", config.SimulationScenarioMarkdownPath)
+    artifactLine("Learning traceability", config.LearningTraceabilityMarkdownPath)
+    artifactLine("Learning objectives YAML", config.LearningObjectivesYamlPath)
     "- **Evidence pack:** " + string(context.EvidencePackPath)
     ""
 ];

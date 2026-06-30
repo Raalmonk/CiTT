@@ -272,6 +272,7 @@ arrayFields = [
     "ambiguities"
     "unsupported_or_unclear_regions"
     "suggested_simscape_blocks"
+    "digital_or_state_logic"
 ];
 
 for i = 1:numel(arrayFields)

@@ -1,0 +1,12 @@
+## SATK model_test Invocation
+
+Use the SATK `model_test` tool with these arguments:
+
+- model: the model path listed in the task
+- gherkin_file: the feature file listed in the task
+- scenarios: []
+- verbose: true
+- draft_mode: true, then false if draft mode passes
+- coverage: "none" unless a Stateflow decision-logic check is clearly available
+
+If the component named in the feature has Simscape physical modeling ports, report the limitation and look for `CiTT_TestInterface` or another signal-based wrapper. Do not claim a passing behavioral model test for a physical-port-only component.

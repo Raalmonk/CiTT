@@ -1,0 +1,1 @@
+Build a simplified passive two-electrode voltage clamp equivalent circuit as a teaching model. Focus on equilibrium intuition, reference node choice, membrane resistance/capacitance simplification, and measurable clamp/output signals. Do not require full ion-channel dynamics.

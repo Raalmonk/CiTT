@@ -1,0 +1,1 @@
+Build a Simscape-first RC low-pass teaching model for a biomedical anti-aliasing lesson. Use R = 39.8 kOhm, C = 100 nF, input Vin, output Vout, and teach why the R*C time constant sets cutoff frequency. Include a probe for Vout and a note about the wrong-unit misconception: 100 nF vs 100 uF.

@@ -13,6 +13,7 @@ testFiles = {
     "test_lab_delta"
     "test_evidence_pack_export"
     "test_competition_feature_pack"
+    "test_satk_teaching_evidence_layer"
 };
 
 results = struct([]);
