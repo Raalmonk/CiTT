@@ -24,8 +24,9 @@ grid.RowSpacing = 0;
 grid.ColumnSpacing = 0;
 
 handles = struct();
+htmlSource = runtimeHtmlSource(state.Config);
 handles.web = uihtml(grid, ...
-    "HTMLSource", fullfile(state.Config.MatlabRoot, "resources", "ui", "citt_app.html"), ...
+    "HTMLSource", htmlSource, ...
     "DataChangedFcn", @(src, ~) onWebMessage(src));
 handles.web.Layout.Row = 1;
 handles.web.Layout.Column = 1;
@@ -59,9 +60,13 @@ lastEvidenceOutput = "";
 lastEvidenceStatus = "Export an evidence pack when the model has enough proof.";
 lastSettingsStatus = "Settings are loaded from the local CiTT work folder.";
 sidebarCollapsed = false;
+lastParsedPrompt = "";
+lastParsedImagePath = "";
 
 ensureActiveTask();
-restoreActiveTaskIfAvailable();
+if string(getenv("CITT_RESTORE_ACTIVE_TASK")) == "1"
+    restoreActiveTaskIfAvailable();
+end
 
 app.Handles = handles;
 app.State = state;
@@ -71,7 +76,7 @@ app.TestHooks = struct( ...
     "setPrompt", @(promptText) setTestPrompt(promptText), ...
     "setImagePath", @(imagePath) setTestImagePath(imagePath), ...
     "navigate", @(pageName) setTestPage(pageName), ...
-    "read", @() onParseWithGemini(), ...
+    "read", @() onParseWithCli(), ...
     "prepareBuild", @() onGenerateAgentTask(), ...
     "buildModel", @() onRunAgent(), ...
     "openModel", @() onOpenModel(), ...
@@ -131,7 +136,7 @@ app.TestHooks = struct( ...
                     onImageDropped(payload);
                 case "read"
                     syncPayload(payload);
-                    onParseWithGemini();
+                    onParseWithCli();
                 case "run_pipeline"
                     syncPayload(payload);
                     onRunPipeline();
@@ -263,6 +268,9 @@ app.TestHooks = struct( ...
         if isfield(payload, "studentAnswer")
             payloadAnswer = string(payload.studentAnswer);
             if strlength(strtrim(payloadAnswer)) > 0 || strlength(strtrim(fieldText(state, "StudentAnswer"))) == 0
+                if strtrim(payloadAnswer) ~= strtrim(fieldText(state, "StudentAnswer"))
+                    state.HintLevel = 0;
+                end
                 state.StudentAnswer = payloadAnswer;
             end
         end
@@ -278,13 +286,17 @@ app.TestHooks = struct( ...
         if isfield(payload, "evidencePath")
             state.EvidencePackPath = string(payload.evidencePath);
         end
-        if isfield(payload, "command")
-            state.ProbeAskText = string(payload.command);
+        if isfield(payload, "probeAsk")
+            state.ProbeAskText = probeAskDisplayText(payload.probeAsk);
         end
     end
 
     function setTestStudentAnswer(answerText)
-        state.StudentAnswer = string(answerText);
+        answerText = string(answerText);
+        if strtrim(answerText) ~= strtrim(fieldText(state, "StudentAnswer"))
+            state.HintLevel = 0;
+        end
+        state.StudentAnswer = answerText;
         sendState();
     end
 
@@ -360,42 +372,15 @@ app.TestHooks = struct( ...
     end
 
     function onSaveSettings(payload)
-        previousKey = string(getenv("GEMINI_API_KEY"));
-        apiKey = payloadText(payload, "geminiApiKey", "");
-        if strlength(strtrim(apiKey)) == 0 || contains(apiKey, "*")
-            apiKey = previousKey;
-        end
-
-        modelName = payloadText(payload, "geminiModel", string(getenv("GEMINI_MODEL")));
-        parserBackend = lower(strtrim(payloadText(payload, "parserBackend", state.Config.ParserBackend)));
-        agentBackend = lower(strtrim(payloadText(payload, "agentBackend", state.Config.AgentBackend)));
         agentCommand = payloadText(payload, "agentCommand", string(getenv("CITT_AGENT_COMMAND")));
         maxAttempts = payloadNumber(payload, "agentMaxAttempts", 4);
         retryDelay = payloadNumber(payload, "agentRetryDelaySeconds", 20);
 
-        if strlength(strtrim(apiKey)) > 0
-            setenv("GEMINI_API_KEY", char(apiKey));
-        end
-        if strlength(strtrim(modelName)) > 0
-            setenv("GEMINI_MODEL", char(modelName));
-        end
-        if ~ismember(parserBackend, ["codex", "gemini", "local"])
-            parserBackend = "codex";
-        end
-        if ~ismember(agentBackend, ["codex", "gemini"])
-            agentBackend = "codex";
-        end
-        setenv("CITT_PARSER_BACKEND", char(parserBackend));
-        setenv("CITT_AGENT_BACKEND", char(agentBackend));
         setenv("CITT_AGENT_COMMAND", char(agentCommand));
         setenv("CITT_AGENT_MAX_ATTEMPTS", char(string(max(1, round(maxAttempts)))));
         setenv("CITT_AGENT_RETRY_DELAY_SECONDS", char(string(max(0, retryDelay))));
 
         settings = struct( ...
-            "gemini_api_key", apiKey, ...
-            "gemini_model", modelName, ...
-            "parser_backend", parserBackend, ...
-            "agent_backend", agentBackend, ...
             "agent_command", agentCommand, ...
             "agent_max_attempts", max(1, round(maxAttempts)), ...
             "agent_retry_delay_seconds", max(0, retryDelay), ...
@@ -445,12 +430,14 @@ app.TestHooks = struct( ...
         sendState();
     end
 
-    function onParseWithGemini()
+    function onParseWithCli()
         try
             setBusy("Reading circuit...", 25);
-            parsed = feval('citt.parseCircuitWithGemini', state.ImagePath, state.PromptText);
+            parsed = feval('citt.parseCircuitWithCli', state.ImagePath, state.PromptText);
             state.Spec = parsed.spec;
             state.SpecPath = parsed.spec_path;
+            lastParsedPrompt = string(state.PromptText);
+            lastParsedImagePath = string(state.ImagePath);
             lastInputStatus = parseNextStepText(parsed);
             if strlength(specBlockingIssues(parsed.spec)) > 0
                 setPipeline("Clarification needed before Build Model.", 35);
@@ -467,8 +454,12 @@ app.TestHooks = struct( ...
     function onRunPipeline()
         appendTaskEvent("run_pipeline", "started", "Running circuit read, build brief, and model build.");
         try
+            if inputChangedSinceLastRead()
+                clearDerivedStateForInputChange();
+                appendTaskEvent("read", "reset", "Input changed; reading the current prompt and image.");
+            end
             if isempty(currentSpecStruct(state))
-                onParseWithGemini();
+                onParseWithCli();
             end
             spec = currentSpecStruct(state);
             if isempty(spec)
@@ -724,16 +715,8 @@ app.TestHooks = struct( ...
             lastAgentStatus = "Building model with agent.";
             setPipeline("Building model with agent...", 68);
         elseif isTruthy(fieldText(runResult, "success"))
-            if mode == "local_fallback"
-                lastAgentStatus = "Local Simscape model built.";
-                setPipeline("Local Simscape model built. Next: Check or Simulate.", 78);
-            else
-                lastAgentStatus = "Model built by SATK agent.";
-                setPipeline("Model built by agent. Next: Check or Simulate.", 78);
-            end
-        elseif mode == "manual_agent"
-            lastAgentStatus = "Manual agent required.";
-            setPipeline("Manual agent task opened. Run it in an SATK-configured agent.", 58);
+            lastAgentStatus = "Model built by SATK agent.";
+            setPipeline("Model built by agent. Next: Check or Simulate.", 78);
         else
             lastAgentStatus = "Build incomplete.";
             setPipeline("Build incomplete. See Build Log.", 58);
@@ -756,9 +739,6 @@ app.TestHooks = struct( ...
             mode = fieldText(state.AgentRun, "mode");
             if postBuildAutomationStarted()
                 setPipeline("Ready for teaching and probing.", max(90, pipelineProgress));
-            elseif mode == "local_fallback"
-                lastAgentStatus = "Local Simscape model built.";
-                setPipeline("Local Simscape model built. Next: Check or Simulate.", 78);
             elseif mode ~= "external_agent_pending"
                 lastAgentStatus = "Model built by SATK agent.";
                 setPipeline("Model built by agent. Next: Check or Simulate.", 78);
@@ -846,7 +826,7 @@ app.TestHooks = struct( ...
                 error("CiTT:ModelMissing", "No generated model is available yet. Build the model first.");
             end
             state.ModelPath = modelPath;
-            opened = feval('citt.openOrCreateModel', modelPath);
+            opened = feval('citt.openOrCreateModel', modelPath, struct("ShowModel", true));
             lastModelStatus = opened.message;
             lastModelOutput = "Model opened." + newline + opened.model_path;
             setPipeline("Model open in Simulink. Next: Check.", 78);
@@ -879,14 +859,27 @@ app.TestHooks = struct( ...
         end
     end
 
-    function refreshModelSnapshot(~, ~, ~)
+    function refreshModelSnapshot(targetSystem, cropHighlights, cropBlockPath, showModel)
+        if nargin < 1 || isempty(targetSystem)
+            targetSystem = "";
+        end
+        if nargin < 2 || isempty(cropHighlights)
+            cropHighlights = false;
+        end
+        if nargin < 3 || isempty(cropBlockPath)
+            cropBlockPath = "";
+        end
+        if nargin < 4 || isempty(showModel)
+            showModel = false;
+        end
         try
             outputPath = snapshotPathForActiveTask();
             captured = feval('citt.captureModelSnapshot', state.ModelPath, struct( ...
                 "OutputPath", outputPath, ...
-                "TargetSystem", "", ...
-                "CropHighlights", false, ...
-                "CropBlockPath", ""));
+                "TargetSystem", targetSystem, ...
+                "CropHighlights", cropHighlights, ...
+                "CropBlockPath", cropBlockPath, ...
+                "ShowModel", showModel));
             state.ModelSnapshotPath = captured.image_path;
             lastModelPreviewStatus = captured.message + " " + captured.target_system;
         catch snapshotError
@@ -960,11 +953,11 @@ app.TestHooks = struct( ...
 
     function onRunCommand(commandText)
         try
-            state.ProbeAskText = string(commandText);
             setBusy("Running command...", 86);
             commandResult = feval('citt.runNaturalCommand', string(commandText), state);
             commandAction = lower(strtrim(fieldText(commandResult, "action")));
             if strcmp(commandAction, "measure")
+                state.ProbeAskText = probeAskDisplayText(commandText);
                 state.LastProbe = commandResult.details;
                 lastProbeStatus = commandResult.message;
                 lastProbeOutput = probePlanSummary(commandResult.details);
@@ -1005,7 +998,7 @@ app.TestHooks = struct( ...
                 targetSystem = "";
                 cropBlockPath = firstProbeBlockPathFromDetails(commandResult.details);
             else
-                targetSystem = snapshotTargetFromResult(commandResult.details);
+                cropBlockPath = snapshotTargetFromResult(commandResult.details);
             end
         end
         refreshModelSnapshot(targetSystem, action ~= "clear_highlights", cropBlockPath);
@@ -1040,7 +1033,7 @@ app.TestHooks = struct( ...
             turn = feval('citt.runSocraticTurn', state.TeachingPlan, state.TeachingStepIndex, answer, ...
                 struct("Action", "hint", "HintLevel", state.HintLevel, "AnswerImagePath", state.TeachingImagePath));
             state.HintLevel = turn.next_hint_level;
-            lastTeachStatus = "Classification: " + turn.classification;
+            lastTeachStatus = "Classification: " + turn.classification + " | Level: " + turn.student_level;
             lastTeachOutput = turn.message;
         catch hintError
             lastTeachOutput = "Hint failed: " + string(hintError.message);
@@ -1096,10 +1089,10 @@ app.TestHooks = struct( ...
             focusId = firstOrEmpty(focusValues());
         end
         try
-            highlighted = feval('citt.highlightFocus', state.ModelPath, state.FocusMapPath, focusId);
+            highlighted = feval('citt.highlightFocus', state.ModelPath, state.FocusMapPath, focusId, struct("ShowModel", true));
             lastTeachStatus = "Highlighted: " + string(highlighted.success);
             lastTeachOutput = focusActionSummary("Highlight", highlighted);
-            refreshModelSnapshot("");
+            refreshModelSnapshot("", true, currentTeachingBlockPaths(focusId), true);
         catch highlightError
             lastTeachStatus = "Highlight failed.";
             lastTeachOutput = "Highlight failed: " + string(highlightError.message);
@@ -1112,10 +1105,10 @@ app.TestHooks = struct( ...
             focusId = firstOrEmpty(focusValues());
         end
         try
-            highlighted = feval('citt.highlightFocus', state.ModelPath, state.FocusMapPath, focusId);
+            highlighted = feval('citt.highlightFocus', state.ModelPath, state.FocusMapPath, focusId, struct("ShowModel", true));
             lastTeachStatus = "Highlighted in full model view.";
             lastTeachOutput = focusActionSummary("Highlight", highlighted);
-            refreshModelSnapshot("");
+            refreshModelSnapshot("", true, currentTeachingBlockPaths(focusId), true);
         catch zoomError
             lastTeachStatus = "Highlight failed.";
             lastTeachOutput = "Highlight failed: " + string(zoomError.message);
@@ -1362,6 +1355,7 @@ app.TestHooks = struct( ...
 
     function sendState()
         reconcileStateArtifacts();
+        state.TeachingPlan = ensureTeachingPlanFacts(state.TeachingPlan);
         if ~busy
             ensureTeachingFocusForCurrentStep();
         end
@@ -1387,7 +1381,7 @@ app.TestHooks = struct( ...
             "modelSnapshotPath", state.ModelSnapshotPath, ...
             "teachingImagePath", state.TeachingImagePath, ...
             "studentAnswer", fieldText(state, "StudentAnswer"), ...
-            "probeAsk", fieldText(state, "ProbeAskText"), ...
+            "probeAsk", "", ...
             "labCsvPath", state.LabCsvPath, ...
             "opAmpPart", fieldText(state, "OpAmpPart"), ...
             "evidencePath", state.EvidencePackPath);
@@ -1407,6 +1401,7 @@ app.TestHooks = struct( ...
             "setupReport", setupOverviewText(state.LastSetupReport), ...
             "paths", pathStatusText(state));
         ui.teach = struct( ...
+            "hasPlan", ~isempty(state.TeachingPlan), ...
             "steps", teachingStepsText(state), ...
             "currentStep", currentStepText(), ...
             "currentStepIndex", teachingCurrentStepField("index"), ...
@@ -1415,10 +1410,12 @@ app.TestHooks = struct( ...
             "currentQuestion", teachingCurrentStepField("question"), ...
             "currentFocus", teachingCurrentStepField("focus"), ...
             "currentConcept", teachingCurrentStepField("concept"), ...
+            "currentFacts", teachingCurrentStepField("facts"), ...
             "output", emptyText(lastTeachOutput, currentStepQuestion()), ...
             "status", lastTeachStatus, ...
             "focusItems", focusValues());
         ui.probe = struct( ...
+            "hasOutput", strlength(strtrim(lastProbeOutput)) > 0, ...
             "probeItems", probeValues(), ...
             "probeStatus", lastProbeStatus, ...
             "probeOutput", emptyText(lastProbeOutput, "Probe output will appear here."), ...
@@ -1545,6 +1542,68 @@ app.TestHooks = struct( ...
         currentState.LastScopeGuardrail = [];
     end
 
+    function tf = inputChangedSinceLastRead()
+        if isempty(currentSpecStruct(state))
+            tf = false;
+            return
+        end
+        promptNow = strtrim(string(state.PromptText));
+        imageNow = strtrim(string(state.ImagePath));
+        promptRead = strtrim(string(lastParsedPrompt));
+        imageRead = strtrim(string(lastParsedImagePath));
+        if strlength(promptRead) == 0 && strlength(imageRead) == 0
+            tf = strlength(promptNow) > 0 || strlength(imageNow) > 0;
+        else
+            tf = promptNow ~= promptRead || imageNow ~= imageRead;
+        end
+    end
+
+    function clearDerivedStateForInputChange()
+        state.Spec = [];
+        state.SpecPath = "";
+        state.AgentTaskPath = "";
+        state.AgentRun = [];
+        state.ModelPath = "";
+        state.ModelSnapshotPath = "";
+        state.TeachingPlan = [];
+        state.TeachingStepIndex = 1;
+        state.HintLevel = 0;
+        state.TeachingImagePath = "";
+        state.LastModelCheck = [];
+        state.LastSimulation = [];
+        state.LastBode = [];
+        state.LastProbe = [];
+        state.ProbeAskText = "";
+        state.LastLabDelta = [];
+        state.LastEvidencePack = [];
+        state.LastRequirements = [];
+        state.LastSweep = [];
+        state.LastFaults = [];
+        state.LastExplainability = [];
+        state.LastAssessment = [];
+        state.LastEconomics = [];
+        state.LastScopeGuardrail = [];
+        lastInputStatus = "";
+        lastAgentOutput = "";
+        lastAgentStatus = "Build model from the parsed circuit.";
+        lastModelOutput = "";
+        lastModelStatus = "Open, check, or simulate the generated model.";
+        lastModelPreviewStatus = "No model preview yet.";
+        lastTeachOutput = "";
+        lastTeachStatus = "Waiting for teaching plan.";
+        lastProbeOutput = "";
+        lastProbeStatus = "Select a focus or probe target.";
+        lastParsedPrompt = "";
+        lastParsedImagePath = "";
+    end
+
+    function htmlPath = runtimeHtmlSource(config)
+        sourcePath = fullfile(config.MatlabRoot, "resources", "ui", "citt_app.html");
+        stamp = string(datetime("now", "Format", "yyyyMMdd_HHmmss_SSS"));
+        htmlPath = string(fullfile(config.WorkDir, "citt_app_runtime_" + stamp + ".html"));
+        copyfile(sourcePath, htmlPath, "f");
+    end
+
     function tasks = loadTaskHistory()
         tasks = emptyTasks();
         path = state.Config.TaskHistoryPath;
@@ -1661,7 +1720,7 @@ app.TestHooks = struct( ...
         task.model_path = state.ModelPath;
         task.model_snapshot_path = state.ModelSnapshotPath;
         task.evidence_path = state.EvidencePackPath;
-        task.probe_ask_text = fieldText(state, "ProbeAskText");
+        task.probe_ask_text = probeAskDisplayText(fieldText(state, "ProbeAskText"));
         taskHistory(index) = task;
     end
 
@@ -1843,13 +1902,17 @@ app.TestHooks = struct( ...
         state.ModelPath = taskField(task, "model_path", "");
         state.ModelSnapshotPath = taskField(task, "model_snapshot_path", "");
         state.EvidencePackPath = taskField(task, "evidence_path", state.EvidencePackPath);
-        state.ProbeAskText = taskField(task, "probe_ask_text", "");
+        state.ProbeAskText = probeAskDisplayText(taskField(task, "probe_ask_text", ""));
         state.Spec = [];
         if exist(state.SpecPath, "file") == 2
             try
                 state.Spec = jsondecode(fileread(state.SpecPath));
+                lastParsedPrompt = string(state.PromptText);
+                lastParsedImagePath = string(state.ImagePath);
             catch
                 state.Spec = [];
+                lastParsedPrompt = "";
+                lastParsedImagePath = "";
             end
         end
         try
@@ -1916,8 +1979,12 @@ app.TestHooks = struct( ...
             return
         end
         try
-            feval('citt.highlightFocus', state.ModelPath, state.FocusMapPath, focusId);
-            refreshModelSnapshot("");
+            matched = feval('citt.highlightFocus', state.ModelPath, state.FocusMapPath, focusId, struct("ShowModel", false));
+            blockPaths = currentTeachingBlockPaths(focusId);
+            if isempty(blockPaths)
+                blockPaths = snapshotTargetFromResult(matched);
+            end
+            refreshModelSnapshot("", false, blockPaths, false);
             lastTeachingFocusApplied = focusKey;
             if strlength(strtrim(lastTeachStatus)) == 0 || contains(lastTeachStatus, "ready", "IgnoreCase", true)
                 lastTeachStatus = "Showing focus: " + focusId;
@@ -1954,9 +2021,13 @@ app.TestHooks = struct( ...
         end
     end
 
-    function blockPath = currentTeachingBlockPath()
-        blockPath = "";
-        focusId = currentTeachingFocusId();
+    function blockPaths = currentTeachingBlockPaths(focusId)
+        blockPaths = strings(0, 1);
+        if nargin < 1 || strlength(strtrim(string(focusId))) == 0
+            focusId = currentTeachingFocusId();
+        else
+            focusId = string(focusId);
+        end
         if strlength(strtrim(focusId)) == 0 || exist(state.FocusMapPath, "file") ~= 2
             return
         end
@@ -1982,16 +2053,11 @@ app.TestHooks = struct( ...
                 if isempty(paths)
                     return
                 end
-                probePaths = paths(contains(upper(paths), "PROBE"));
-                if ~isempty(probePaths)
-                    blockPath = probePaths(1);
-                else
-                    blockPath = paths(1);
-                end
+                blockPaths = paths;
                 return
             end
         catch
-            blockPath = "";
+            blockPaths = strings(0, 1);
         end
     end
 
@@ -2343,7 +2409,6 @@ app.TestHooks = struct( ...
             "status", compactStatus(state), ...
             "workDir", state.Config.WorkDir, ...
             "matlabVersion", fieldText(setup, "matlab_version"), ...
-            "geminiModel", fieldText(setup, "gemini_model"), ...
             "agent", setupAgentText(setup), ...
             "setupText", setupOverviewText(setup));
     end
@@ -2417,18 +2482,10 @@ app.TestHooks = struct( ...
 
     function settings = settingsState()
         settings = struct( ...
-            "hasApiKey", strlength(string(getenv("GEMINI_API_KEY"))) > 0, ...
-            "geminiApiKey", maskSecret(getenv("GEMINI_API_KEY")), ...
-            "geminiModel", string(getenv("GEMINI_MODEL")), ...
-            "parserBackend", state.Config.ParserBackend, ...
-            "agentBackend", state.Config.AgentBackend, ...
             "agentCommand", string(getenv("CITT_AGENT_COMMAND")), ...
             "agentMaxAttempts", string(getenv("CITT_AGENT_MAX_ATTEMPTS")), ...
             "agentRetryDelaySeconds", string(getenv("CITT_AGENT_RETRY_DELAY_SECONDS")), ...
             "settingsPath", state.Config.SettingsPath);
-        if strlength(settings.geminiModel) == 0
-            settings.geminiModel = state.Config.GeminiModel;
-        end
         if strlength(settings.agentMaxAttempts) == 0
             settings.agentMaxAttempts = string(state.Config.AgentMaxAttempts);
         end
@@ -2751,11 +2808,12 @@ app.TestHooks = struct( ...
 
     function text = sanitizeUserError(message)
         text = string(message);
+        text = regexprep(text, '<a\s+href="[^"]*">([^<]*)</a>', '$1');
+        text = regexprep(text, "<[^>]+>", "");
         text = regexprep(text, "key=[^""'\s&]+", "key=***");
-        text = regexprep(text, "(GEMINI_API_KEY=)[^""'\s]+", "$1***");
         if contains(lower(text), "tls connect error") || contains(lower(text), "secure connection")
             text = text + newline + newline + ...
-                "This is a network/TLS handshake failure before Gemini returned a response. Try again once, then check VPN/proxy/certificates if it repeats.";
+                "This is a network/TLS handshake failure before the selected CLI returned a response. Try again once, then check VPN/proxy/certificates if it repeats.";
         end
     end
 
@@ -2849,12 +2907,12 @@ app.TestHooks = struct( ...
 
     function setup = setupState(report)
         if isempty(report)
-            setup = struct("gemini", "not checked", "satk", "not checked", "mcp", "not checked", ...
+            setup = struct("parser", "not checked", "satk", "not checked", "mcp", "not checked", ...
                 "simscape", "not checked", "agent", "not checked");
             return
         end
         setup = struct();
-        setup.gemini = "Parser: " + parserStatusText(report);
+        setup.parser = "Parser: " + parserStatusText(report);
         setup.satk = "SATK: " + readyNeeds(report.satk_initialize_available);
         setup.mcp = "MCP: " + readyNeeds(report.matlab_mcp_available);
         setup.simscape = "Simscape: " + readyNeeds(report.simscape_available);
@@ -2880,8 +2938,6 @@ app.TestHooks = struct( ...
                 steps(3) = struct("label", "Builder", "status", "Running", "tone", "active");
             elseif isTruthy(fieldText(currentState.AgentRun, "success"))
                 steps(3) = struct("label", "Builder", "status", "Complete", "tone", "good");
-            elseif mode == "manual_agent"
-                steps(3) = struct("label", "Builder", "status", "Manual", "tone", "warn");
             else
                 steps(3) = struct("label", "Builder", "status", "Attention", "tone", "bad");
             end
@@ -3108,6 +3164,12 @@ app.TestHooks = struct( ...
                 value = string(step.focus_id);
             case "concept"
                 value = string(step.concept);
+            case "facts"
+                if isfield(step, "fact_lines")
+                    value = string(step.fact_lines);
+                else
+                    value = strings(0, 1);
+                end
             otherwise
                 value = "";
         end
@@ -3128,6 +3190,7 @@ app.TestHooks = struct( ...
             ""
             "Focus: " + string(step.focus_id)
             "Concept: " + string(step.concept)
+            "Facts: " + strjoin(teachingCurrentStepField("facts"), "; ")
         ], newline);
     end
 
@@ -3138,6 +3201,40 @@ app.TestHooks = struct( ...
         end
         step = state.TeachingPlan.steps(state.TeachingStepIndex);
         text = string(step.student_question);
+    end
+
+    function plan = ensureTeachingPlanFacts(plan)
+        if isempty(plan) || ~isstruct(plan) || ~isfield(plan, "steps")
+            return
+        end
+        if teachingPlanHasFacts(plan)
+            return
+        end
+        if strlength(strtrim(string(state.SpecPath))) == 0 || strlength(strtrim(string(state.FocusMapPath))) == 0
+            return
+        end
+        try
+            built = feval('citt.buildTeachingPlan', state.SpecPath, state.FocusMapPath, state.LastModelCheck, state.LastSimulation);
+            plan = built.plan;
+        catch
+        end
+    end
+
+    function tf = teachingPlanHasFacts(plan)
+        tf = false;
+        if isempty(plan) || ~isstruct(plan) || ~isfield(plan, "steps")
+            return
+        end
+        steps = plan.steps;
+        if isempty(steps)
+            return
+        end
+        for i = 1:numel(steps)
+            if ~isfield(steps(i), "fact_lines") || isempty(steps(i).fact_lines) || all(strlength(strtrim(string(steps(i).fact_lines))) == 0)
+                return
+            end
+        end
+        tf = true;
     end
 
     function text = completedTeachingSummary()
@@ -3292,8 +3389,6 @@ app.TestHooks = struct( ...
             "Ready checks"
             ""
             "Circuit parser: " + parserStatusText(setup)
-            "Gemini API: " + readyNeeds(setup.gemini_key_found)
-            "Gemini model: " + setup.gemini_model
             "Simulink Agentic Toolkit: " + readyNeeds(setup.satk_initialize_available)
             "MATLAB MCP Server: " + readyNeeds(setup.matlab_mcp_available)
             "Simscape: " + readyNeeds(setup.simscape_available)
@@ -3368,26 +3463,10 @@ app.TestHooks = struct( ...
 
     function text = setupAgentText(setup)
         if isfield(setup, "configured_agent_command") && strlength(strtrim(setup.configured_agent_command)) > 0
-            text = "ready: CITT_AGENT_COMMAND";
+            text = "configured CLI ready";
             return
         end
-        backend = agentBackendText(setup);
-        if isfield(setup, "agent_clis")
-            for i = 1:numel(setup.agent_clis)
-                if setup.agent_clis(i).name == backend && isfield(setup.agent_clis(i), "available") && setup.agent_clis(i).available
-                    text = backend + ": ready";
-                    return
-                end
-            end
-        end
-        text = backend + ": needs CLI";
-    end
-
-    function backend = agentBackendText(setup)
-        backend = "codex";
-        if isfield(setup, "agent_backend") && strlength(strtrim(setup.agent_backend)) > 0
-            backend = lower(strtrim(string(setup.agent_backend)));
-        end
+        text = "selected CLI missing";
     end
 
     function ready = parserReady(setup)
@@ -3396,49 +3475,18 @@ app.TestHooks = struct( ...
             ready = logical(setup.parser_available);
             return
         end
-        backend = parserBackendText(setup);
-        switch backend
-            case "codex"
-                ready = isfield(setup, "codex_parser_cli_path") && strlength(strtrim(setup.codex_parser_cli_path)) > 0;
-            case "gemini"
-                ready = isfield(setup, "gemini_key_found") && logical(setup.gemini_key_found);
-            case "local"
-                ready = true;
+        if isfield(setup, "configured_agent_command") && strlength(strtrim(setup.configured_agent_command)) > 0
+            ready = true;
+            return
         end
     end
 
     function text = parserStatusText(setup)
-        backend = parserBackendText(setup);
         if parserReady(setup)
-            switch backend
-                case "codex"
-                    text = "codex: ready";
-                case "gemini"
-                    text = "gemini: ready";
-                case "local"
-                    text = "local: ready";
-                otherwise
-                    text = backend + ": ready";
-            end
+            text = "configured CLI ready";
             return
         end
-        switch backend
-            case "codex"
-                text = "codex: needs Codex CLI";
-            case "gemini"
-                text = "gemini: needs GEMINI_API_KEY";
-            case "local"
-                text = "local: unavailable";
-            otherwise
-                text = backend + ": unsupported";
-        end
-    end
-
-    function backend = parserBackendText(setup)
-        backend = "codex";
-        if isfield(setup, "parser_backend") && strlength(strtrim(setup.parser_backend)) > 0
-            backend = lower(strtrim(string(setup.parser_backend)));
-        end
+        text = "selected CLI missing";
     end
 
     function text = readyNeeds(value)
@@ -3586,13 +3634,20 @@ app.TestHooks = struct( ...
         end
     end
 
-    function text = emptyText(value, fallback)
+    function text = emptyText(value, defaultText)
         value = scalarText(value);
         if strlength(strtrim(value)) == 0
-            text = string(fallback);
+            text = string(defaultText);
         else
             text = value;
         end
+    end
+
+    function text = probeAskDisplayText(value)
+        text = strtrim(regexprep(scalarText(value), "\s+", " "));
+        text = regexprep(text, "^\s*(measure|probe)\s+", "", "ignorecase");
+        text = regexprep(text, "\b(\w+\s+\w+)(\s+\1\b)+", "$1", "ignorecase");
+        text = strtrim(text);
     end
 
     function text = fieldText(data, fieldName)
@@ -3674,13 +3729,12 @@ app.TestHooks = struct( ...
         ], newline);
     end
 
-    function text = commandResultSummary(result)
-        text = strjoin([
-            emptyText(fieldText(result, "message"), "Command complete.")
-            "Action: " + emptyText(fieldText(result, "action"), "command")
-            "Status: " + emptyText(fieldText(result, "success"), "done")
-            ""
-            "Warnings"
+	function text = commandResultSummary(result)
+	    text = strjoin([
+	        emptyText(fieldText(result, "message"), "Command complete.")
+	        "Status: " + emptyText(fieldText(result, "success"), "done")
+	        ""
+	        "Warnings"
             emptyListText(joinValue(result.warnings))
         ], newline);
     end
@@ -3708,7 +3762,7 @@ app.TestHooks = struct( ...
     function text = measurementSummaryText(result)
         if ~isstruct(result) || ~isfield(result, "measurement") || ~isstruct(result.measurement)
             if isfield(result, "measurement_warning")
-                text = fieldText(result, "measurement_warning");
+                text = sanitizeUserError(fieldText(result, "measurement_warning"));
             else
                 text = "No numeric measurement was computed.";
             end
@@ -3717,7 +3771,7 @@ app.TestHooks = struct( ...
 
         measurement = result.measurement;
         if ~isTruthy(fieldText(measurement, "success"))
-            text = emptyText(fieldText(measurement, "message"), "No numeric measurement was computed.");
+            text = sanitizeUserError(emptyText(fieldText(measurement, "message"), "No numeric measurement was computed."));
             return
         end
         if isfield(measurement, "summary_lines") && ~isempty(measurement.summary_lines)
@@ -3729,12 +3783,17 @@ app.TestHooks = struct( ...
             end
         end
 
+        unit = emptyText(fieldText(measurement, "unit"), "V");
+        thresholdUnit = "1 m" + unit;
+        if unit == "unit"
+            thresholdUnit = "1e-3 unit";
+        end
         text = strjoin([
             "Output: " + emptyText(fieldText(measurement, "output_name"), "logged signal")
-            "Final value: " + formatNumberField(measurement, "final_V") + " V"
-            "Range: " + formatNumberField(measurement, "min_V") + " V to " + formatNumberField(measurement, "max_V") + " V"
-            "Late peak-to-peak: " + formatNumberField(measurement, "late_peak_to_peak_V") + " V"
-            "Recovery below 1 mV: " + formatNumberField(measurement, "recovery_time_below_1mV_s") + " s"
+            "Final value: " + formatNumberField(measurement, "final_V") + " " + unit
+            "Range: " + formatNumberField(measurement, "min_V") + " " + unit + " to " + formatNumberField(measurement, "max_V") + " " + unit
+            "Late peak-to-peak: " + formatNumberField(measurement, "late_peak_to_peak_V") + " " + unit
+            "Recovery below " + thresholdUnit + ": " + formatNumberField(measurement, "recovery_time_below_1mV_s") + " s"
         ], newline);
     end
 
@@ -3754,10 +3813,6 @@ app.TestHooks = struct( ...
         mode = fieldText(runResult, "mode");
         if mode == "external_agent_pending"
             headline = "External SATK agent is running.";
-        elseif mode == "manual_agent"
-            headline = "External SATK agent not launched.";
-        elseif mode == "local_fallback"
-            headline = "Agent build unavailable. Running local Simscape builder.";
         elseif isTruthy(fieldText(runResult, "success"))
             headline = "External SATK agent build complete.";
         else

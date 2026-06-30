@@ -101,9 +101,7 @@ The validation uses the installed MATLAB Add-On path for `citt`, not the reposit
 
 ## Setup Notes
 
-- `GEMINI_API_KEY` is required for Gemini-backed parsing, not for opening the app.
-- `GEMINI_MODEL` is optional.
-- `CITT_AGENT_COMMAND` is optional if Codex CLI or Gemini CLI is discoverable.
+- `CITT_AGENT_COMMAND` is optional if the selected Codex, Claude, or DeepSeek CLI is discoverable.
 - Full SATK/MCP model generation requires configured MATLAB MCP/SATK tooling.
 - No Node/npm/web server is required for MATLAB app launch.
 - No custom Simscape library is required by default.

@@ -14,6 +14,9 @@ built = feval('citt.buildTeachingPlan', specPath, focusPath, [], [], struct("Out
 assert(built.success);
 assert(built.step_count == 1);
 assert(exist(planPath, "file") == 2);
+facts = string(built.plan.steps(1).fact_lines);
+assert(any(contains(facts, "R1") & contains(facts, "1 kOhm")));
+assert(any(contains(facts, "C1") & contains(facts, "1 uF")));
 end
 
 function writeText(path, text)
@@ -29,6 +32,10 @@ end
 function spec = localSpec()
 spec = struct();
 spec.circuit_type = "rc_low_pass";
+spec.components = [
+    struct("id", "R1", "type", "resistor", "label", "R1", "value", 1000, "unit", "Ohm")
+    struct("id", "C1", "type", "capacitor", "label", "C1", "value", 1e-6, "unit", "F")
+];
 spec.requested_outputs = ["V(n_out)"];
 spec.likely_analysis = "transient_or_ac";
 end

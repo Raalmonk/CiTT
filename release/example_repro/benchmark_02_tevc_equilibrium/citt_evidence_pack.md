@@ -22,7 +22,7 @@ Tasks:
 - **Spec source:** release/example_repro/benchmark_02_tevc_equilibrium/citt_spec_reproduced.json
 - **Circuit type:** two_electrode_voltage_clamp_equilibrium
 
-## 2. Gemini Structured Circuit Spec
+## 2. Structured Circuit Spec
 
 - **Source:** release/example_repro/benchmark_02_tevc_equilibrium/citt_spec_reproduced.json
 - **Likely analysis:** dc_equilibrium_feedback
@@ -262,7 +262,7 @@ Report has not been generated yet.
 
 ## 13. BMES Functional Proof Draft
 
-CiTT demonstrates functional feasibility by turning a circuit image or prompt into auditable MATLAB evidence rather than a standalone chatbot answer. In the current workflow, Gemini is used only to produce a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing the generated Simscape model at submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/artifacts/citt_generated_model_tevc.slx. The Evidence Pack records the original input, the structured spec, model path, focus map, probe map, model-check output, simulation summary, Lab Delta comparison, limitations, and risk controls in one reviewable artifact. For this run, the requirement table contains 7 PASS, 1 WARN, 0 FAIL, and 2 NOT_RUN items. This makes the proof falsifiable: missing model checks, absent signal logging, unresolved topology ambiguity, or unavailable lab measurements are visible instead of hidden. The teaching value comes from connecting each verification artifact back to focus-map highlights and probe locations, allowing students to inspect why a node, component, or requirement matters. The current scope remains educational and proposal-facing, not medical-device verification. The next strongest evidence would be logged performance requirements, parameter sweeps, and a measured lab CSV for the same circuit. Primary current limitation: The spec still contains unresolved ambiguity: V_c and R_e are symbolic in the source benchmark.
+CiTT demonstrates functional feasibility by turning a circuit image or prompt into auditable MATLAB evidence rather than a standalone chatbot answer. In the current workflow, the selected CLI produces a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing the generated Simscape model at submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/artifacts/citt_generated_model_tevc.slx. The Evidence Pack records the original input, the structured spec, model path, focus map, probe map, model-check output, simulation summary, Lab Delta comparison, limitations, and risk controls in one reviewable artifact. For this run, the requirement table contains 7 PASS, 1 WARN, 0 FAIL, and 2 NOT_RUN items. This makes the proof falsifiable: missing model checks, absent signal logging, unresolved topology ambiguity, or unavailable lab measurements are visible instead of hidden. The teaching value comes from connecting each verification artifact back to focus-map highlights and probe locations, allowing students to inspect why a node, component, or requirement matters. The current scope remains educational and proposal-facing, not medical-device verification. The next strongest evidence would be logged performance requirements, parameter sweeps, and a measured lab CSV for the same circuit. Primary current limitation: The spec still contains unresolved ambiguity: V_c and R_e are symbolic in the source benchmark.
 
 ## Artifact Index
 

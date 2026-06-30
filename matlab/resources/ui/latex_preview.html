@@ -28,7 +28,7 @@
       color: #5e7168;
       font-size: 12px;
     }
-    .fallback {
+    .plain-text {
       color: #10231a;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 12px;
@@ -37,7 +37,7 @@
     }
     .math {
       max-width: 100%;
-      overflow: visible;
+      overflow-x: auto;
       font-family: "Times New Roman", Times, serif;
       font-size: 17px;
       line-height: 1.55;
@@ -117,8 +117,15 @@
       Pi: "Π", Sigma: "Σ", Omega: "Ω",
       OmegaSymbol: "Ω", ohm: "Ω",
       cdot: "·", times: "×", pm: "±", approx: "≈", neq: "≠",
-      leq: "≤", geq: "≥", infty: "∞", rightarrow: "→", leftarrow: "←"
+      leq: "≤", geq: "≥", le: "≤", ge: "≥", infty: "∞",
+      rightarrow: "→", to: "→", leftarrow: "←", leftrightarrow: "↔",
+      prime: "′", degree: "°", int: "∫", sum: "∑", prod: "∏",
+      partial: "∂", nabla: "∇",
+      sin: "sin", cos: "cos", tan: "tan", log: "log", ln: "ln", exp: "exp",
+      ",": " ", ";": " ", ":": " ", "!": "", " ": " "
     };
+    const MAX_LATEX_CHARS = 700;
+    const MAX_LATEX_DEPTH = 14;
 
     function stripDelimiters(text) {
       let raw = String(text || "").trim();
@@ -159,27 +166,57 @@
       return { name: src.slice(start + 1, i), next: i };
     }
 
-    function parseLatex(src) {
+    function latexLooksSafe(raw) {
+      const src = String(raw == null ? "" : raw);
+      if (!src.trim() || src.length > MAX_LATEX_CHARS) return false;
+      if (/\\(begin|end|def|newcommand|renewcommand|input|include|write|href|url|html)/i.test(src)) return false;
+      let depth = 0;
+      for (let i = 0; i < src.length; i += 1) {
+        if (src[i] === "{") depth += 1;
+        if (src[i] === "}") depth -= 1;
+        if (depth < 0 || depth > MAX_LATEX_DEPTH) return false;
+      }
+      return depth === 0;
+    }
+
+    function parseLatex(src, depth = 0) {
+      if (depth > MAX_LATEX_DEPTH) return escapeHtml(src);
       let out = "";
       for (let i = 0; i < src.length;) {
         const ch = src[i];
 
         if (ch === "\\") {
           const cmd = readCommand(src, i);
-          if (cmd.name === "frac") {
+          if (cmd.name === "frac" || cmd.name === "dfrac" || cmd.name === "tfrac") {
             const top = readGroup(src, cmd.next);
             const bottom = readGroup(src, top.next);
-            out += `<span class="frac"><span class="top">${parseLatex(top.value)}</span><span class="bottom">${parseLatex(bottom.value)}</span></span>`;
+            out += `<span class="frac"><span class="top">${parseLatex(top.value, depth + 1)}</span><span class="bottom">${parseLatex(bottom.value, depth + 1)}</span></span>`;
             i = bottom.next;
             continue;
           }
           if (cmd.name === "sqrt") {
             const group = readGroup(src, cmd.next);
-            out += `<span class="sqrt">√<span class="radicand">${parseLatex(group.value)}</span></span>`;
+            out += `<span class="sqrt">√<span class="radicand">${parseLatex(group.value, depth + 1)}</span></span>`;
             i = group.next;
             continue;
           }
-          out += escapeHtml(commands[cmd.name] || cmd.name);
+          if (cmd.name === "mathrm" || cmd.name === "operatorname") {
+            const group = readGroup(src, cmd.next);
+            out += `<span style="font-family:inherit;font-style:normal">${parseLatex(group.value, depth + 1)}</span>`;
+            i = group.next;
+            continue;
+          }
+          if (cmd.name === "text") {
+            const group = readGroup(src, cmd.next);
+            out += escapeHtml(group.value);
+            i = group.next;
+            continue;
+          }
+          if (cmd.name === "left" || cmd.name === "right") {
+            i = cmd.next;
+            continue;
+          }
+          out += escapeHtml(commands[cmd.name] || ("\\" + cmd.name));
           i = cmd.next;
           continue;
         }
@@ -187,14 +224,14 @@
         if (ch === "_" || ch === "^") {
           const group = readGroup(src, i + 1);
           const tag = ch === "_" ? "sub" : "sup";
-          out += `<${tag}>${parseLatex(group.value)}</${tag}>`;
+          out += `<${tag}>${parseLatex(group.value, depth + 1)}</${tag}>`;
           i = group.next;
           continue;
         }
 
         if (ch === "{") {
           const group = readGroup(src, i);
-          out += parseLatex(group.value);
+          out += parseLatex(group.value, depth + 1);
           i = group.next;
           continue;
         }
@@ -248,7 +285,17 @@
         return;
       }
       preview.className = "math";
-      preview.innerHTML = parseLatex(math);
+      if (!latexLooksSafe(math)) {
+        preview.className = "plain-text";
+        preview.textContent = data.latex || "";
+        return;
+      }
+      try {
+        preview.innerHTML = parseLatex(math, 0);
+      } catch (_err) {
+        preview.className = "plain-text";
+        preview.textContent = data.latex || "";
+      }
     }
 
     function setup(htmlComponent) {

@@ -48,6 +48,7 @@ for i = 1:numel(focusItems)
     step.reveal_hint = "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.";
     step.common_mistake = "Jumping to a numeric answer before checking polarity, units, or the measured node.";
     step.optional_value_reference = requestedOutputsText(spec);
+    step.fact_lines = focusFactLines(focus, spec);
     steps = [steps; step]; %#ok<AGROW>
 end
 
@@ -125,6 +126,317 @@ if isfield(spec, "requested_outputs")
 else
     text = "";
 end
+end
+
+function lines = focusFactLines(focus, spec)
+lines = strings(0, 1);
+components = getFieldString(focus, ["related_components"], "");
+nodes = getFieldString(focus, ["related_nodes"], "");
+blocks = blockFacts(focus);
+outputs = requestedOutputsText(spec);
+values = componentValueFacts(focus, spec);
+taskValues = taskValueFacts(spec);
+if strlength(strtrim(components)) > 0
+    lines(end + 1) = "Components: " + components;
+end
+if strlength(strtrim(nodes)) > 0
+    lines(end + 1) = "Nodes: " + nodes;
+end
+if strlength(strtrim(values)) > 0
+    lines(end + 1) = "Known values: " + values;
+end
+if strlength(strtrim(taskValues)) > 0
+    lines(end + 1) = "Task values: " + taskValues;
+end
+if strlength(strtrim(blocks)) > 0
+    lines(end + 1) = "Model values: " + blocks;
+end
+if strlength(strtrim(outputs)) > 0
+    lines(end + 1) = "Measured outputs: " + outputs;
+end
+end
+
+function text = blockFacts(focus)
+text = "";
+if ~isstruct(focus) || ~isfield(focus, "block_paths")
+    return
+end
+raw = string(focus.block_paths);
+if isempty(raw)
+    return
+end
+parts = strings(0, 1);
+limit = min(numel(raw), 5);
+for i = 1:limit
+    blockPathParts = split(raw(i), "/");
+    blockName = blockPathParts(end);
+    if strlength(strtrim(blockName)) == 0
+        blockName = raw(i);
+    end
+    parts(end + 1) = prettifyBlockName(blockName); %#ok<AGROW>
+end
+if numel(raw) > limit
+    parts(end + 1) = "+" + string(numel(raw) - limit) + " more";
+end
+text = strjoin(parts, "; ");
+end
+
+function text = componentValueFacts(focus, spec)
+text = "";
+if ~isstruct(spec) || ~isfield(spec, "components")
+    return
+end
+ids = relatedComponentIds(focus);
+if isempty(ids)
+    return
+end
+components = forceStructArray(spec.components);
+if isempty(components)
+    return
+end
+parts = strings(0, 1);
+for i = 1:numel(ids)
+    component = findComponentById(components, ids(i));
+    if isempty(component)
+        continue
+    end
+    fact = componentFact(component);
+    if strlength(strtrim(fact)) > 0
+        parts(end + 1, 1) = fact; %#ok<AGROW>
+    end
+end
+parts = [parts; generatedDefaultFacts(ids)];
+if ~isempty(parts)
+    text = strjoin(unique(parts, "stable"), "; ");
+end
+end
+
+function parts = generatedDefaultFacts(ids)
+parts = strings(0, 1);
+idsLower = lower(strjoin(ids, " "));
+if contains(idsLower, "src_pk") || contains(idsLower, "pk")
+    parts(end + 1, 1) = "generated PK defaults: peak scale 10 uM, ka 0.02 1/s, ke 0.002 1/s, bioavailability 1";
+end
+if contains(idsLower, "adc")
+    parts(end + 1, 1) = "generated ADC references: Vref lo 0 V, Vref hi 3.3 V";
+end
+if contains(idsLower, "u_tia") || contains(idsLower, "opamp") || contains(idsLower, "op_amp")
+    parts(end + 1, 1) = "generated op-amp defaults: rails 0 to 3.3 V, open-loop gain 1e5, pole 100 kHz";
+end
+end
+
+function text = taskValueFacts(spec)
+text = "";
+if ~isstruct(spec)
+    return
+end
+ignored = ["components", "nodes", "connections", "assumptions", "ambiguities", ...
+    "unsupported_or_unclear_regions", "suggested_simscape_blocks", "focus_points", ...
+    "teaching_focus_points", "requested_outputs", "circuit_type", "likely_analysis", ...
+    "ground_node", "sources"];
+names = string(fieldnames(spec));
+parts = strings(0, 1);
+for i = 1:numel(names)
+    name = names(i);
+    if any(name == ignored)
+        continue
+    end
+    value = spec.(char(name));
+    if isstruct(value) || iscell(value)
+        continue
+    end
+    valueText = valueToText(value);
+    if strlength(strtrim(valueText)) == 0
+        continue
+    end
+    parts(end + 1) = prettifyFieldName(name) + " = " + valueText; %#ok<AGROW>
+    if numel(parts) >= 6
+        break
+    end
+end
+if ~isempty(parts)
+    text = strjoin(parts, "; ");
+end
+end
+
+function ids = relatedComponentIds(focus)
+ids = strings(0, 1);
+if ~isstruct(focus) || ~isfield(focus, "related_components")
+    return
+end
+rawValues = flattenStrings(focus.related_components);
+for i = 1:numel(rawValues)
+    pieces = split(rawValues(i), [",", ";", "|"]);
+    for j = 1:numel(pieces)
+        piece = stripComponentToken(pieces(j));
+        if strlength(piece) > 0
+            ids(end + 1, 1) = piece; %#ok<AGROW>
+        end
+    end
+end
+ids = unique(ids, "stable");
+end
+
+function values = flattenStrings(value)
+if isempty(value)
+    values = strings(0, 1);
+elseif isstring(value)
+    values = value(:);
+elseif ischar(value)
+    values = string(value);
+elseif iscell(value)
+    values = strings(0, 1);
+    for i = 1:numel(value)
+        values = [values; flattenStrings(value{i})]; %#ok<AGROW>
+    end
+elseif isnumeric(value) || islogical(value)
+    values = string(value(:));
+else
+    values = string(valueToText(value));
+end
+end
+
+function text = stripComponentToken(value)
+text = strtrim(string(value));
+text = regexprep(text, "^[\[\]\(\)""']+|[\[\]\(\)""']+$", "");
+text = strtrim(text);
+end
+
+function components = forceStructArray(value)
+if isempty(value)
+    components = struct([]);
+elseif iscell(value)
+    components = struct([]);
+    for i = 1:numel(value)
+        if isstruct(value{i})
+            components = [components; value{i}(:)]; %#ok<AGROW>
+        end
+    end
+elseif isstruct(value)
+    components = value(:);
+else
+    components = struct([]);
+end
+end
+
+function component = findComponentById(components, id)
+component = [];
+target = lower(strtrim(string(id)));
+for i = 1:numel(components)
+    componentId = lower(strtrim(getFieldString(components(i), ["id", "name"], "")));
+    componentLabel = lower(strtrim(getFieldString(components(i), ["label"], "")));
+    if componentId == target || componentLabel == target
+        component = components(i);
+        return
+    end
+end
+end
+
+function text = componentFact(component)
+id = getFieldString(component, ["id", "name"], "component");
+label = getFieldString(component, ["label", "type"], "");
+unit = getFieldString(component, ["unit"], "");
+value = "";
+if isfield(component, "value")
+    value = componentValueText(component.value, unit);
+elseif isfield(component, "nominal_value")
+    value = componentValueText(component.nominal_value, unit);
+end
+value = strtrim(string(value));
+unit = strtrim(string(unit));
+if strlength(value) > 0 && value ~= "[]" && lower(value) ~= "unspecified"
+    text = id + labelSuffix(label, id) + " = " + value;
+elseif strlength(unit) > 0
+    text = id + labelSuffix(label, id) + " uses " + unit + " units";
+else
+    text = id + labelSuffix(label, id) + " is parameterized";
+end
+end
+
+function text = componentValueText(value, unit)
+unit = strtrim(string(unit));
+if isnumeric(value) && isscalar(value) && isfinite(value)
+    text = engineeringValueText(double(value), unit);
+    return
+end
+text = strtrim(valueToText(value));
+if strlength(text) == 0 || text == "[]" || lower(text) == "unspecified"
+    return
+end
+if strlength(unit) > 0 && ~contains(lower(text), lower(unit))
+    text = text + " " + unit;
+end
+end
+
+function text = engineeringValueText(value, unit)
+unit = strtrim(string(unit));
+unitLower = lower(unit);
+switch unitLower
+    case {"ohm", "ohms", "ω"}
+        text = scaledValueText(value, [1e9, 1e6, 1e3, 1], ["GOhm", "MOhm", "kOhm", "Ohm"]);
+    case {"f", "farad", "farads"}
+        text = scaledValueText(value, [1, 1e-3, 1e-6, 1e-9, 1e-12], ["F", "mF", "uF", "nF", "pF"]);
+    case {"a", "amp", "amps", "ampere", "amperes"}
+        text = scaledValueText(value, [1, 1e-3, 1e-6, 1e-9, 1e-12], ["A", "mA", "uA", "nA", "pA"]);
+    case {"v", "volt", "volts"}
+        text = scaledValueText(value, [1, 1e-3, 1e-6], ["V", "mV", "uV"]);
+    case {"s", "sec", "second", "seconds"}
+        text = scaledValueText(value, [1, 1e-3, 1e-6], ["s", "ms", "us"]);
+    otherwise
+        text = numberText(value) + unitSuffix(unit);
+end
+end
+
+function text = scaledValueText(value, scales, units)
+absValue = abs(value);
+scale = scales(end);
+unit = units(end);
+for i = 1:numel(scales)
+    if absValue >= scales(i) || i == numel(scales)
+        scale = scales(i);
+        unit = units(i);
+        break
+    end
+end
+text = numberText(value / scale) + " " + unit;
+end
+
+function text = numberText(value)
+text = string(sprintf("%.6g", value));
+end
+
+function text = labelSuffix(label, id)
+label = strtrim(string(label));
+id = strtrim(string(id));
+if strlength(label) == 0 || lower(label) == lower(id)
+    text = "";
+else
+    text = " (" + label + ")";
+end
+end
+
+function text = unitSuffix(unit)
+if strlength(strtrim(string(unit))) == 0
+    text = "";
+else
+    text = " " + string(unit);
+end
+end
+
+function text = prettifyFieldName(name)
+text = replace(string(name), "_", " ");
+text = regexprep(text, "\bhz\b", "Hz", "ignorecase");
+end
+
+function text = prettifyBlockName(name)
+text = string(name);
+text = regexprep(text, "([0-9])MOhm", "$1 MOhm");
+text = regexprep(text, "([0-9])kOhm", "$1 kOhm");
+text = regexprep(text, "([0-9])mV", "$1 mV");
+text = regexprep(text, "([0-9])uF", "$1 uF");
+text = regexprep(text, "([0-9])nF", "$1 nF");
+text = regexprep(text, "([0-9])pF", "$1 pF");
+text = replace(text, "_", " ");
 end
 
 function value = getFieldString(container, fieldNames, defaultValue)

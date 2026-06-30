@@ -1,0 +1,21 @@
+{
+  "circuit_type": "rc_low_pass",
+  "components": [
+    {
+      "id": "R1",
+      "type": "resistor",
+      "label": "R1",
+      "value": 1000,
+      "unit": "Ohm"
+    },
+    {
+      "id": "C1",
+      "type": "capacitor",
+      "label": "C1",
+      "value": 1E-6,
+      "unit": "F"
+    }
+  ],
+  "requested_outputs": "V(n_out)",
+  "likely_analysis": "transient_or_ac"
+}

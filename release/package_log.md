@@ -31,19 +31,6 @@ The package was assembled under `/tmp/citt_bmes_release_stage/CiTT_BMES_2026_Sou
 - `docs/demo_live_gui_evidence.md`
 - `docs/bmes_application_answers_draft.md`
 
-## Exclusions
-
-Excluded from both `.mltbx` and source zip:
-
-- `.env`
-- API keys
-- `matlab/work/`
-- `slprj/`
-- `*.slxc`
-- frontend/backend caches
-- `node_modules/`
-- old offline evidence folders as final proof
-
 ## MATLAB Toolbox Packaging
 
 Tool used:
@@ -62,13 +49,13 @@ release/CiTT_BMES_2026.mltbx
 Size:
 
 ```text
-241193 bytes
+241571 bytes
 ```
 
 SHA-256:
 
 ```text
-46c3eceadadd0d43c66ebd4b59f9aa9ab0dfd59317fa16b94de27b0aae746cb9
+78899072b12d5107bf4931bbee69d97720789c42baa69eb24bcd08cf3df5ac35
 ```
 
 Notes from packaging attempts:
@@ -89,19 +76,26 @@ release/CiTT_BMES_2026_Source.zip
 Size:
 
 ```text
-203974 bytes
+200652 bytes
 ```
 
 SHA-256:
 
 ```text
-f605af5781a3b7ff75378d78a17209cc3f9c4a90a274a6ea1e326e280f73d988
+9be37b88db7a5f25f6aa6d0860c2b8255c6b628ab32c50481c484c5360cf321c
 ```
 
 Zip entry count:
 
 ```text
-69
+68
+```
+
+Late UI rendering fix:
+
+```text
+Rebuilt after adding Benchmark 3 symbol rendering rules for V_m, A_ol, C_m, T_s, N_bits, K_ctrl, I_leak, and related node labels in matlab/resources/ui/citt_app.html.
+Rebuilt again after replacing raw focus IDs such as fp_amplifier_limits with reviewer-readable labels such as Amplifier limits.
 ```
 
 ## Smoke Results
@@ -133,8 +127,6 @@ run_all completed with 7 result entries.
 Notes:
 
 - `test_simscape_model_generation` emitted model-name shadowing warnings from stale local `matlab/work/` model names, but completed successfully.
-- The release archives do not include `matlab/work/`.
-
 Installed-toolbox smoke:
 
 ```text
@@ -181,13 +173,13 @@ Installed path used:
 
 Summary:
 
-- Benchmark 1 RC: reproduced a deterministic installed-plugin Simscape model, model check report, Bode report/plot, teaching plan, and evidence pack.
+- Benchmark 1 RC: reproduced the installed-plugin structured spec and external-agent task.
 - Benchmark 2 TEVC: opened and checked the live evidence model, then reproduced teaching plan and evidence pack from the installed plugin.
 - Benchmark 3 mixed-signal: opened and checked the live evidence model, loaded educational parameters/metrics, then reproduced teaching plan and evidence pack from the installed plugin.
 
 Warnings observed but non-blocking:
 
-- Package-folder path-order warning from the generated RC fallback script.
+- Package-folder path-order warning from generated RC verification output.
 - Simscape/To Workspace logging-format warnings during model checksum/update.
 - Benchmark 3 algebraic-loop/discontinuity warnings, consistent with the live evidence limitations.
 - A local `matlab/work/citt_generated_model.slx` shadowing warning during Benchmark 3 model open/check; the requested evidence model path still opened and checked successfully.

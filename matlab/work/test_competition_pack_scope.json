@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "created_at": "29-Jun-2026 18:00:49",
+  "patient_connected_trigger_detected": true,
+  "potential_regulatory_category": "educational design-training tool with patient-connected-topic warnings",
+  "boundaries": [
+    "This model is educational and proposal-facing.",
+    "This is not clinical diagnosis.",
+    "This is not medical-device verification.",
+    "Generated model behavior depends on explicit assumptions, component values, and solver configuration."
+  ],
+  "additional_standards_to_consider": [
+    "isolation/leakage-current review",
+    "EMC review",
+    "front-end safety review",
+    "institutional lab safety policy"
+  ],
+  "risks": [
+    {
+      "risk": "Student mistakes simulation for certified device behavior",
+      "trigger": "Any generated model or performance table",
+      "mitigation": "Display educational boundary and assumptions in every export.",
+      "severity": "Medium"
+    },
+    {
+      "risk": "Generated circuit omits patient isolation or leakage-current constraints",
+      "trigger": "Spec contains biomedical/patient-connected terms",
+      "mitigation": "Warn that patient-connected hardware needs separate isolation, leakage, and EMC analysis.",
+      "severity": "High"
+    },
+    {
+      "risk": "LLM parse error becomes hidden design assumption",
+      "trigger": "Selected CLI structured spec drives model generation",
+      "mitigation": "Expose parsed spec, assumptions, ambiguities, and model-check status in Evidence Pack.",
+      "severity": "Medium"
+    }
+  ],
+  "report_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_scope.json",
+  "markdown_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_scope.md"
+}

@@ -1,0 +1,12 @@
+{
+  "probe_id": "probe_1",
+  "focus_id": "rc_output",
+  "label": "RC output node",
+  "target_type": "voltage",
+  "model_paths": "test_citt_symbolic_model_90466",
+  "block_paths": [],
+  "quantity": "V(n_out)",
+  "unit": "V",
+  "suggested_sensor_or_logging": "Voltage Sensor -> PS-Simulink Converter -> Scope",
+  "instructions": "Use the generated voltage sensor and Scope, or add a Simscape Voltage Sensor at the requested node."
+}

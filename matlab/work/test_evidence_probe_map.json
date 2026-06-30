@@ -1,0 +1,8 @@
+{
+  "probe_map": {
+    "probe_id": "probe_vout",
+    "label": "Probe Vout",
+    "target_paths": "test_evidence_model/Output Sensor",
+    "quantity": "voltage"
+  }
+}

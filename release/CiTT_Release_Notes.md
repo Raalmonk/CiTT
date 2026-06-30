@@ -29,7 +29,7 @@ After installing the toolbox package, `citt` resolves directly from the installe
 ## Artifacts
 
 - MATLAB toolbox: `release/CiTT_BMES_2026.mltbx`
-- Source fallback: `release/CiTT_BMES_2026_Source.zip`
+- Source package: `release/CiTT_BMES_2026_Source.zip`
 - Setup docs: `docs/release_setup.md`
 - Live evidence map: `docs/demo_live_gui_evidence.md`
 - BMES answer scaffold: `paper_orchestra/bmes_application/application_answers_draft.md`
@@ -44,7 +44,7 @@ citt.checkSetup
 citt
 ```
 
-Source fallback:
+Source package:
 
 ```matlab
 addpath("CiTT_BMES_2026_Source/matlab")
@@ -63,16 +63,6 @@ citt
 - `README.md`
 - selected setup/demo docs
 
-## Excluded
-
-- `.env` files and API keys
-- `matlab/work/`
-- `slprj/`
-- `*.slxc`
-- frontend/backend caches
-- `node_modules/`
-- old offline evidence drafts as final proof
-
 ## Evidence Package
 
 Final evidence entry point:
@@ -85,8 +75,7 @@ Do not use older offline draft reports as final proof.
 
 ## Known Limitations
 
-- Full flow requires MATLAB, Simulink, Simscape, preferably Simscape Electrical, SATK/MCP-compatible model tooling, a configured LLM/agent backend, and an agent CLI. Gemini is one supported provider.
+- Full flow requires MATLAB, Simulink, Simscape, preferably Simscape Electrical, SATK/MCP-compatible model tooling, and a configured CLI/agent backend.
 - Benchmark 3 is educational scaled benchmark evidence, not medical-use validation.
 - Lab Delta CSV comparison is not completed without an external lab CSV.
-- Gemini-only baseline is a no-tools comparison artifact, not an exhaustive evaluation.
 - The release smoke tests verify setup, resources, launch, close, and installed-toolbox path behavior; they do not rerun all live benchmark generation.

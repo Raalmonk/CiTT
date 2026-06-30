@@ -1,0 +1,31 @@
+{
+  "circuit_type": "ecg_rc_antialias_adc",
+  "components": [
+    {
+      "id": "R1",
+      "type": "resistor",
+      "value": "10 kOhm"
+    },
+    {
+      "id": "C1",
+      "type": "capacitor",
+      "value": "0.39 uF"
+    }
+  ],
+  "nodes": [
+    "vin",
+    "vout",
+    "gnd"
+  ],
+  "requested_outputs": [
+    "cutoff_frequency",
+    "vout"
+  ],
+  "likely_analysis": "ac_frequency_response",
+  "cutoff_frequency_hz": 40,
+  "sampling_frequency_hz": 500,
+  "highest_signal_frequency_hz": 150,
+  "assumptions": "educational ECG front-end model",
+  "ambiguities": [],
+  "unsupported_or_unclear_regions": []
+}

@@ -1,0 +1,102 @@
+{
+  "circuit_type": "rc_low_pass",
+  "components": [
+    {
+      "id": "V1",
+      "type": "voltage_source",
+      "label": "Vin",
+      "value": "V_c",
+      "unit": "V",
+      "terminals": [
+        "positive",
+        "negative"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "label": "R1",
+      "value": "unspecified",
+      "unit": "Ohm",
+      "terminals": [
+        "left",
+        "right"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "C1",
+      "type": "capacitor",
+      "label": "C1",
+      "value": 1E-6,
+      "unit": "F",
+      "terminals": [
+        "top",
+        "bottom"
+      ],
+      "confidence": 1
+    }
+  ],
+  "nodes": [
+    "n_in",
+    "n_out",
+    "0"
+  ],
+  "connections": [
+    {
+      "from": "V1.positive",
+      "to": "R1.left",
+      "label": "n_in",
+      "confidence": 1
+    },
+    {
+      "from": "R1.right",
+      "to": "C1.top",
+      "label": "n_out",
+      "confidence": 1
+    },
+    {
+      "from": "V1.negative",
+      "to": "C1.bottom",
+      "label": "0",
+      "confidence": 1
+    }
+  ],
+  "ground_node": "0",
+  "sources": "V1",
+  "requested_outputs": "V(n_out)",
+  "likely_analysis": "transient",
+  "assumptions": [],
+  "ambiguities": "The exact value of Vc is intentionally symbolic.",
+  "unsupported_or_unclear_regions": [],
+  "suggested_simscape_blocks": [
+    "Resistor",
+    "Capacitor",
+    "Electrical Reference",
+    "Solver Configuration",
+    "Voltage Sensor"
+  ],
+  "focus_points": {
+    "id": "rc_output",
+    "label": "RC output node",
+    "reason": "Output node for the low-pass response.",
+    "related_components": [
+      "R1",
+      "C1"
+    ],
+    "related_nodes": "n_out",
+    "teaching_question": "Why is n_out the natural probe point?"
+  },
+  "teaching_focus_points": {
+    "id": "rc_output",
+    "label": "RC output node",
+    "reason": "Output node for the low-pass response.",
+    "related_components": [
+      "R1",
+      "C1"
+    ],
+    "related_nodes": "n_out",
+    "teaching_question": "Why is n_out the natural probe point?"
+  }
+}

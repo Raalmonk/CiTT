@@ -21,6 +21,12 @@ assert(contains(text, "model_resolve_params"));
 assert(contains(text, "Simscape-first"));
 assert(contains(text, "Electrical Reference"));
 assert(contains(text, "Solver Configuration"));
+assert(contains(text, "Repo-Local SATK Agent Instructions"));
+assert(contains(text, "CiTT-specific SATK agent addendum"));
+assert(contains(text, "Simscape Utilization Contract"));
+assert(contains(text, "PS-Simulink Converter"));
+assert(contains(text, "Prefer plain text"));
+assert(contains(text, "LaTeX"));
 end
 
 function writeText(path, text)

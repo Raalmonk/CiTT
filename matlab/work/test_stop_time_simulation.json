@@ -1,0 +1,38 @@
+{
+  "success": true,
+  "model_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_test_stop_time_parameter.slx",
+  "summary_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_stop_time_simulation.json",
+  "messages": [
+    "StopTime variable t_stop was undefined or non-finite; assigned 0.1 s in the model workspace.",
+    "Step time variable t_step was undefined; assigned 0.01 s in the model workspace.",
+    "Clamp gain variable A_clamp_gain was undefined; assigned 10 in the model workspace.",
+    "PK biosensor stop time citt_stop_time_s was undefined or non-finite; assigned 200 s.",
+    "PK concentration scale citt_pk_scale_uM was undefined or non-finite; assigned 10 uM.",
+    "PK bioavailability citt_bioavailability was undefined or non-finite; assigned 1.",
+    "PK absorption rate citt_ka_per_s was undefined or non-finite; assigned 0.02 1/s.",
+    "PK elimination rate citt_ke_per_s was undefined or non-finite; assigned 0.002 1/s.",
+    "ADC high reference citt_adc_vref_hi_V was undefined or non-finite; assigned 3.3 V.",
+    "ADC low reference citt_adc_vref_lo_V was undefined or non-finite; assigned 0 V.",
+    "Op-amp positive output limit citt_vplus_V was undefined or non-finite; assigned 3.3 V.",
+    "Op-amp negative output limit citt_vminus_V was undefined or non-finite; assigned 0 V.",
+    "Op-amp open-loop gain citt_opamp_open_loop_gain was undefined or non-finite; assigned 1e5.",
+    "Op-amp input resistance citt_opamp_input_resistance_ohm was undefined or non-finite; assigned 1e9 ohm.",
+    "Op-amp output resistance citt_opamp_output_resistance_ohm was undefined or non-finite; assigned 10 ohm.",
+    "Op-amp pole frequency citt_opamp_pole_frequency_Hz was undefined or non-finite; assigned 1e5 Hz.",
+    "Op-amp output offset citt_opamp_output_offset_V was undefined or non-finite; assigned 0 V.",
+    "Prepared generated-model parameters saved in the model file.",
+    "Simscape logging parameter was not available for this model.",
+    "Simulation completed."
+  ],
+  "error": "",
+  "output_variables": "tout",
+  "simscape_logging": {
+    "available": false,
+    "attempted": false,
+    "enabled": false,
+    "output_found": false,
+    "log_name": "",
+    "output_variable": "",
+    "message": "Simscape logging parameter was not available for this model."
+  }
+}

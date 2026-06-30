@@ -105,7 +105,7 @@ An ECG acquisition front end uses a first-order RC low-pass filter before a 500 
 
 Workflow using GUI:
 1. In CiTT Read page, enter or load the RC problem.
-2. Click Read with Gemini if appropriate, or load a prepared sample image/spec if available.
+2. Click Read with the selected CLI, or load a prepared sample image/spec if available.
 3. Capture Read page screenshot after parsing.
 4. Go to Build.
 5. Prepare/build/open model through the UI.
@@ -242,7 +242,7 @@ Include:
 - screenshots,
 - what CiTT did that LLM-only cannot,
 - limitations,
-- what depends on MATLAB/Simscape/SATK/Gemini,
+- what depends on MATLAB/Simscape/SATK/the selected CLI,
 - how evidence maps to BMES criteria:
   product need,
   novelty,

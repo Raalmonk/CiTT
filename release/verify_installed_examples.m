@@ -88,43 +88,14 @@ specPath = fullfile(exampleDir, "citt_spec_reproduced.json");
 writeJson(specPath, spec);
 
 modelPath = fullfile(exampleDir, "rc_reproduced_model.slx");
-buildResult = citt.buildLocalSimscapeFallback(specPath, struct( ...
-    "ScriptPath", fullfile(exampleDir, "rc_reproduced_build.m"), ...
-    "ModelPath", modelPath, ...
-    "FocusMapPath", fullfile(exampleDir, "citt_focus_map.json"), ...
-    "ProbeMapPath", fullfile(exampleDir, "citt_probe_map.json"), ...
-    "ReportPath", fullfile(exampleDir, "citt_agent_report.md"), ...
-    "OpenModel", false));
-assert(buildResult.success, "RC local model reproduction failed.");
-assert(isfile(modelPath), "RC reproduced model file missing.");
+taskPath = fullfile(exampleDir, "citt_agent_task.md");
+taskResult = citt.buildAgentTask(specPath, struct("TaskPath", taskPath));
+assert(taskResult.success && isfile(taskPath), "RC agent task reproduction failed.");
 
-modelCheck = citt.runModelCheck(modelPath, struct("ReportPath", fullfile(exampleDir, "citt_model_check_report.md")));
-assert(modelCheck.success, "RC model check failed.");
-
-bode = citt.runBodeAnalysis(struct("SpecPath", specPath, "ModelPath", modelPath), struct( ...
-    "OutputPath", fullfile(exampleDir, "citt_bode_report.json"), ...
-    "MarkdownPath", fullfile(exampleDir, "citt_bode_report.md"), ...
-    "PlotPath", fullfile(exampleDir, "citt_bode_plot.png"), ...
-    "FrequencyHz", [5 39.9887 60 250]));
-assert(bode.success, "RC Bode reproduction failed.");
-assert(isfile(bode.plot_path), "RC Bode plot missing.");
-
-teaching = citt.buildTeachingPlan(specPath, buildResult.focus_map_path, modelCheck, [], ...
-    struct("OutputPath", fullfile(exampleDir, "citt_teaching_plan.json")));
-assert(teaching.success && teaching.step_count > 0, "RC teaching plan reproduction failed.");
-
-context = baseEvidenceContext(problemPath, specPath, modelPath, buildResult.focus_map_path, buildResult.probe_map_path);
-context.LastModelCheck = modelCheck;
-context.LastProbe = struct("success", true, "target_id", "probe_vout");
-context.LastRequirements = struct("rows", []);
-pack = citt.exportEvidencePack(context, struct("OutputPath", fullfile(exampleDir, "citt_evidence_pack.md")));
-assert(pack.success && isfile(pack.pack_path), "RC evidence pack reproduction failed.");
-
-closeModel(modelPath);
-example = exampleResult(exampleName, exampleDir, "passed");
+example = exampleResult(exampleName, exampleDir, "agent_task_prepared");
 example.model_path = string(modelPath);
-example.bode_plot = string(bode.plot_path);
-example.teaching_steps = teaching.step_count;
+example.agent_task_path = string(taskPath);
+example.note = "Model generation must be performed by the configured external CLI/SATK flow.";
 end
 
 function example = verifyTevcExample(evidenceRoot, outputRoot)

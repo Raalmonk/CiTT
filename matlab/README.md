@@ -44,10 +44,10 @@ Default release assumption:
 - Simscape, preferably Simscape Electrical
 - Simulink Agentic Toolkit initialized with `satk_initialize`
 - MATLAB MCP Server
-- A configured LLM/agent backend for circuit interpretation and orchestration. This can be direct Gemini API credentials, a local Gemini-compatible CLI, a Codex-compatible CLI, or another configured agent route.
-- A SATK-configured agent CLI via `CITT_AGENT_COMMAND`, Codex CLI, or Gemini CLI for the model-building path.
+- A configured CLI backend for circuit interpretation, Socratic classification, and orchestration. This can be `CITT_AGENT_COMMAND`, Codex CLI, Claude Code CLI, or a DeepSeek-compatible CLI.
+- A SATK-configured agent CLI for the model-building path.
 
-For the release evidence path, the first circuit-interpretation step and the later Simulink/Simscape build step may both run through the same local CLI/agent workflow. Gemini remains one supported model provider, but the direct Gemini API is not the only parsing route.
+For the release evidence path, the first circuit-interpretation step and the later Simulink/Simscape build step both run through the selected local CLI/agent workflow. If no selected CLI is available, CiTT reports the missing setup instead of switching routes.
 
 If MATLAB was opened from the Dock and cannot see shell environment variables, create a local untracked file:
 
@@ -59,29 +59,18 @@ with:
 
 ```text
 CITT_AGENT_COMMAND=your-agent-cli-command
-# Optional if using direct Gemini API or a Gemini-backed local CLI:
-GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=your_model_here
 ```
 
 ## Agent Build
 
-Build Model writes `matlab/work/citt_agent_task.md`, hands it to `CITT_AGENT_COMMAND`, Codex CLI, or Gemini CLI, then validates that the agent produced:
+Build Model writes `matlab/work/citt_agent_task.md`, hands it to `CITT_AGENT_COMMAND`, Codex CLI, Claude Code CLI, or a DeepSeek-compatible CLI, then validates that the agent produced:
 
 - `matlab/work/citt_generated_model.slx`
 - `matlab/work/citt_focus_map.json`
 - `matlab/work/citt_probe_map.json`
 - `matlab/work/citt_agent_report.md`
 
-In the MATLAB UI, the external agent is launched asynchronously so MATLAB remains free for MCP/SATK tool calls. CiTT polls `matlab/work/citt_agent_stdout.log` and artifact freshness until the run finishes. If no agent CLI is available, CiTT opens the task markdown for manual-agent mode.
-
-The deterministic local Simscape builder is available only as an explicit emergency/demo fallback with:
-
-```text
-CITT_USE_LOCAL_SIMSCAPE_FALLBACK=1
-```
-
-Do not enable the fallback for release testing unless the goal is explicitly to test that fallback path.
+In the MATLAB UI, the external agent is launched asynchronously so MATLAB remains free for MCP/SATK tool calls. CiTT polls `matlab/work/citt_agent_stdout.log` and artifact freshness until the run finishes. If no selected CLI is available, CiTT reports the setup error and does not create model artifacts locally.
 
 External agent runs retry transient service errors by default. Tune with `CITT_AGENT_MAX_ATTEMPTS` and `CITT_AGENT_RETRY_DELAY_SECONDS` if the selected agent endpoint is noisy.
 

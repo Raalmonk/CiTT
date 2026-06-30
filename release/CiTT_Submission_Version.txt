@@ -12,7 +12,7 @@ Toolbox launch after install:
   citt
 MATLAB package:
   release/CiTT_BMES_2026.mltbx
-Source fallback:
+Source package:
   release/CiTT_BMES_2026_Source.zip
 Smoke status:
   Repository-path smoke passed.

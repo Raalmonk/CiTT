@@ -12,20 +12,20 @@
     "Simscape Electrical preferred",
     "Simulink Agentic Toolkit / SATK-compatible flow",
     "MATLAB MCP Server",
-    "configured LLM/agent backend (Gemini supported)",
+    "configured CLI/agent backend (Codex/Claude/DeepSeek CLI supported)",
     "agent CLI"
   ],
   "artifacts": {
     "toolbox": {
       "path": "release/CiTT_BMES_2026.mltbx",
-      "bytes": 241193,
-      "sha256": "46c3eceadadd0d43c66ebd4b59f9aa9ab0dfd59317fa16b94de27b0aae746cb9",
+      "bytes": 241571,
+      "sha256": "78899072b12d5107bf4931bbee69d97720789c42baa69eb24bcd08cf3df5ac35",
       "smoke_status": "installed-toolbox launch smoke passed"
     },
     "source_zip": {
       "path": "release/CiTT_BMES_2026_Source.zip",
-      "bytes": 203974,
-      "sha256": "f605af5781a3b7ff75378d78a17209cc3f9c4a90a274a6ea1e326e280f73d988"
+      "bytes": 200652,
+      "sha256": "9be37b88db7a5f25f6aa6d0860c2b8255c6b628ab32c50481c484c5360cf321c"
     }
   },
   "packaged_files_summary": [
@@ -41,17 +41,6 @@
     "docs/demo_live_gui_evidence.md",
     "paper_orchestra/bmes_application/application_answers_draft.md"
   ],
-  "excluded_files_summary": [
-    ".env and API keys",
-    "matlab/work/",
-    "slprj/",
-    "*.slxc",
-    "node_modules/",
-    "__pycache__/",
-    ".pytest_cache/",
-    "frontend/backend caches",
-    "old offline evidence folders as final proof"
-  ],
   "evidence_entry_point": "submission_assets/live_gui_evidence/",
   "git_commit": "388f14a783e0e47c55521769eeb816fe85367a83",
   "git_status": "dirty with release-preparation files, installed-toolbox work-dir fix, exporter artifact check fix, and test hardening",
@@ -59,7 +48,6 @@
     "Full agent-assisted circuit interpretation and SATK/MCP model generation require configured external services and agent CLI.",
     "Benchmark 3 is educational scaled benchmark evidence, not medical-use validation.",
     "Lab Delta CSV comparison is not completed without an external lab CSV.",
-    "Gemini-only baseline is a no-tools comparison artifact, not an exhaustive evaluation.",
     "Smoke tests verify package install, setup, resources, app launch, and close; they do not rerun every live benchmark."
   ],
   "post_package_validation": {

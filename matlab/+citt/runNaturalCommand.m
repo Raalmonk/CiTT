@@ -115,7 +115,7 @@ if hasAny(cmd, ["probe", "探针", "测量", "measure", "scope", "观察"])
         error("CiTT:CommandProbeMissing", "I could not match that command to a probe in: %s", probeMapPath);
     end
     result.action = "measure";
-    result.details = feval('citt.addProbe', modelPath, probeId, probeMapPath, specPath, struct("PreviewOnly", true));
+    result.details = feval('citt.addProbe', modelPath, probeId, probeMapPath, specPath, struct("PreviewOnly", true, "ShowModel", false));
     try
         result.details.measurement = summarizeLoggedMeasurement(modelPath, result.details);
     catch measurementError
@@ -406,6 +406,7 @@ function measurement = summarizeLoggedMeasurement(modelPath, probeResult)
 measurement = struct();
 measurement.success = false;
 measurement.output_name = measurementOutputName(probeResult);
+measurement.unit = measurementUnit(probeResult);
 measurement.block_path = "";
 measurement.min_V = [];
 measurement.max_V = [];
@@ -429,22 +430,27 @@ end
 
 [~, modelName, ~] = fileparts(modelPath);
 load_system(char(modelPath));
+feval('citt.ensureStopTimeReady', modelName);
 simOut = sim(char(modelName));
+signal = [];
+blockPath = "";
 try
     yout = simOut.yout;
+    [signal, blockPath] = findLoggedSignal(yout, measurement.output_name, probeResult);
 catch
-    measurement.message = "Simulation completed, but yout did not contain logged probe outputs.";
-    return
 end
 
-[signal, blockPath] = findLoggedSignal(yout, measurement.output_name, probeResult);
 if isempty(signal)
-    measurement.message = "Simulation completed, but the requested logged output was not found in yout.";
+    [time, data, blockPath] = findSimulationOutputVariable(simOut, measurement.output_name, probeResult);
+else
+    time = signal.Time(:);
+    data = signal.Data(:);
+end
+if isempty(data)
+    measurement.message = "Simulation completed, but the requested logged output was not found.";
     return
 end
 
-time = signal.Time(:);
-data = signal.Data(:);
 if isempty(time) || isempty(data)
     measurement.message = "Logged output was found but contained no samples.";
     return
@@ -459,7 +465,7 @@ lateMask = time >= max(time(end) - 1, time(1));
 measurement.late_peak_to_peak_V = max(data(lateMask)) - min(data(lateMask));
 measurement.recovery_time_below_1mV_s = sustainedBelowTime(time, data, 1e-3);
 measurement.recovery_time_below_0p5mV_s = sustainedBelowTime(time, data, 5e-4);
-measurement.message = "Simulation measurement computed from yout.";
+measurement.message = "Simulation measurement computed from " + blockPath + ".";
 end
 
 function measurement = summarizeParameterMeasurement(modelPath, probeResult, outputName)
@@ -517,9 +523,9 @@ yes = hasAny(text, ["r1_39p8k", "c1_100nf", "cutoff_frequency_from_r1_c1", ...
     hasAny(text, ["rc", "cutoff", "attenuation", "nyquist", "vout"]);
 end
 
-function [value, source] = readSimscapeScalar(modelPath, blockName, paramNames, fallback)
-value = fallback;
-source = "fallback prompt value";
+function [value, source] = readSimscapeScalar(modelPath, blockName, paramNames, defaultValue)
+value = defaultValue;
+source = "prompt default value";
 modelPath = string(modelPath);
 if strlength(strtrim(modelPath)) == 0 || ~isfile(modelPath)
     return
@@ -614,7 +620,14 @@ end
 end
 
 function outputName = measurementOutputName(probeResult)
-text = lower(valueText(probeResult));
+rawText = valueText(probeResult);
+variableMatch = regexp(char(rawText), "variable\s+([A-Za-z]\w*)", "tokens", "once", "ignorecase");
+if ~isempty(variableMatch)
+    outputName = string(variableMatch{1});
+    return
+end
+
+text = lower(rawText);
 match = regexp(text, "output\s+([a-z][a-z0-9_]*_v)", "tokens", "once");
 if ~isempty(match)
     outputName = string(match{1});
@@ -634,6 +647,17 @@ elseif contains(targetId, "electrode")
     outputName = "electrode_voltage_v";
 else
     outputName = targetId;
+end
+end
+
+function unit = measurementUnit(probeResult)
+text = lower(valueText(probeResult));
+if contains(text, "(a)") || contains(text, " current ") || contains(text, "current through")
+    unit = "A";
+elseif contains(text, "(v)") || contains(text, " voltage ") || contains(text, "voltage")
+    unit = "V";
+else
+    unit = "unit";
 end
 end
 
@@ -684,6 +708,109 @@ catch
 end
 end
 
+function [time, data, variableName] = findSimulationOutputVariable(simOut, outputName, probeResult)
+time = [];
+data = [];
+variableName = "";
+try
+    names = string(simOut.who);
+catch
+    names = strings(0, 1);
+end
+if isempty(names)
+    return
+end
+
+targetText = lower(valueText(probeResult));
+outputName = lower(string(outputName));
+bestScore = -Inf;
+for i = 1:numel(names)
+    name = string(names(i));
+    lowerName = lower(name);
+    score = 0;
+    if strlength(outputName) > 0 && lowerName == outputName
+        score = score + 40;
+    elseif strlength(outputName) > 0 && contains(lowerName, outputName)
+        score = score + 20;
+    end
+    compactOutput = erase(outputName, ["citt_", "_v", "_voltage"]);
+    if strlength(compactOutput) > 0 && contains(lowerName, compactOutput)
+        score = score + 10;
+    end
+    if contains(lowerName, "clamp") && contains(targetText, "clamp")
+        score = score + 8;
+    end
+    if contains(lowerName, "current") || contains(lowerName, "i_") || contains(lowerName, "_i")
+        if contains(targetText, "current") || contains(targetText, " i_")
+            score = score + 8;
+        end
+    end
+    if contains(lowerName, "voltage") || contains(lowerName, "v_") || contains(lowerName, "_v")
+        if contains(targetText, "voltage") || contains(targetText, " v_")
+            score = score + 8;
+        end
+    end
+    if score <= bestScore
+        continue
+    end
+    try
+        candidate = simOut.get(char(name));
+        [candidateTime, candidateData] = simulationOutputData(candidate);
+    catch
+        candidateTime = [];
+        candidateData = [];
+    end
+    if isempty(candidateTime) || isempty(candidateData)
+        continue
+    end
+    bestScore = score;
+    time = candidateTime;
+    data = candidateData;
+    variableName = "To Workspace variable " + name;
+end
+if bestScore <= 0
+    time = [];
+    data = [];
+    variableName = "";
+end
+end
+
+function [time, data] = simulationOutputData(value)
+time = [];
+data = [];
+if isa(value, 'timeseries')
+    time = double(value.Time(:));
+    data = squeeze(double(value.Data));
+    data = data(:);
+    return
+end
+if isstruct(value)
+    if isfield(value, "time") && isfield(value, "signals")
+        time = double(value.time(:));
+        signals = value.signals;
+        if isstruct(signals) && isfield(signals, "values")
+            data = squeeze(double(signals.values));
+            data = data(:);
+        end
+    elseif isfield(value, "Time") && isfield(value, "Data")
+        time = double(value.Time(:));
+        data = squeeze(double(value.Data));
+        data = data(:);
+    end
+    return
+end
+if isnumeric(value)
+    values = double(value);
+    if size(values, 2) >= 2
+        time = values(:, 1);
+        data = values(:, 2);
+    else
+        data = values(:);
+        time = (0:numel(data)-1)';
+    end
+end
+end
+
 function timeValue = sustainedBelowTime(time, data, threshold)
 timeValue = [];
 for i = 1:numel(data)
@@ -705,11 +832,11 @@ for i = 1:numel(fieldNames)
 end
 end
 
-function value = contextText(context, fieldName, fallback)
+function value = contextText(context, fieldName, defaultValue)
 if isstruct(context) && isfield(context, fieldName) && ~isempty(context.(fieldName))
     value = string(context.(fieldName));
 else
-    value = string(fallback);
+    value = string(defaultValue);
 end
 end
 

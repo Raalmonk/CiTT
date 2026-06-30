@@ -175,6 +175,6 @@
   ],
   "limitations": [
     "Educational scaled parameters are selected for stable, visible benchmark behavior and are not medical-use validation.",
-    "If the generated Simscape model cannot execute in a local MATLAB install, deterministic fallback plots must be labeled as fallback evidence."
+    "If the generated Simscape model cannot execute in a local MATLAB install, stop instead of substituting plots for model evidence."
   ]
 }

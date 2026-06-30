@@ -581,27 +581,27 @@ for i = 1:numel(right)
 end
 end
 
-function value = optionText(options, fieldName, fallback)
+function value = optionText(options, fieldName, defaultValue)
 if isstruct(options) && isfield(options, fieldName) && ~isempty(options.(fieldName))
     value = string(options.(fieldName));
 else
-    value = string(fallback);
+    value = string(defaultValue);
 end
 end
 
-function value = contextText(context, fieldName, fallback)
+function value = contextText(context, fieldName, defaultValue)
 if isstruct(context) && isfield(context, fieldName) && ~isempty(context.(fieldName))
     value = string(context.(fieldName));
 else
-    value = string(fallback);
+    value = string(defaultValue);
 end
 end
 
-function values = optionNumberArray(options, fieldName, fallback)
+function values = optionNumberArray(options, fieldName, defaultValues)
 if isstruct(options) && isfield(options, fieldName) && ~isempty(options.(fieldName))
     values = double(options.(fieldName));
 else
-    values = fallback;
+    values = defaultValues;
 end
 end
 
@@ -675,9 +675,9 @@ else
 end
 end
 
-function text = emptyText(value, fallback)
+function text = emptyText(value, defaultText)
 if strlength(string(value)) == 0
-    text = string(fallback);
+    text = string(defaultText);
 else
     text = string(value);
 end

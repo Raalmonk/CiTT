@@ -1,0 +1,71 @@
+{
+  "success": true,
+  "created_at": "29-Jun-2026 18:00:47",
+  "source_spec": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_spec.json",
+  "rows": [
+    {
+      "requirement": "Cutoff frequency near target",
+      "result": "fc=39.8 Hz, target 40 Hz +/- 10%",
+      "status": "PASS",
+      "evidence": "spec + Lab Delta/simulation metrics"
+    },
+    {
+      "requirement": "Sampling frequency satisfies Nyquist",
+      "result": "fs=500 Hz, 2*fmax=300 Hz",
+      "status": "PASS",
+      "evidence": "spec + simulation metrics"
+    },
+    {
+      "requirement": "Output saturation / clipping absent",
+      "result": "none detected",
+      "status": "PASS",
+      "evidence": "simulation summary"
+    },
+    {
+      "requirement": "60 Hz interference attenuation checked",
+      "result": "-14.2 dB from simulation",
+      "status": "WARN",
+      "evidence": "Lab Delta/simulation metrics"
+    },
+    {
+      "requirement": "Input impedance above threshold",
+      "result": "metric not available",
+      "status": "NOT_EVALUATED",
+      "evidence": "spec + simulation metrics"
+    },
+    {
+      "requirement": "ADC quantization step below threshold",
+      "result": "metric not available",
+      "status": "NOT_EVALUATED",
+      "evidence": "spec + simulation metrics"
+    },
+    {
+      "requirement": "Model check has no update errors",
+      "result": "model update/check succeeded",
+      "status": "PASS",
+      "evidence": "model_check report"
+    },
+    {
+      "requirement": "Focus map available for teaching highlights",
+      "result": "artifact exists",
+      "status": "PASS",
+      "evidence": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_focus.json"
+    },
+    {
+      "requirement": "Probe map available for guided measurements",
+      "result": "artifact exists",
+      "status": "PASS",
+      "evidence": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_probe.json"
+    }
+  ],
+  "summary": {
+    "pass": 6,
+    "warn": 1,
+    "fail": 0,
+    "not_run": 0,
+    "not_evaluated": 2,
+    "recorded": 0
+  },
+  "report_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_requirements.json",
+  "markdown_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_requirements.md"
+}

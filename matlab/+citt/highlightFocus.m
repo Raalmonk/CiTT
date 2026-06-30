@@ -1,4 +1,4 @@
-function result = highlightFocus(modelPath, focusMapInput, focusId)
+function result = highlightFocus(modelPath, focusMapInput, focusId, options)
 %HIGHLIGHTFOCUS Highlight blocks from an agent-generated focus map.
 
 config = feval('citt.loadConfig');
@@ -11,6 +11,10 @@ end
 if nargin < 3 || isempty(focusId)
     focusId = "";
 end
+if nargin < 4 || isempty(options)
+    options = struct();
+end
+showModel = optionLogical(options, "ShowModel", false);
 
 result = struct();
 result.success = false;
@@ -18,6 +22,7 @@ result.focus_id = string(focusId);
 result.highlighted_paths = strings(0, 1);
 result.warnings = strings(0, 1);
 result.focus = [];
+result.visual_highlight_applied = showModel;
 
 focusMap = readFocusMap(focusMapInput);
 focus = findFocus(focusMap, focusId);
@@ -26,9 +31,13 @@ if isempty(focus)
 end
 result.focus = focus;
 
-tryOpenModel(modelPath, result.focus);
-clearResult = feval('citt.clearHighlights', modelPath);
-result.cleared_highlights = clearResult.cleared_paths;
+tryOpenModel(modelPath, result.focus, showModel);
+if showModel
+    clearResult = feval('citt.clearHighlights', modelPath);
+    result.cleared_highlights = clearResult.cleared_paths;
+else
+    result.cleared_highlights = strings(0, 1);
+end
 
 paths = focusPaths(focus);
 for i = 1:numel(paths)
@@ -37,7 +46,9 @@ for i = 1:numel(paths)
         continue
     end
     try
-        hilite_system(char(targetPath), "find");
+        if showModel
+            hilite_system(char(targetPath), "find");
+        end
         result.highlighted_paths(end + 1) = targetPath; %#ok<AGROW>
     catch highlightError
         error("CiTT:HighlightUnavailable", ...
@@ -142,19 +153,32 @@ else
 end
 end
 
-function tryOpenModel(modelPath, focus)
+function tryOpenModel(modelPath, focus, showModel)
 try
     if strlength(string(modelPath)) > 0 && isExistingFile(modelPath)
         load_system(char(modelPath));
         [~, modelName, ~] = fileparts(modelPath);
-        open_system(char(modelName));
+        if showModel
+            open_system(char(modelName));
+        end
         return
     end
     paths = focusPaths(focus);
-    if ~isempty(paths)
+    if showModel && ~isempty(paths)
         open_system(char(paths(1)));
     end
 catch
+end
+end
+
+function value = optionLogical(options, fieldName, defaultValue)
+value = logical(defaultValue);
+if isstruct(options) && isfield(options, fieldName)
+    try
+        value = logical(options.(fieldName));
+    catch
+        value = logical(defaultValue);
+    end
 end
 end
 

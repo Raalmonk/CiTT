@@ -6,7 +6,7 @@ parameter_set: educational scaled benchmark parameters, not a validated axon or 
 timestamp: 2026-06-22 13:18:33 *
 
 Functional evidence now includes transient plots, ADC/digital logic plots, parameter sweep, and fault injection summary.
-If the Simulink/Simscape model cannot execute in the local MATLAB install, the deterministic educational fallback is explicitly labeled in the report and plots are not represented as medical-use validation.
+If the Simulink/Simscape model cannot execute in the local MATLAB install, the run stops instead of substituting plots for model evidence.
 
 Live evidence status:
 

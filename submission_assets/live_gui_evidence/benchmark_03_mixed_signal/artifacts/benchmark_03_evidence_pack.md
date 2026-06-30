@@ -14,7 +14,7 @@ This problem is intentionally too complex for reliable LLM-only closed-form solv
 - **Spec source:** MATLAB app state
 - **Circuit type:** closed_loop_mixed_signal_neural_voltage_clamp
 
-## 2. Gemini Structured Circuit Spec
+## 2. Structured Circuit Spec
 
 - **Source:** MATLAB app state
 - **Likely analysis:** time_domain_mixed_signal_simulation_with_simscape_electrical_plant_and_discrete_time_adc_digital_control_loop
@@ -750,7 +750,7 @@ Likely causes / checks:
       "note": "Budget separately if no campus license exists."
     },
     {
-      "name": "Gemini API",
+      "name": "Selected agent CLI",
       "assumption": "360 calls at assumed $0.0050/call",
       "estimated_cost_usd": 1.8,
       "note": "Assumption only; update from current billing before purchase."
@@ -838,7 +838,7 @@ Likely causes / checks:
     },
     {
       "risk": "LLM parse error becomes hidden design assumption",
-      "trigger": "Gemini structured spec drives model generation",
+      "trigger": "Selected CLI structured spec drives model generation",
       "mitigation": "Expose parsed spec, assumptions, ambiguities, and model-check status in Evidence Pack.",
       "severity": "Medium"
     }
@@ -868,11 +868,11 @@ Likely causes / checks:
 | ADC undersampling or aliasing is missed | Spec mentions sampling or ADC behavior | Add a requirement row for Nyquist margin and verify it from logged simulation data. | Medium |
 | Student mistakes simulation for certified device behavior | Any generated model or performance table | Display educational boundary and assumptions in every export. | Medium |
 | Hardware lab context exceeds simulation scope | Spec does not include explicit safety constraints | Require instructor review before building physical circuits. | Medium |
-| LLM parse error becomes hidden design assumption | Gemini structured spec drives model generation | Expose parsed spec, assumptions, ambiguities, and model-check status in Evidence Pack. | Medium |
+| LLM parse error becomes hidden design assumption | Selected CLI structured spec drives model generation | Expose parsed spec, assumptions, ambiguities, and model-check status in Evidence Pack. | Medium |
 
 ## 13. BMES Functional Proof Draft
 
-CiTT demonstrates functional feasibility by turning a circuit image or prompt into auditable MATLAB evidence rather than a standalone chatbot answer. In the current workflow, Gemini is used only to produce a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing the generated Simscape model. The Evidence Pack records the original input, the structured spec, model path, focus map, probe map, model-check output, simulation summary, Lab Delta comparison, limitations, and risk controls in one reviewable artifact. For this run, the requirement table contains 3 PASS, 6 WARN, 0 FAIL, and 0 NOT_RUN items. This makes the proof falsifiable: missing model checks, absent signal logging, unresolved topology ambiguity, or unavailable lab measurements are visible instead of hidden. The teaching value comes from connecting each verification artifact back to focus-map highlights and probe locations, allowing students to inspect why a node, component, or requirement matters. The current scope remains educational and proposal-facing, not medical-device verification. The next strongest evidence would be logged performance requirements, parameter sweeps, and a measured lab CSV for the same circuit. Primary current limitation: The spec still contains unresolved ambiguity: Exact numeric values for C_m, R_m, R_e, amplifier gain, rail voltages, current limit, ADC bits, ADC reference, sample time, DAC range, and controller timing are not specified., The detailed nonlinear membrane current law is optional and unspecified., The exact digital controller algorithm could be a comparator, finite-state controller, settling detector, saturation monitor, or a combination., The diagram shows a block-level feedback path from digital command update to amplifier but does not specify whether it updates Vc, injects a correction current, or changes amplifier reference., Current sign convention for clamp current is not specified., Initial membrane voltage and command step timing are not specified.
+CiTT demonstrates functional feasibility by turning a circuit image or prompt into auditable MATLAB evidence rather than a standalone chatbot answer. In the current workflow, the selected CLI produces a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing the generated Simscape model. The Evidence Pack records the original input, the structured spec, model path, focus map, probe map, model-check output, simulation summary, Lab Delta comparison, limitations, and risk controls in one reviewable artifact. For this run, the requirement table contains 3 PASS, 6 WARN, 0 FAIL, and 0 NOT_RUN items. This makes the proof falsifiable: missing model checks, absent signal logging, unresolved topology ambiguity, or unavailable lab measurements are visible instead of hidden. The teaching value comes from connecting each verification artifact back to focus-map highlights and probe locations, allowing students to inspect why a node, component, or requirement matters. The current scope remains educational and proposal-facing, not medical-device verification. The next strongest evidence would be logged performance requirements, parameter sweeps, and a measured lab CSV for the same circuit. Primary current limitation: The spec still contains unresolved ambiguity: Exact numeric values for C_m, R_m, R_e, amplifier gain, rail voltages, current limit, ADC bits, ADC reference, sample time, DAC range, and controller timing are not specified., The detailed nonlinear membrane current law is optional and unspecified., The exact digital controller algorithm could be a comparator, finite-state controller, settling detector, saturation monitor, or a combination., The diagram shows a block-level feedback path from digital command update to amplifier but does not specify whether it updates Vc, injects a correction current, or changes amplifier reference., Current sign convention for clamp current is not specified., Initial membrane voltage and command step timing are not specified.
 
 ## Artifact Index
 

@@ -20,7 +20,7 @@ CiTT's objective is to provide a MATLAB-centered AI tutor that grounds biomedica
 
 # Final Design Documentation (250 words max)
 
-The final prototype is packaged as a MATLAB toolbox and source archive. The main learning surface is the `citt` MATLAB app. The workflow has six components: agent-assisted circuit interpretation, structured circuit specification, agentic Simulink/Simscape model generation, model check and artifact storage, Socratic teaching with focus/highlight maps, natural-language probes, and evidence export. Depending on configuration, the interpretation layer can use direct API credentials or a local Gemini/Codex-compatible CLI backend.
+The final prototype is packaged as a MATLAB toolbox and source archive. The main learning surface is the `citt` MATLAB app. The workflow has six components: agent-assisted circuit interpretation, structured circuit specification, agentic Simulink/Simscape model generation, model check and artifact storage, Socratic teaching with focus/highlight maps, natural-language probes, and evidence export. Circuit interpretation, Socratic classification, and model-building orchestration all use the user-selected CLI route.
 
 The design uses built-in MATLAB, Simulink, Simscape, and Simscape Electrical capabilities where possible. Standards and risk thinking are applied as educational controls rather than regulated-device claims. Relevant future standards for a clinical or regulated extension would include software lifecycle, risk-management, cybersecurity, and verification practices; the current prototype instead uses scope guardrails, assumptions/limitations reporting, model checks, focus/probe maps, human review, and evidence traceability.
 
@@ -64,7 +64,7 @@ Benchmark 3, a mixed-signal neural clamp with educational scaled parameters, sho
 
 Current alternatives include general LLM tutoring, static circuit calculators, SPICE-style circuit simulation, and manual MATLAB/Simulink/Simscape modeling. Each is useful, but each leaves a gap for biomedical circuit education. General LLMs can explain ideas and solve simple textbook arithmetic, but they do not inherently produce inspectable Simscape artifacts, focus maps, probe maps, or simulation evidence. Traditional simulators provide numerical modeling, but students must already know how to translate a biomedical circuit problem into the simulator. Manual Simulink/Simscape work is powerful but can be slow for beginners and is not automatically connected to Socratic tutoring or submission-ready evidence.
 
-CiTT's differentiation is the integrated workflow: natural-language or image input, structured circuit representation, MATLAB/Simulink/Simscape artifact generation, focus-linked teaching, natural-language probes, and evidence export. The potential protectable concept is not "using AI for tutoring" broadly; it is the model-grounded educational pipeline and evidence authority structure for biomedical circuits. Patentability and freedom-to-operate would require legal review, especially because CiTT depends on existing platforms such as Gemini, MATLAB, Simulink, Simscape, and agentic tooling.
+CiTT's differentiation is the integrated workflow: natural-language or image input, structured circuit representation, MATLAB/Simulink/Simscape artifact generation, focus-linked teaching, natural-language probes, and evidence export. The potential protectable concept is not "using AI for tutoring" broadly; it is the model-grounded educational pipeline and evidence authority structure for biomedical circuits. Patentability and freedom-to-operate would require legal review, especially because CiTT depends on existing platforms such as MATLAB, Simulink, Simscape, and agentic tooling.
 
 # Anticipated Regulatory Pathway (125 words max)
 
@@ -90,6 +90,6 @@ Near-term success can be measured by classroom pilots: fewer unit/sign/node-refe
 
 Primary prototype evidence: `submission_assets/live_gui_evidence/` and `release/`.
 
-Technical platforms: MATLAB, Simulink, Simscape, Simscape Electrical, Simulink Agentic Toolkit / MATLAB agentic tooling, and a configured LLM/agent provider such as Gemini-compatible or Codex-compatible local tooling.
+Technical platforms: MATLAB, Simulink, Simscape, Simscape Electrical, Simulink Agentic Toolkit / MATLAB agentic tooling, and a configured local agent CLI.
 
-Acknowledgements: The project concept was inspired by biomedical circuits/instrumentation coursework and by Professor Pak Wong's classroom exploration of agent-based teaching. The author also acknowledges MathWorks documentation, model-provider documentation including Google Gemini API documentation, and the BMES/Medtronic competition context.
+Acknowledgements: The project concept was inspired by biomedical circuits/instrumentation coursework and by Professor Pak Wong's classroom exploration of agent-based teaching. The author also acknowledges MathWorks documentation, agent-tooling documentation, and the BMES/Medtronic competition context.

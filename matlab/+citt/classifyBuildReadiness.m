@@ -6,6 +6,10 @@ notes = strings(0, 1);
 blockingRegions = strings(0, 1);
 nonblockingRegions = strings(0, 1);
 
+if ~hasBuildableTopology(spec)
+    issues(end + 1) = "Missing buildable topology: components, nodes, or connections are empty."; %#ok<AGROW>
+end
+
 if isstruct(spec) && isfield(spec, "unsupported_or_unclear_regions")
     regions = valueToStrings(spec.unsupported_or_unclear_regions);
     for i = 1:numel(regions)
@@ -13,7 +17,7 @@ if isstruct(spec) && isfield(spec, "unsupported_or_unclear_regions")
         if strlength(region) == 0
             continue
         end
-        if isNonBlockingBiophysicalSimplification(region, spec) || isNonBlockingExplicitModelingBoundary(region)
+        if isNonBlockingBiophysicalSimplification(region, spec) || isNonBlockingExplicitModelingBoundary(region, spec)
             nonblockingRegions(end + 1) = region; %#ok<AGROW>
             notes(end + 1) = "Non-blocking modeling simplification: " + region; %#ok<AGROW>
         else
@@ -77,7 +81,7 @@ isEquilibriumPassive = any(contains(context, [
 tf = mentionsBiology && mentionsSimplification && isEquilibriumPassive;
 end
 
-function tf = isNonBlockingExplicitModelingBoundary(issue)
+function tf = isNonBlockingExplicitModelingBoundary(issue, spec)
 text = lower(string(issue));
 tf = any(contains(text, [
     "only the displayed"
@@ -85,8 +89,45 @@ tf = any(contains(text, [
     "topology is parsed only from the text prompt"
     "no image was attached"
     "no image attached"
+    "no attached image"
+    "no diagram is attached"
+    "no diagram attached"
+    "no visible diagram"
+    "no visible circuit diagram"
+    "no image regions"
+    "independent verification of node layout"
+    "symbol orientation"
     "topology is inferred from the text prompt"
+    "topology is inferred entirely from the text prompt"
     "inferred from the text prompt"
+    "source impedance"
+    "electrode front-end behavior"
+    "detailed electrochemical"
+    "electrochemical cell topology"
+    "electrode count"
+    "reference electrode bias"
+    "potentiostat"
+    "adc saturation thresholds"
+    "adc reference"
+    "adc input range"
+    "op amp rail"
+    "op-amp rail"
+    "supply rails"
+    "output swing"
+    "input bias current"
+    "bandwidth"
+    "bandwidth/noise"
+    "noise spectral"
+    "noise model details"
+    "quantitative noise implementation"
+    "part number"
+    "not specified"
+    "not specified enough"
+    "cannot be fixed without"
+    "cannot be built without"
+    "left as teaching parameters"
+    "parameters are not specified"
+    "parameters unspecified"
     "represented as the shown"
     "only the 1 mohm adc load is specified"
     "beyond the protection resistors"
@@ -100,6 +141,23 @@ tf = any(contains(text, [
     "use the given macromodel"
     "configured agent cli"
 ]));
+if tf
+    tf = hasBuildableTopology(spec);
+end
+end
+
+function tf = hasBuildableTopology(spec)
+tf = false;
+if ~isstruct(spec)
+    return
+end
+tf = hasNonemptyField(spec, "components") && ...
+    hasNonemptyField(spec, "connections") && ...
+    hasNonemptyField(spec, "nodes");
+end
+
+function tf = hasNonemptyField(spec, fieldName)
+tf = isfield(spec, fieldName) && ~isempty(spec.(fieldName));
 end
 
 function value = fieldValue(data, fieldName)

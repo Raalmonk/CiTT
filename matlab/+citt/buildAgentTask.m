@@ -20,6 +20,8 @@ end
 rejectBlockingSpec(spec);
 promptPath = fullfile(config.MatlabRoot, "resources", "prompts", "agent_build_simscape_model.txt");
 basePrompt = string(fileread(promptPath));
+satkInstructionsSection = repoLocalSatkInstructionsSection(config);
+simscapeContractSection = simscapeUtilizationContractSection();
 specJson = string(feval('citt.util.jsonEncode', spec));
 nonidealProfiles = feval('citt.opAmpNonidealProfile', spec);
 nonidealSection = nonidealProfileSection(nonidealProfiles);
@@ -39,13 +41,17 @@ taskText = strjoin([
     "- Do not call read_file for /Users/Raalm/.agents/skills or other external skill paths."
     "- Do not call run_shell_command; it is not available in this CiTT agent runner."
     "- Do not call invoke_agent or delegate to another agent."
-    "- If the target model does not exist yet, create it with mcp_matlab_model_edit; do not treat an initial model_overview/model_read failure as permission to use a fallback builder."
-    "- Do not call any CiTT local build helper, including citt.buildLocalSimscapeFallback, buildLocalSimscapeFallback, citt.buildSimscapeModelFromSpec, or buildSimscapeModelFromSpec."
+    "- If the target model does not exist yet, create it with mcp_matlab_model_edit; do not treat an initial model_overview/model_read failure as permission to bypass SATK."
+    "- Do not call local CiTT model-construction helpers or generate a model through raw MATLAB scripts."
     "- Do not write or run citt_build_simscape_model.m as the model-generation mechanism."
-    "- If mcp_matlab_model_edit cannot create/edit the model, write an agent report explaining the SATK/MCP failure instead of producing fallback artifacts."
+    "- If mcp_matlab_model_edit cannot create/edit the model, write an agent report explaining the SATK/MCP failure instead of producing model artifacts."
+    ""
+    satkInstructionsSection
+    ""
+    simscapeContractSection
     ""
     "## Product Boundary"
-    "Gemini parsed the circuit image/prompt into a structured model specification. Treat that spec as a starting point, not as numerical authority."
+    "The selected CLI parsed the circuit image/prompt into a structured model specification. Treat that spec as a starting point, not as numerical authority."
     "Your job is to build/check the Simulink/Simscape model. Do not write educational prose yet; CiTT will teach after the model exists."
     ""
     "## Simscape-First Requirements"
@@ -54,11 +60,13 @@ taskText = strjoin([
     "- Use physical electrical connections and component schematics."
     "- Include Electrical Reference and Solver Configuration blocks as needed."
     "- Add voltage/current sensors or logging for requested outputs."
+    "- Route physical measurements through sensors and PS-Simulink Converter blocks before logging or ADC/math blocks."
+    "- Use model_query_params and model_resolve_params for symbolic or workspace parameters before making numeric claims."
     "- If a source/component value is symbolic or omitted, keep it as a named model parameter instead of inventing a number."
     "- Values outside the requested/connected teaching path should not block structural model generation."
     "- Do not use a Simulink signal-flow substitute for the circuit."
     "- Do not solve with standalone MATLAB numeric code as the model-generation output."
-    "- Do not bypass SATK/model_edit by calling local deterministic Simscape builder functions."
+    "- Do not bypass SATK/model_edit by calling local deterministic builder functions."
     "- Treat the supplied spec as build-ready; report an error if a required modeling detail is still missing."
     ""
     "## Required Output Files"
@@ -69,9 +77,11 @@ taskText = strjoin([
     ""
     "## Focus Map Contract"
     "Each focus map item must include: focus_id, label, explanation, model_paths, block_paths, line_handles_or_descriptions, related_components, related_nodes, teaching_question."
+    "Keep focus-map text LaTeX-safe. Prefer plain text; if math is needed, use only short balanced inline `$...$` expressions."
     ""
     "## Probe Map Contract"
     "Each probe map item must include: probe_id, focus_id, label, target_type, model_paths, block_paths, quantity, unit, suggested_sensor_or_logging, instructions."
+    "Probe instructions must include the physical sensor/logging path and unit. Prefer plain text over LaTeX."
     ""
     nonidealSection
     ""
@@ -160,6 +170,58 @@ parts = [
     "```"
 ];
 lines = strjoin(parts, newline);
+end
+
+function text = repoLocalSatkInstructionsSection(config)
+root = fullfile(config.MatlabRoot, "resources", "agent_instructions", "simulink_agentic_toolkit");
+agentsPath = fullfile(root, "AGENTS.md");
+cittAgentsPath = fullfile(root, "CITT_AGENTS.md");
+registryPath = fullfile(root, "tools", "registry.json");
+toolsPath = fullfile(root, "tools", "tools.json");
+
+if exist(agentsPath, "file") ~= 2
+    text = strjoin([
+        "## Repo-Local SATK Agent Instructions"
+        "CiTT expected a local SATK AGENTS.md copy but did not find it at `" + string(agentsPath) + "`."
+        "Use the explicit tool rules in this task and do not read external skill directories."
+    ], newline);
+    return
+end
+
+cittAgentsText = "";
+if exist(cittAgentsPath, "file") == 2
+    cittAgentsText = string(fileread(cittAgentsPath));
+end
+agentsText = string(fileread(agentsPath));
+text = strjoin([
+    "## Repo-Local SATK Agent Instructions"
+    "CiTT has vendored the Simulink Agentic Toolkit agent instructions into the repository. Use the embedded copy below; do not read external skill directories."
+    "Local reference directory: `" + string(root) + "`"
+    "CiTT addendum copy: `" + string(cittAgentsPath) + "`"
+    "Tool registry copy: `" + string(registryPath) + "`"
+    "Tool metadata copy: `" + string(toolsPath) + "`"
+    ""
+    "```markdown"
+    agentsText
+    "```"
+    ""
+    "```markdown"
+    cittAgentsText
+    "```"
+], newline);
+end
+
+function text = simscapeUtilizationContractSection()
+text = strjoin([
+    "## Simscape Utilization Contract"
+    "- Before editing, inspect the model with model_overview/model_read when a model already exists."
+    "- For physical networks, use Simscape or Simscape Electrical library blocks rather than pure Simulink substitutes."
+    "- Include Solver Configuration and domain reference blocks for every physical network."
+    "- Preserve unit-bearing parameters and named workspace variables; resolve them with model_query_params/model_resolve_params when needed."
+    "- Log requested outputs through sensors, PS-Simulink converters, To Workspace blocks, scopes, or outports."
+    "- Run model_check after structural edits and report any unresolved unconnected ports, dangling lines, or lint failures."
+    "- Write focus/probe maps that prove which physical blocks, sensors, and logged outputs support the lesson."
+], newline);
 end
 
 function writeText(path, text)

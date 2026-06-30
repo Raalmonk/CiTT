@@ -3,7 +3,7 @@
 ## Model
 - Saved model: `matlab/work/citt_generated_model.slx`
 - Construction path: MATLAB MCP/SATK `model_edit` structural edits.
-- Local CiTT fallback builders were not called.
+- Local CiTT model-construction helpers were not called.
 
 ## Structural Check
 - `model_check` status: healthy.

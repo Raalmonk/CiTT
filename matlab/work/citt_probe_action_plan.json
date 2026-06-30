@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "model_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_generated_model.slx",
+  "target_id": "probe_i_clamp",
+  "used_probe_map": true,
+  "preview_only": true,
+  "instructions": [
+    "Probe target: Clamp current",
+    "Quantity: Current through electrode path from clamp output toward membrane (A)",
+    "Simscape-first action: I_clamp_sensor -> I_clamp_PS_to_SL -> To Workspace variable citt_I_clamp",
+    "If using Simscape, add a Voltage Sensor or Current Sensor and route through PS-Simulink Converter for logging.",
+    "Agent instructions: The current sensor is in series between n_clamp_output and R_series_5MOhm; positive sign follows the sensor p-to-n orientation from clamp output toward membrane."
+  ],
+  "automated_actions": [
+    "Matched target block: citt_generated_model/I_clamp_sensor",
+    "Preview-only measurement: no probe blocks, logging blocks, lines, or model saves were added."
+  ],
+  "warnings": []
+}

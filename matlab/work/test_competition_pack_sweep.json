@@ -1,0 +1,63 @@
+{
+  "success": true,
+  "created_at": "29-Jun-2026 18:00:47",
+  "analysis_type": "rc_tolerance_sweep",
+  "summary": {
+    "resistor_id": "R1",
+    "capacitor_id": "C1",
+    "nominal_cutoff_hz": 40.808959767152658,
+    "target_cutoff_hz": 40,
+    "target_tolerance_percent": 10,
+    "worst_case_cutoff_range_hz": [
+      32.388063307264012,
+      53.695999693621921
+    ],
+    "most_sensitive_parameter": "capacitor tolerance",
+    "suggested_design_change": "Use tighter capacitor tolerance, recalibrate cutoff, or move nominal cutoff away from the requirement edge."
+  },
+  "rows": [
+    {
+      "case_id": "R1_C10",
+      "r_tolerance_percent": 1,
+      "c_tolerance_percent": 10,
+      "cutoff_min_hz": 36.7317369641338,
+      "cutoff_nominal_hz": 40.808959767152658,
+      "cutoff_max_hz": 45.801301646635977,
+      "pass_rate": 0.66666666666666663,
+      "status": "FAIL"
+    },
+    {
+      "case_id": "R1_C20",
+      "r_tolerance_percent": 1,
+      "c_tolerance_percent": 20,
+      "cutoff_min_hz": 33.670758883789318,
+      "cutoff_nominal_hz": 40.808959767152658,
+      "cutoff_max_hz": 51.526464352465467,
+      "pass_rate": 0.33333333333333331,
+      "status": "FAIL"
+    },
+    {
+      "case_id": "R5_C10",
+      "r_tolerance_percent": 5,
+      "c_tolerance_percent": 10,
+      "cutoff_min_hz": 35.332432698833465,
+      "cutoff_nominal_hz": 40.808959767152658,
+      "cutoff_max_hz": 47.7297775054417,
+      "pass_rate": 0.66666666666666663,
+      "status": "FAIL"
+    },
+    {
+      "case_id": "R5_C20",
+      "r_tolerance_percent": 5,
+      "c_tolerance_percent": 20,
+      "cutoff_min_hz": 32.388063307264012,
+      "cutoff_nominal_hz": 40.808959767152658,
+      "cutoff_max_hz": 53.695999693621921,
+      "pass_rate": 0.33333333333333331,
+      "status": "FAIL"
+    }
+  ],
+  "messages": [],
+  "report_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_sweep.json",
+  "markdown_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_sweep.md"
+}
