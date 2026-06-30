@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "title": "CiTT Teaching Task Dataset",
+  "tasks": [
+    {
+      "id": "B01_RC_Lowpass",
+      "title": "RC low-pass cutoff and wrong capacitor unit",
+      "description": "Student learns cutoff frequency, attenuation, and unit-prefix error.",
+      "prompt_file": "prompt.txt",
+      "image_file": "",
+      "expected_outputs": {
+        "spec": true,
+        "model": true,
+        "focus_map": true,
+        "probe_map": true,
+        "model_tests": true,
+        "learning_traceability": true,
+        "evidence_pack": true
+      },
+      "learning_objectives": [
+        {
+          "id": "LO_001",
+          "summary": "Explain why R*C sets cutoff frequency.",
+          "expected_focus_keywords": ["R", "C", "time constant", "cutoff"]
+        },
+        {
+          "id": "LO_002",
+          "summary": "Explain why 100 nF vs 100 uF changes cutoff by 1000x."
+        }
+      ],
+      "stages": [
+        { "id": "read", "ui_action": "read", "success_artifacts": ["citt_last_circuit_spec.json"] },
+        { "id": "build", "ui_action": "run_pipeline", "success_artifacts": ["citt_generated_model.slx", "citt_focus_map.json", "citt_probe_map.json"] },
+        { "id": "test", "ui_action": "run_model_tests", "success_artifacts": ["citt_model_test_report.json"] },
+        { "id": "teach", "ui_action": "start_teaching", "success_artifacts": ["citt_teaching_plan.json"] },
+        { "id": "evidence", "ui_action": "export_evidence", "success_artifacts": ["citt_evidence_pack.md"] }
+      ]
+    },
+    {
+      "id": "B02_TEVc_Equilibrium",
+      "title": "TEVC passive equilibrium",
+      "description": "Student links a simplified voltage-clamp equivalent circuit to membrane equilibrium evidence.",
+      "prompt_file": "prompt.txt",
+      "image_file": "",
+      "expected_outputs": {
+        "spec": true,
+        "model": true,
+        "focus_map": true,
+        "probe_map": true,
+        "learning_traceability": true,
+        "evidence_pack": true
+      },
+      "learning_objectives": [
+        { "id": "LO_001", "summary": "Explain the passive equivalent-circuit assumption in a TEVC teaching model." }
+      ],
+      "stages": [
+        { "id": "read", "ui_action": "read", "success_artifacts": ["citt_last_circuit_spec.json"] },
+        { "id": "build", "ui_action": "run_pipeline", "success_artifacts": ["citt_generated_model.slx"] },
+        { "id": "evidence", "ui_action": "export_evidence", "success_artifacts": ["citt_evidence_pack.md"] }
+      ]
+    },
+    {
+      "id": "B03_ECG_Pacing_Artifact",
+      "title": "ECG pacing artifact and ADC threshold state",
+      "description": "Student connects analog filtering, artifact saturation, and optional Stateflow threshold logic.",
+      "prompt_file": "prompt.txt",
+      "image_file": "",
+      "expected_outputs": {
+        "spec": true,
+        "model": true,
+        "focus_map": true,
+        "probe_map": true,
+        "model_tests": true,
+        "simulation_scenarios": true,
+        "learning_traceability": true,
+        "evidence_pack": true
+      },
+      "learning_objectives": [
+        { "id": "LO_001", "summary": "Predict how a pacing artifact moves through the analog filter." },
+        { "id": "LO_002", "summary": "Explain when threshold logic should enter an artifact-detected state." }
+      ],
+      "stages": [
+        { "id": "read", "ui_action": "read", "success_artifacts": ["citt_last_circuit_spec.json"] },
+        { "id": "build", "ui_action": "run_pipeline", "success_artifacts": ["citt_generated_model.slx"] },
+        { "id": "scenarios", "ui_action": "simulation_scenarios", "success_artifacts": ["citt_simulation_scenarios.json"] },
+        { "id": "evidence", "ui_action": "export_evidence", "success_artifacts": ["citt_evidence_pack.md"] }
+      ]
+    }
+  ]
+}

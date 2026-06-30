@@ -50,8 +50,10 @@ assert(exist(packPath, "file") == 2);
 text = string(fileread(packPath));
 assert(contains(text, "# CiTT Performance Evidence Pack"));
 assert(contains(text, "## 6. Requirement Pass/Fail Table"));
-assert(contains(text, "## 12. Risk Table"));
-assert(contains(text, "## 13. BMES Functional Proof Draft"));
+assert(contains(text, "## 10G. SATK Behavioral Model Tests"));
+assert(contains(text, "## 11. Learning Traceability"));
+assert(contains(text, "## 13. Risk Table"));
+assert(contains(text, "## 14. BMES Functional Proof Draft"));
 assert(contains(text, "PASS"));
 assert(result.status_summary.pass >= 6);
 end

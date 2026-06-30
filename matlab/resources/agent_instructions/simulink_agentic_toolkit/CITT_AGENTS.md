@@ -30,6 +30,20 @@ These instructions specialize the repo-local Simulink Agentic Toolkit guidance f
 
 ## 14-inch UI and student usability
 
+- CiTT is a teaching tool first. Keep the learning experience simple, clear, and focused on the current concept.
+- The student should see the relevant model evidence, the current question, the key facts needed to answer it, and one obvious next action.
+- Do not design focus/probe content that requires the student to inspect hidden files or cross-reference separate artifacts.
 - Do not require the student to cross-reference hidden parameters. Put key values in component labels, focus-map explanations, or probe-map instructions.
 - Prefer concise labels that fit in the learning UI.
 - The model should remain readable when shown above the learning prompt on a 14-inch laptop screen.
+- Teaching steps should support local model crops. Put the most relevant block paths first, and keep focus entries small enough that a cropped snapshot is readable.
+- Avoid long block names and labels when a concise engineering label with units is enough.
+
+## QA and visual acceptance requirements
+
+- A command passing is not enough for UI work. Verify rendered screenshots or computer-vision output when changing model previews, LaTeX, teaching cards, or layout.
+- Reject model preview snapshots that are mostly blank canvas, shifted into a corner, clipped, or too zoomed out to read labels.
+- Check the actual current teaching focus, not only the whole model. If the full diagram is too wide, the teaching surface should show a relevant local region.
+- Keep the teaching action surface small: no more than three visible primary controls; secondary actions belong behind a `+` menu.
+- Bad or overly complex LaTeX must degrade to plain text. Prefer plain text in focus/probe maps unless short inline math materially improves the lesson.
+- Treat user screenshots as QA evidence. If the screenshot is not readable on a 14-inch-class screen, the change is not done.

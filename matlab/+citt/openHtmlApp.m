@@ -81,6 +81,10 @@ app.TestHooks = struct( ...
     "buildModel", @() onRunAgent(), ...
     "openModel", @() onOpenModel(), ...
     "runPipeline", @() onRunPipeline(), ...
+    "runModelTests", @() onRunModelTests(), ...
+    "runTeachingReview", @() onRunTeachingReview(), ...
+    "buildLearningTraceability", @() onBuildLearningTraceability(), ...
+    "runSimulationScenarios", @() onRunSimulationScenarios(), ...
     "runCommand", @(commandText) onRunCommand(commandText), ...
     "exportEvidence", @() onExportEvidencePack(), ...
     "openEvidencePack", @() onOpenEvidencePack(), ...
@@ -208,6 +212,15 @@ app.TestHooks = struct( ...
                     onRunSweep();
                 case "faults"
                     onRunFaults();
+                case "run_model_tests"
+                    onRunModelTests();
+                case "teaching_review"
+                    onRunTeachingReview();
+                case "learning_traceability"
+                    onBuildLearningTraceability();
+                case "simulation_scenarios"
+                    syncPayload(payload);
+                    onRunSimulationScenarios();
                 case "build_explainability"
                     onBuildExplainability();
                 case "highlight_explainability"
@@ -668,11 +681,18 @@ app.TestHooks = struct( ...
     end
 
     function onAgentPollTick()
-        if isempty(state.AgentRun) || fieldText(state.AgentRun, "mode") ~= "external_agent_pending"
-            stopAgentPollTimer();
+        if ~isempty(state.AgentRun) && fieldText(state.AgentRun, "mode") == "external_agent_pending"
+            pollBuildAgent();
             return
         end
+        if ~isempty(state.ModelTestRun) && fieldText(state.ModelTestRun, "mode") == "external_agent_pending"
+            pollModelTestAgent();
+            return
+        end
+        stopAgentPollTimer();
+    end
 
+    function pollBuildAgent()
         try
             polled = feval('citt.pollAgentTask', state.AgentRun);
             state.AgentRun = polled;
@@ -698,6 +718,39 @@ app.TestHooks = struct( ...
             lastAgentStatus = "Agent status failed.";
             lastAgentOutput = "Could not poll external agent: " + string(pollError.message);
             setPipeline("Agent status failed. See Build Log.", 58);
+            setIdle();
+        end
+    end
+
+    function pollModelTestAgent()
+        try
+            polled = feval('citt.pollExternalAgentTask', state.ModelTestRun);
+            state.ModelTestRun = polled;
+            if fieldText(polled, "mode") ~= "external_agent_pending"
+                stopAgentPollTimer();
+                if isTruthy(fieldText(polled, "success"))
+                    state.LastModelTests = feval('citt.loadModelTestReport', state.Config.ModelTestReportPath);
+                    lastVerificationStatus = "SATK model tests complete.";
+                    lastVerificationOutput = modelTestsSummary(state.LastModelTests);
+                    appendTaskEvent("run_model_tests", "completed", "SATK model tests finished.");
+                else
+                    lastVerificationStatus = "SATK model tests incomplete.";
+                    lastVerificationOutput = externalRunSummary(polled);
+                    appendTaskEvent("run_model_tests", "failed", "SATK model tests did not produce the expected report.");
+                end
+                saveActiveTask("model_tests_complete");
+                saveTaskHistory();
+                setIdle();
+            else
+                lastVerificationStatus = "SATK model tests running.";
+                lastVerificationOutput = externalRunSummary(polled);
+                sendState();
+            end
+        catch pollError
+            stopAgentPollTimer();
+            lastVerificationStatus = "SATK model test status failed.";
+            lastVerificationOutput = "Could not poll model test agent: " + string(pollError.message);
+            setPipeline("Model test status failed. See Evidence output.", 92);
             setIdle();
         end
     end
@@ -1240,6 +1293,81 @@ app.TestHooks = struct( ...
         setIdle();
     end
 
+    function onRunModelTests()
+        try
+            if ~isempty(state.ModelTestRun) && fieldText(state.ModelTestRun, "mode") == "external_agent_pending"
+                pollModelTestAgent();
+                return
+            end
+            setBusy("Generating SATK model tests...", 96);
+            generated = feval('citt.generateModelTests', state);
+            state.ModelTestFeaturePath = generated.feature_path;
+            task = feval('citt.buildModelTestTask', state);
+            runResult = feval('citt.runExternalAgentTask', task.task_path, struct( ...
+                "Async", true, ...
+                "Purpose", "model_test", ...
+                "ExpectedArtifacts", [state.Config.ModelTestReportPath, state.Config.ModelTestMarkdownPath]));
+            state.ModelTestRun = runResult;
+            lastVerificationStatus = "SATK model tests started.";
+            lastVerificationOutput = externalRunSummary(runResult);
+            setPipeline("SATK model tests running.", 98);
+            if fieldText(runResult, "mode") == "external_agent_pending"
+                startAgentPollTimer();
+            end
+        catch modelTestError
+            lastVerificationStatus = "Model test setup failed.";
+            lastVerificationOutput = "Model test setup failed: " + string(modelTestError.message);
+            setPipeline("Model test setup failed. See Evidence output.", 92);
+        end
+        setIdle();
+    end
+
+    function onRunTeachingReview()
+        try
+            setBusy("Running teaching model review...", 96);
+            reviewed = feval('citt.runTeachingModelReview', state);
+            state.LastTeachingReview = reviewed;
+            lastVerificationStatus = "Teaching model review ready.";
+            lastVerificationOutput = teachingReviewSummary(reviewed);
+            setPipeline("Teaching model review ready.", 100);
+        catch reviewError
+            lastVerificationStatus = "Teaching model review failed.";
+            lastVerificationOutput = "Teaching model review failed: " + string(reviewError.message);
+        end
+        setIdle();
+    end
+
+    function onBuildLearningTraceability()
+        try
+            setBusy("Building learning traceability...", 96);
+            traced = feval('citt.buildLearningTraceability', state);
+            state.LastLearningTraceability = traced;
+            exportedObjectives = feval('citt.exportLearningObjectives', state);
+            lastAssessmentStatus = "Learning traceability ready.";
+            lastAssessmentOutput = learningTraceabilitySummary(traced) + newline + "YAML: " + exportedObjectives.yaml_path;
+            setPipeline("Learning traceability ready.", 100);
+        catch traceError
+            lastAssessmentStatus = "Learning traceability failed.";
+            lastAssessmentOutput = "Learning traceability failed: " + string(traceError.message);
+        end
+        setIdle();
+    end
+
+    function onRunSimulationScenarios()
+        try
+            setBusy("Running SimulationInput scenarios...", 96);
+            scenarios = feval('citt.runSimulationScenarios', state);
+            state.LastSimulationScenarios = scenarios;
+            lastVerificationStatus = "Simulation scenarios ready.";
+            lastVerificationOutput = simulationScenariosSummary(scenarios);
+            setPipeline("Simulation scenarios ready.", 100);
+        catch scenarioError
+            lastVerificationStatus = "Simulation scenarios failed.";
+            lastVerificationOutput = "Simulation scenarios failed: " + string(scenarioError.message);
+        end
+        setIdle();
+    end
+
     function onBuildExplainability()
         try
             setBusy("Building explainability map...", 96);
@@ -1526,6 +1654,12 @@ app.TestHooks = struct( ...
         currentState.LastModelCheck = [];
         currentState.LastSimulation = [];
         currentState.LastBode = [];
+        currentState.LastModelTests = [];
+        currentState.ModelTestFeaturePath = currentState.Config.ModelTestFeaturePath;
+        currentState.ModelTestRun = [];
+        currentState.LastLearningTraceability = [];
+        currentState.LastTeachingReview = [];
+        currentState.LastSimulationScenarios = [];
         currentState.LastProbe = [];
         currentState.ProbeAskText = "";
         currentState.LabCsvPath = "";
@@ -1572,6 +1706,12 @@ app.TestHooks = struct( ...
         state.LastModelCheck = [];
         state.LastSimulation = [];
         state.LastBode = [];
+        state.LastModelTests = [];
+        state.ModelTestFeaturePath = state.Config.ModelTestFeaturePath;
+        state.ModelTestRun = [];
+        state.LastLearningTraceability = [];
+        state.LastTeachingReview = [];
+        state.LastSimulationScenarios = [];
         state.LastProbe = [];
         state.ProbeAskText = "";
         state.LastLabDelta = [];
@@ -2202,6 +2342,8 @@ app.TestHooks = struct( ...
             ~isempty(state.LastSweep) || ~isempty(state.LastFaults) || ...
             ~isempty(state.LastExplainability) || ~isempty(state.LastAssessment) || ...
             ~isempty(state.LastEconomics) || ~isempty(state.LastScopeGuardrail) || ...
+            ~isempty(state.LastModelTests) || ~isempty(state.LastTeachingReview) || ...
+            ~isempty(state.LastLearningTraceability) || ~isempty(state.LastSimulationScenarios) || ...
             strlength(strtrim(lastVerificationOutput + lastAssessmentOutput + lastEvidenceOutput)) > 0;
     end
 
@@ -2270,6 +2412,10 @@ app.TestHooks = struct( ...
         sources = appendSource(sources, "Model preview", state.ModelSnapshotPath);
         sources = appendSource(sources, "Focus map", state.FocusMapPath);
         sources = appendSource(sources, "Probe map", state.ProbeMapPath);
+        sources = appendSource(sources, "SATK model tests", state.Config.ModelTestMarkdownPath);
+        sources = appendSource(sources, "Teaching model review", state.Config.TeachingReviewMarkdownPath);
+        sources = appendSource(sources, "Learning traceability", state.Config.LearningTraceabilityMarkdownPath);
+        sources = appendSource(sources, "Simulation scenarios", state.Config.SimulationScenarioMarkdownPath);
         sources = appendSource(sources, "Evidence pack", state.EvidencePackPath);
         sources = appendSource(sources, "Settings", state.Config.SettingsPath);
         sources = appendSource(sources, "Task history", state.Config.TaskHistoryPath);
@@ -2367,6 +2513,8 @@ app.TestHooks = struct( ...
         steps = appendWorkflowStep(steps, "Prepare", stepStatus(agentTaskExists(state), ~isempty(spec)), state.AgentTaskPath);
         steps = appendWorkflowStep(steps, "Build", stepStatus(modelExists(state), agentTaskExists(state)), lastAgentStatus);
         steps = appendWorkflowStep(steps, "Check", stepStatus(~isempty(state.LastModelCheck), modelExists(state)), lastModelStatus);
+        steps = appendWorkflowStep(steps, "Model Tests", stepStatus(~isempty(state.LastModelTests), modelExists(state)), state.Config.ModelTestMarkdownPath);
+        steps = appendWorkflowStep(steps, "Teaching Review", stepStatus(~isempty(state.LastTeachingReview), modelExists(state)), state.Config.TeachingReviewMarkdownPath);
         if ~isempty(state.TeachingPlan)
             totalTeachSteps = numel(state.TeachingPlan.steps);
             for i = 1:numel(state.TeachingPlan.steps)
@@ -2386,6 +2534,7 @@ app.TestHooks = struct( ...
             steps = appendWorkflowStep(steps, "Teach", stepStatus(false, ~isempty(state.LastModelCheck)), lastTeachStatus);
         end
         steps = appendWorkflowStep(steps, "Probe", stepStatus(~isempty(state.LastProbe), modelExists(state)), lastProbeStatus);
+        steps = appendWorkflowStep(steps, "Traceability", stepStatus(~isempty(state.LastLearningTraceability), ~isempty(state.TeachingPlan) || modelExists(state)), state.Config.LearningTraceabilityMarkdownPath);
         steps = appendWorkflowStep(steps, "Evidence", stepStatus(~isempty(state.LastEvidencePack), true), lastEvidenceStatus);
     end
 
@@ -2414,13 +2563,17 @@ app.TestHooks = struct( ...
     end
 
     function status = runStatusState()
-        pending = ~isempty(state.AgentRun) && fieldText(state.AgentRun, "mode") == "external_agent_pending";
+        buildPending = ~isempty(state.AgentRun) && fieldText(state.AgentRun, "mode") == "external_agent_pending";
+        modelTestPending = ~isempty(state.ModelTestRun) && fieldText(state.ModelTestRun, "mode") == "external_agent_pending";
+        pending = buildPending || modelTestPending;
         active = busy || pending;
         text = pipelineMessage;
         if busy && strlength(strtrim(busyText)) > 0
             text = busyText;
-        elseif pending
+        elseif buildPending
             text = "Building model with agent...";
+        elseif modelTestPending
+            text = "Running SATK model tests...";
         end
         status = struct( ...
             "active", active, ...
@@ -2433,14 +2586,24 @@ app.TestHooks = struct( ...
 
     function text = agentLiveText()
         text = "";
-        if isempty(state.AgentRun) || fieldText(state.AgentRun, "mode") ~= "external_agent_pending"
+        runState = [];
+        if ~isempty(state.AgentRun) && fieldText(state.AgentRun, "mode") == "external_agent_pending"
+            runState = state.AgentRun;
+        elseif ~isempty(state.ModelTestRun) && fieldText(state.ModelTestRun, "mode") == "external_agent_pending"
+            runState = state.ModelTestRun;
+        end
+        if isempty(runState)
             return
         end
-        stdoutTail = tailText(fieldText(state.AgentRun, "stdout"), 42);
-        stderrTail = tailText(fieldText(state.AgentRun, "stderr"), 18);
+        stdoutTail = tailText(fieldText(runState, "stdout"), 42);
+        stderrTail = tailText(fieldText(runState, "stderr"), 18);
         parts = strings(0, 1);
-        parts(end + 1) = "Using " + emptyText(fieldText(state.AgentRun, "agent_name"), "agent");
-        attemptText = fieldText(state.AgentRun, "agent_attempts");
+        purpose = fieldText(runState, "purpose");
+        if strlength(strtrim(purpose)) > 0
+            parts(end + 1) = "Purpose: " + purpose;
+        end
+        parts(end + 1) = "Using " + emptyText(fieldText(runState, "agent_name"), "agent");
+        attemptText = fieldText(runState, "agent_attempts");
         attemptNumber = str2double(char(attemptText));
         if ~isnan(attemptNumber) && attemptNumber > 0
             parts(end + 1) = "Attempt " + string(attemptNumber);
@@ -2704,6 +2867,14 @@ app.TestHooks = struct( ...
                 label = "Check model";
             case "run_simulation"
                 label = "Run simulation";
+            case "run_model_tests"
+                label = "Run model tests";
+            case "teaching_review"
+                label = "Teaching review";
+            case "learning_traceability"
+                label = "Learning traceability";
+            case "simulation_scenarios"
+                label = "Simulation scenarios";
             case "start_teaching"
                 label = "Start teaching";
             case "next_hint"
@@ -2734,7 +2905,13 @@ app.TestHooks = struct( ...
     end
 
     function summary = taskSummaryFromState(reason)
-        if ~isempty(state.LastProbe)
+        if ~isempty(state.LastLearningTraceability)
+            summary = "Learning traceability is ready for evidence export.";
+        elseif ~isempty(state.LastTeachingReview)
+            summary = "Teaching model review is ready.";
+        elseif ~isempty(state.LastModelTests)
+            summary = "SATK model tests are ready.";
+        elseif ~isempty(state.LastProbe)
             summary = "Ready for teaching and probing.";
         elseif ~isempty(state.TeachingPlan)
             summary = "Teaching plan ready. Probe or export evidence next.";
@@ -2753,11 +2930,15 @@ app.TestHooks = struct( ...
     function tf = postBuildAutomationStarted()
         tf = ~isempty(state.LastModelCheck) || ~isempty(state.LastSimulation) || ...
             ~isempty(state.TeachingPlan) || ~isempty(state.LastProbe) || ...
-            ~isempty(state.LastBode);
+            ~isempty(state.LastBode) || ~isempty(state.LastModelTests) || ...
+            ~isempty(state.LastTeachingReview) || ~isempty(state.LastLearningTraceability) || ...
+            ~isempty(state.LastSimulationScenarios);
     end
 
     function stage = taskStageFromState()
-        if ~isempty(state.LastEvidencePack)
+        if ~isempty(state.LastEvidencePack) || ~isempty(state.LastLearningTraceability) || ...
+                ~isempty(state.LastTeachingReview) || ~isempty(state.LastModelTests) || ...
+                ~isempty(state.LastSimulationScenarios)
             stage = "evidence";
         elseif ~isempty(state.LastProbe) || ~isempty(state.LastLabDelta)
             stage = "probe";
@@ -3363,7 +3544,11 @@ app.TestHooks = struct( ...
             "- generated Simscape model path"
             "- model check and simulation status"
             "- requirement pass/fail table"
+            "- SATK behavioral model tests"
+            "- teaching model review"
+            "- SimulationInput scenarios"
             "- sweep, fault, and explainability reports"
+            "- learning objective traceability"
             "- learning assessment"
             "- risk/scope guardrail"
             "- economics plan"
@@ -3420,6 +3605,9 @@ app.TestHooks = struct( ...
         text = strjoin([
             "Folder: " + currentState.Config.WorkDir
             "Requirements: " + fileNameOnly(currentState.Config.RequirementReportMarkdownPath)
+            "Model tests: " + fileNameOnly(currentState.Config.ModelTestMarkdownPath)
+            "Teaching review: " + fileNameOnly(currentState.Config.TeachingReviewMarkdownPath)
+            "Simulation scenarios: " + fileNameOnly(currentState.Config.SimulationScenarioMarkdownPath)
             "Sweep: " + fileNameOnly(currentState.Config.ParameterSweepMarkdownPath)
             "Faults: " + fileNameOnly(currentState.Config.FaultInjectionMarkdownPath)
             "Explainability: " + fileNameOnly(currentState.Config.ExplainabilityMarkdownPath)
@@ -3429,6 +3617,8 @@ app.TestHooks = struct( ...
     function text = assessmentReportText(currentState)
         text = strjoin([
             "Folder: " + currentState.Config.WorkDir
+            "Learning traceability: " + fileNameOnly(currentState.Config.LearningTraceabilityMarkdownPath)
+            "Learning objectives YAML: " + fileNameOnly(currentState.Config.LearningObjectivesYamlPath)
             "Assessment: " + fileNameOnly(currentState.Config.AssessmentMarkdownPath)
             "Cost: " + fileNameOnly(currentState.Config.EconomicsMarkdownPath)
             "Scope: " + fileNameOnly(currentState.Config.ScopeGuardrailMarkdownPath)
@@ -3926,6 +4116,68 @@ app.TestHooks = struct( ...
             "Fault scenarios: " + string(numel(report.rows))
             ""
             reportRowsText(report.rows, ["fault", "observed_effect", "status"], 10)
+        ], newline);
+    end
+
+    function text = modelTestsSummary(report)
+        scenarioCount = 0;
+        if isstruct(report) && isfield(report, "scenarios")
+            scenarioCount = numel(report.scenarios);
+        end
+        text = strjoin([
+            "SATK behavioral model tests complete."
+            "JSON: " + fieldText(report, "report_path")
+            "Markdown: " + fieldText(report, "markdown_path")
+            "Status: " + fieldText(report, "status")
+            "Scenarios: " + string(scenarioCount)
+            emptyText(fieldText(report, "summary"), "")
+        ], newline);
+    end
+
+    function text = teachingReviewSummary(report)
+        s = report.summary;
+        text = strjoin([
+            "Teaching model review complete."
+            "JSON: " + report.report_path
+            "Markdown: " + report.markdown_path
+            "PASS " + string(s.pass) + " | WARN " + string(s.warn) + " | FAIL " + string(s.fail)
+            ""
+            reportRowsText(report.checks, ["id", "status", "evidence"], 10)
+        ], newline);
+    end
+
+    function text = simulationScenariosSummary(report)
+        s = report.summary;
+        text = strjoin([
+            "SimulationInput scenarios complete."
+            "JSON: " + report.report_path
+            "Markdown: " + report.markdown_path
+            "PASS " + string(s.pass) + " | WARN " + string(s.warn) + " | FAIL " + string(s.fail) + " | NOT_RUN " + string(s.not_run)
+            ""
+            reportRowsText(report.scenarios, ["id", "type", "status", "error"], 10)
+        ], newline);
+    end
+
+    function text = learningTraceabilitySummary(report)
+        objectiveCount = 0;
+        if isstruct(report) && isfield(report, "objectives")
+            objectiveCount = numel(report.objectives);
+        end
+        text = strjoin([
+            "Learning traceability ready."
+            "JSON: " + fieldText(report, "report_path")
+            "Markdown: " + fieldText(report, "markdown_path")
+            "Objectives: " + string(objectiveCount)
+        ], newline);
+    end
+
+    function text = externalRunSummary(runResult)
+        text = strjoin([
+            fieldText(runResult, "summary")
+            "Agent: " + emptyText(fieldText(runResult, "agent_name"), "agent")
+            "Stdout: " + fieldText(runResult, "agent_stdout_path")
+            "Stderr: " + fieldText(runResult, "agent_stderr_path")
+            emptyText(fieldText(runResult, "stderr"), "")
         ], newline);
     end
 

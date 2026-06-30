@@ -24,9 +24,17 @@ assert(contains(text, "Solver Configuration"));
 assert(contains(text, "Repo-Local SATK Agent Instructions"));
 assert(contains(text, "CiTT-specific SATK agent addendum"));
 assert(contains(text, "Simscape Utilization Contract"));
+assert(contains(text, "SATK Project Library Policy"));
+assert(contains(text, "Signal-Level Teaching/Test Interface Contract"));
+assert(contains(text, "Stateflow Teaching Logic Contract"));
+assert(contains(text, "CiTT_TestInterface"));
 assert(contains(text, "PS-Simulink Converter"));
 assert(contains(text, "Prefer plain text"));
 assert(contains(text, "LaTeX"));
+assert(contains(text, "CiTT is a teaching tool first"));
+assert(contains(text, "14-inch"));
+assert(contains(text, "no more than three visible primary controls"));
+assert(contains(text, "user screenshots as QA evidence"));
 end
 
 function writeText(path, text)

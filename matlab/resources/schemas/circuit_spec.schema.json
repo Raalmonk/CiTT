@@ -57,6 +57,20 @@
     "ambiguities": { "type": "array", "items": { "type": "string" } },
     "unsupported_or_unclear_regions": { "type": "array", "items": { "type": "string" } },
     "suggested_simscape_blocks": { "type": "array", "items": { "type": "string" } },
+    "digital_or_state_logic": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "inputs": { "type": "array", "items": { "type": "string" } },
+          "outputs": { "type": "array", "items": { "type": "string" } },
+          "states": { "type": "array", "items": { "type": "string" } },
+          "teaching_reason": { "type": "string" }
+        }
+      }
+    },
     "focus_points": {
       "type": "array",
       "items": {
