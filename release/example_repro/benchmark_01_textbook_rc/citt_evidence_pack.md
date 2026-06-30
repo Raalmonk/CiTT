@@ -21,7 +21,7 @@ Tasks:
 - **Spec source:** release/example_repro/benchmark_01_textbook_rc/citt_spec_reproduced.json
 - **Circuit type:** rc_low_pass_anti_aliasing
 
-## 2. Gemini Structured Circuit Spec
+## 2. Structured Circuit Spec
 
 - **Source:** release/example_repro/benchmark_01_textbook_rc/citt_spec_reproduced.json
 - **Likely analysis:** ac_frequency_response
@@ -253,7 +253,7 @@ Report has not been generated yet.
 
 ## 13. BMES Functional Proof Draft
 
-CiTT demonstrates functional feasibility by turning a circuit image or prompt into auditable MATLAB evidence rather than a standalone chatbot answer. In the current workflow, Gemini is used only to produce a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing the generated Simscape model at release/example_repro/benchmark_01_textbook_rc/rc_reproduced_model.slx. The Evidence Pack records the original input, the structured spec, model path, focus map, probe map, model-check output, simulation summary, Lab Delta comparison, limitations, and risk controls in one reviewable artifact. For this run, the requirement table contains 8 PASS, 0 WARN, 0 FAIL, and 2 NOT_RUN items. This makes the proof falsifiable: missing model checks, absent signal logging, unresolved topology ambiguity, or unavailable lab measurements are visible instead of hidden. The teaching value comes from connecting each verification artifact back to focus-map highlights and probe locations, allowing students to inspect why a node, component, or requirement matters. The current scope remains educational and proposal-facing, not medical-device verification. The next strongest evidence would be logged performance requirements, parameter sweeps, and a measured lab CSV for the same circuit. Primary current limitation: Simulation executed and summary captured is marked NOT_RUN.
+CiTT demonstrates functional feasibility by turning a circuit image or prompt into auditable MATLAB evidence rather than a standalone chatbot answer. In the current workflow, the selected CLI produces a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing the generated Simscape model at release/example_repro/benchmark_01_textbook_rc/rc_reproduced_model.slx. The Evidence Pack records the original input, the structured spec, model path, focus map, probe map, model-check output, simulation summary, Lab Delta comparison, limitations, and risk controls in one reviewable artifact. For this run, the requirement table contains 8 PASS, 0 WARN, 0 FAIL, and 2 NOT_RUN items. This makes the proof falsifiable: missing model checks, absent signal logging, unresolved topology ambiguity, or unavailable lab measurements are visible instead of hidden. The teaching value comes from connecting each verification artifact back to focus-map highlights and probe locations, allowing students to inspect why a node, component, or requirement matters. The current scope remains educational and proposal-facing, not medical-device verification. The next strongest evidence would be logged performance requirements, parameter sweeps, and a measured lab CSV for the same circuit. Primary current limitation: Simulation executed and summary captured is marked NOT_RUN.
 
 ## Artifact Index
 

@@ -8,13 +8,11 @@ taskHistoryPath = fullfile(workDir, "citt_task_history.json");
 
 loadLocalEnv(matlabRoot);
 applyAppSettings(settingsPath);
-loadShellEnvIfMissing(["GEMINI_API_KEY", "GEMINI_MODEL", "CITT_PARSER_BACKEND", "CITT_CODEX_CLI", "CITT_AGENT_BACKEND", "CITT_AGENT_COMMAND", ...
-    "CITT_AGENT_MAX_ATTEMPTS", "CITT_AGENT_RETRY_DELAY_SECONDS", ...
-    "CITT_USE_LOCAL_SIMSCAPE_FALLBACK", "CITT_LOCAL_SIMSCAPE_FALLBACK"]);
+loadShellEnvIfMissing(["CLAUDE_MODEL", "ANTHROPIC_MODEL", "DEEPSEEK_MODEL", "CODEX_MODEL", ...
+    "CITT_CODEX_CLI", "CITT_CLAUDE_CLI", "CITT_DEEPSEEK_CLI", ...
+    "CITT_CLAUDE_MCP_CONFIG", "CITT_AGENT_COMMAND", ...
+    "CITT_AGENT_MAX_ATTEMPTS", "CITT_AGENT_RETRY_DELAY_SECONDS"]);
 agenticToolkit = discoverAgenticToolkit();
-
-apiKey = string(getenv("GEMINI_API_KEY"));
-apiKeyName = "GEMINI_API_KEY";
 
 config = struct();
 config.MatlabRoot = string(matlabRoot);
@@ -25,11 +23,13 @@ config.MatlabAgenticToolkitPath = agenticToolkit.matlab_path;
 config.MatlabMcpServerPath = agenticToolkit.mcp_server_path;
 config.SettingsPath = string(settingsPath);
 config.TaskHistoryPath = string(taskHistoryPath);
-config.GeminiApiKey = apiKey;
-config.GeminiApiKeyName = apiKeyName;
-config.GeminiModel = getenvOrDefault("GEMINI_MODEL", "gemini-3.5-flash");
-config.ParserBackend = normalizeParserBackend(getenvOrDefault("CITT_PARSER_BACKEND", "codex"));
-config.AgentBackend = normalizeAgentBackend(getenvOrDefault("CITT_AGENT_BACKEND", "codex"));
+config.CodexModel = getenvOrDefault("CODEX_MODEL", "");
+config.ClaudeModel = getenvFirst(["CLAUDE_MODEL", "ANTHROPIC_MODEL"], "");
+config.DeepSeekModel = getenvOrDefault("DEEPSEEK_MODEL", "");
+config.CodexCliPath = string(getenv("CITT_CODEX_CLI"));
+config.ClaudeCliPath = string(getenv("CITT_CLAUDE_CLI"));
+config.DeepSeekCliPath = string(getenv("CITT_DEEPSEEK_CLI"));
+config.ClaudeMcpConfigPath = string(getenv("CITT_CLAUDE_MCP_CONFIG"));
 config.AgentCommand = string(getenv("CITT_AGENT_COMMAND"));
 config.AgentMaxAttempts = getenvPositiveInteger("CITT_AGENT_MAX_ATTEMPTS", 4);
 config.AgentRetryDelaySeconds = getenvNonnegativeNumber("CITT_AGENT_RETRY_DELAY_SECONDS", 20);
@@ -74,16 +74,16 @@ if ensureWritableDir(repoWorkDir)
     return
 end
 
-fallbackRoot = fullfile(prefdir, "CiTT");
-fallbackWorkDir = fullfile(fallbackRoot, "work");
-if ensureWritableDir(fallbackWorkDir)
-    workDir = fallbackWorkDir;
+prefRoot = fullfile(prefdir, "CiTT");
+prefWorkDir = fullfile(prefRoot, "work");
+if ensureWritableDir(prefWorkDir)
+    workDir = prefWorkDir;
     return
 end
 
 error("CiTT:WorkDirUnavailable", ...
     "Could not create a writable CiTT work directory under '%s' or '%s'.", ...
-    repoWorkDir, fallbackWorkDir);
+    repoWorkDir, prefWorkDir);
 end
 
 function ok = ensureWritableDir(pathValue)
@@ -273,11 +273,10 @@ catch
     return
 end
 
-setEnvFromField(settings, "gemini_api_key", "GEMINI_API_KEY");
-setEnvFromField(settings, "gemini_model", "GEMINI_MODEL");
-setEnvFromField(settings, "parser_backend", "CITT_PARSER_BACKEND");
-setEnvFromField(settings, "agent_backend", "CITT_AGENT_BACKEND");
 setEnvFromField(settings, "agent_command", "CITT_AGENT_COMMAND");
+setEnvFromField(settings, "codex_model", "CODEX_MODEL");
+setEnvFromField(settings, "claude_model", "CLAUDE_MODEL");
+setEnvFromField(settings, "deepseek_model", "DEEPSEEK_MODEL");
 setEnvFromField(settings, "agent_max_attempts", "CITT_AGENT_MAX_ATTEMPTS");
 setEnvFromField(settings, "agent_retry_delay_seconds", "CITT_AGENT_RETRY_DELAY_SECONDS");
 end
@@ -312,25 +311,17 @@ if strlength(value) == 0
 end
 end
 
-function backend = normalizeParserBackend(value)
-backend = lower(strtrim(string(value)));
-if backend == "cli"
-    backend = "codex";
-elseif backend == "deterministic"
-    backend = "local";
+function value = getenvFirst(names, defaultValue)
+value = "";
+for i = 1:numel(names)
+    candidate = string(getenv(char(names(i))));
+    if strlength(candidate) > 0
+        value = candidate;
+        return
+    end
 end
-if ~ismember(backend, ["codex", "gemini", "local"])
-    backend = "codex";
-end
-end
-
-function backend = normalizeAgentBackend(value)
-backend = lower(strtrim(string(value)));
-if backend == "cli"
-    backend = "codex";
-end
-if ~ismember(backend, ["codex", "gemini"])
-    backend = "codex";
+if strlength(value) == 0
+    value = string(defaultValue);
 end
 end
 

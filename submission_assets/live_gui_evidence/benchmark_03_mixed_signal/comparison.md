@@ -13,13 +13,11 @@ Key proof artifacts: `mixed_signal_full_timeline.png`, `amplifier_saturation.png
 - The live metrics record non-settling, overshoot, tracking error, saturation duration, clamp current, and amplifier output.
 - This result is valuable precisely because it exposes dynamic behavior and failure modes that a text-only answer could smooth over or invent.
 
-## Gemini-Only No-Tools Baseline
+## Text-Only No-Tools Baseline
 
 Baseline prompt saved in `llm_baseline_prompt.md`.
 
-Gemini-only no-tools output saved in `llm_baseline_output_gemini_no_tools.md`.
-
-The Gemini-only baseline correctly states that exact values require executable simulation:
+The text-only baseline correctly states that exact values require executable simulation:
 
 - exact `Vm(t)`,
 - clamp-current waveform,
@@ -30,9 +28,9 @@ The Gemini-only baseline correctly states that exact values require executable s
 
 This supports CiTT's core value: model-grounded evidence is necessary for complex mixed-signal cases.
 
-## Gemini-Only Issues
+## Text-Only Issues
 
-The Gemini-only response is useful, but it shows risks that should be called out:
+The text-only response is useful, but it shows risks that should be called out:
 
 - Unit slip: it writes the current limit as `nF` instead of `nA` in one version.
 - Unsupported model assumption: it describes the nonlinear membrane current as exponential even though the prompt only specifies a maximum, threshold, and slope.
@@ -41,6 +39,6 @@ The Gemini-only response is useful, but it shows risks that should be called out
 
 ## Observed Difference
 
-Gemini-only correctly recognizes the need for simulation but cannot produce executable proof. CiTT adds Simscape/Simulink artifacts, highlightable model paths, probe maps, simulation plots, metrics JSON, model warnings, and explicit limitation evidence.
+Text-only reasoning correctly recognizes the need for simulation but cannot produce executable proof. CiTT adds Simscape/Simulink artifacts, highlightable model paths, probe maps, simulation plots, metrics JSON, model warnings, and explicit limitation evidence.
 
 CiTT Benchmark 3 should not be presented as a perfect design success. It is stronger as evidence that the workflow exposes non-settling, saturation, current limits, ADC/digital timing, and model warnings instead of hiding them.

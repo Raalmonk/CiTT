@@ -32,6 +32,7 @@ turn.focus_id = string(step.focus_id);
 turn.title = string(step.title);
 turn.action = action;
 turn.classification = "not_evaluated";
+turn.student_level = "not_evaluated";
 turn.reveal_allowed = false;
 turn.message = "";
 turn.next_hint_level = hintLevel;
@@ -50,21 +51,63 @@ end
 
 classification = classifyAnswer(step, studentAnswer, options);
 turn.classification = classification.label;
+turn.student_level = classification.student_level;
 
 if classification.is_reasonable
-    if strlength(strtrim(classification.next_hint)) > 0
-        turn.message = "Good. " + classification.next_hint;
-    else
-        turn.message = "Good. This connects the measured node to the reference and shows why loading through the electrode resistance would corrupt the voltage reading.";
-    end
+    turn.message = correctFeedback(step, classification);
     turn.next_hint_level = hintLevel;
 else
     turn.next_hint_level = hintLevel + 1;
+    turn.message = revisionFeedback(step, classification, hintLevel);
+end
+end
+
+function message = correctFeedback(step, classification)
+hint = studentFacingText(strtrim(string(classification.next_hint)));
+if strlength(hint) == 0
+    hint = "connect the measured node, reference node, and the component law that explains the observed behavior.";
+end
+
+switch string(classification.student_level)
+    case "novice"
+        message = "Level: novice. Good start. Keep the task tiny: " + hint + ...
+            " Answer with one sentence about the visible node and ground; no formula needed yet.";
+    case "advanced"
+        message = "Level: advanced. Good. Now stress-test the assumption behind your answer: " + hint + ...
+            " Tie it to probe placement, units, or settling behavior before moving on.";
+    otherwise
+        message = "Level: developing. Good. " + hint + ...
+            " Add one concrete piece of evidence from the model so the explanation is checkable.";
+end
+end
+
+function message = revisionFeedback(step, classification, hintLevel)
+hint = studentFacingText(strtrim(string(classification.next_hint)));
+misconception = studentFacingText(strtrim(string(classification.misconception)));
+if strlength(hint) == 0
     if hintLevel <= 0
-        turn.message = string(step.reveal_hint);
+        hint = studentFacingText(string(step.reveal_hint));
     else
-        turn.message = "Try checking this possible trap: " + string(step.common_mistake);
+        hint = studentFacingText(string(step.common_mistake));
     end
+end
+if strlength(misconception) == 0
+    misconception = studentFacingText(string(step.common_mistake));
+end
+
+switch string(classification.student_level)
+    case "novice"
+        message = "Level: novice. Start with the visible circuit, not the whole math story: " + hint + ...
+            " A useful next answer can be only one sentence.";
+    case "advanced"
+        message = "Level: advanced. Your answer needs a sharper check: " + misconception + ...
+            " Reconcile that with the probe location, units, and the limiting component.";
+    otherwise
+        if hintLevel <= 0
+            message = "Level: developing. Check this part: " + hint;
+        else
+            message = "Level: developing. Try checking this possible trap: " + misconception;
+        end
 end
 end
 
@@ -146,26 +189,74 @@ end
 end
 
 function classification = classifyAnswer(step, studentAnswer, options)
-if isfield(options, "UseGemini") && ~logical(options.UseGemini)
-    error("CiTT:GeminiRequired", "Socratic teaching requires Gemini in real-run mode.");
-end
-classification = classifyWithGemini(step, studentAnswer, options);
+classification = classifyWithCli(step, studentAnswer, options);
 end
 
-function classification = classifyWithGemini(step, studentAnswer, options)
+function classification = classifyWithCli(step, studentAnswer, options)
 config = feval('citt.loadConfig');
-if strlength(config.GeminiApiKey) == 0
-    error("CiTT:GeminiKeyMissing", "No Gemini key for Socratic classification.");
+[raw, runner] = callConfiguredCli(step, studentAnswer, options, config);
+data = decodeClassification(raw, runner.name);
+
+classification = struct();
+classification.label = string(data.label);
+classification.is_reasonable = logical(data.is_reasonable);
+classification.student_level = normalizeStudentLevel(data.student_level);
+classification.misconception = getOptionalString(data, "misconception");
+classification.next_hint = getOptionalString(data, "next_hint");
 end
 
-systemPrompt = fileread(fullfile(config.MatlabRoot, "resources", "prompts", "socratic_teaching_system.txt"));
+function [rawText, runner] = callConfiguredCli(step, studentAnswer, options, config)
+runner = selectCliRunner(config);
+taskPath = string(fullfile(config.WorkDir, "citt_socratic_cli_task.md"));
+stdoutPath = string(fullfile(config.WorkDir, "citt_socratic_cli_stdout.log"));
+stderrPath = string(fullfile(config.WorkDir, "citt_socratic_cli_stderr.log"));
+
+answerImagePath = "";
+if isfield(options, "AnswerImagePath")
+    answerImagePath = string(options.AnswerImagePath);
+end
+writeText(taskPath, buildClassificationPrompt(step, studentAnswer, answerImagePath, config, runner.name));
+
+command = runner.command;
+if runner.uses_template
+    command = commandFromTemplate(command, taskPath);
+end
+if runner.name == "codex" && strlength(strtrim(answerImagePath)) > 0 && exist(answerImagePath, "file") == 2
+    command = replace(command, " -", " --image " + shellQuote(answerImagePath) + " -");
+end
+
+systemResult = feval('citt.util.safeSystem', command);
+writeText(stdoutPath, systemResult.stdout);
+writeText(stderrPath, systemResult.stderr);
+if systemResult.status ~= 0
+    error("CiTT:SocraticCliFailed", ...
+        "%s Socratic classifier exited with status %d. See %s and %s.", ...
+        runner.name, systemResult.status, stdoutPath, stderrPath);
+end
+rawText = string(systemResult.stdout);
+end
+
+function prompt = buildClassificationPrompt(step, studentAnswer, answerImagePath, config, runnerName)
+systemPrompt = string(fileread(fullfile(config.MatlabRoot, "resources", "prompts", "socratic_teaching_system.txt")));
+imageLine = "No student answer image attached.";
+if strlength(strtrim(string(answerImagePath))) > 0
+    imageLine = "Student answer image source path: " + string(answerImagePath) + ...
+        ". Use the selected CLI's image capability if available; otherwise state image uncertainty in misconception.";
+end
 prompt = strjoin([
+    "You are CiTT's selected CLI Socratic classifier."
+    "Selected CLI: " + string(runnerName)
     string(systemPrompt)
     ""
-    "Classify this student answer as exactly one JSON object with fields label, is_reasonable, misconception, next_hint."
+    "Classify this student answer as exactly one JSON object with fields label, is_reasonable, student_level, misconception, next_hint."
     "Do not wrap the JSON in markdown. Do not include text before or after the JSON object."
     "Use only JSON strings, booleans, and nulls. Escape any quotes or newlines inside strings."
+    "Set student_level to exactly novice, developing, or advanced."
+    "Use novice for vague, copied, uncertain, or no-node/no-unit answers; developing for partially correct answers with gaps; advanced for concise or complete answers that name the node/reference, relevant component law, units, or model evidence."
+    "Do not judge by length alone: a short answer can be advanced if it is precise, and a long answer can be novice if it avoids the model evidence."
     "Keep next_hint as one short line."
+    "For low-information answers, assume the student may be confused or avoiding typing; give one tiny visible next action, not a lecture."
+    "Do not use internal component IDs such as R_AA, C_AA, VOUT_PROBE, or ADC_500HZ in next_hint or misconception. Say resistor, capacitor, Vout probe, input source, ground, or 500 Hz ADC."
     "Do not solve the circuit or reveal final numerical values."
     ""
     "Teaching step:"
@@ -174,41 +265,36 @@ prompt = strjoin([
     "Student answer encoded as JSON:"
     string(feval('citt.util.jsonEncode', struct("answer", string(studentAnswer))))
     ""
-    "If an image is attached, use it only to understand the student's sketch, equation, or marked circuit region."
+    string(imageLine)
 ], newline);
-
-parts = {struct("text", char(prompt))};
-answerImagePath = "";
-if isfield(options, "AnswerImagePath")
-    answerImagePath = string(options.AnswerImagePath);
-end
-if strlength(strtrim(answerImagePath)) > 0
-    image = feval('citt.util.readImageBytes', answerImagePath);
-    parts{end + 1} = struct("inline_data", struct( ...
-        "mime_type", char(image.mime_type), ...
-        "data", char(image.base64)));
 end
 
-content = struct();
-content.role = "user";
-content.parts = parts;
-body = struct();
-body.contents = {content};
-body.generationConfig = struct("response_mime_type", "application/json");
-url = "https://generativelanguage.googleapis.com/v1beta/models/" + ...
-    config.GeminiModel + ":generateContent?key=" + config.GeminiApiKey;
-response = webwrite(char(url), body, weboptions("MediaType", "application/json", "Timeout", 45));
-raw = string(response.candidates(1).content.parts(1).text);
-data = decodeClassification(raw, step, studentAnswer);
-
-classification = struct();
-classification.label = string(data.label);
-classification.is_reasonable = logical(data.is_reasonable);
-classification.misconception = getOptionalString(data, "misconception");
-classification.next_hint = getOptionalString(data, "next_hint");
+function runner = selectCliRunner(config)
+runner = struct("name", "", "command", "", "uses_template", false);
+if strlength(strtrim(config.AgentCommand)) > 0
+    runner.name = "configured_cli";
+    runner.command = string(config.AgentCommand);
+    runner.uses_template = true;
+    return
 end
 
-function data = decodeClassification(raw, step, studentAnswer)
+error("CiTT:SocraticCliMissing", ...
+    "No selected CLI command is configured for Socratic classification. Set CITT_AGENT_COMMAND or save a CLI template in Settings; CiTT will not auto-select another CLI.");
+end
+
+function command = commandFromTemplate(commandTemplate, taskPath)
+command = string(commandTemplate);
+quotedTaskPath = shellQuote(taskPath);
+if contains(command, "{taskPath}")
+    command = replace(command, "{taskPath}", quotedTaskPath);
+elseif contains(command, "{task}")
+    command = replace(command, "{task}", quotedTaskPath);
+else
+    command = strtrim(command) + " " + quotedTaskPath;
+end
+end
+
+function data = decodeClassification(raw, runnerName)
 cleaned = stripJsonFences(raw);
 try
     data = jsondecode(char(cleaned));
@@ -217,17 +303,20 @@ try
 catch
 end
 
-jsonObject = extractJsonObject(cleaned);
-if strlength(jsonObject) > 0
+candidates = extractJsonObjectCandidates(cleaned);
+for i = numel(candidates):-1:1
+    jsonObject = candidates(i);
     try
         data = jsondecode(char(jsonObject));
         data = normalizeClassification(data);
         return
     catch
+        continue
     end
 end
 
-data = fallbackClassification(step, studentAnswer);
+error("CiTT:SocraticCliNoJson", ...
+    "%s did not return a valid Socratic classification JSON object.", runnerName);
 end
 
 function text = stripJsonFences(text)
@@ -237,23 +326,52 @@ text = regexprep(text, "\s*```$", "");
 text = strtrim(text);
 end
 
-function jsonObject = extractJsonObject(text)
+function candidates = extractJsonObjectCandidates(text)
 text = char(string(text));
-startIndex = find(text == "{", 1, "first");
-endIndex = find(text == "}", 1, "last");
-if isempty(startIndex) || isempty(endIndex) || endIndex <= startIndex
-    jsonObject = "";
-else
-    jsonObject = string(text(startIndex:endIndex));
+candidates = strings(0, 1);
+starts = find(text == '{');
+quote = char(34);
+backslash = char(92);
+for i = 1:numel(starts)
+    startIndex = starts(i);
+    depth = 0;
+    inString = false;
+    escaped = false;
+    for j = startIndex:numel(text)
+        ch = text(j);
+        if inString
+            if escaped
+                escaped = false;
+            elseif ch == backslash
+                escaped = true;
+            elseif ch == quote
+                inString = false;
+            end
+            continue
+        end
+
+        if ch == quote
+            inString = true;
+        elseif ch == '{'
+            depth = depth + 1;
+        elseif ch == '}'
+            depth = depth - 1;
+            if depth == 0
+                candidates(end + 1, 1) = string(text(startIndex:j)); %#ok<AGROW>
+                break
+            end
+        end
+    end
 end
 end
 
 function data = normalizeClassification(data)
-if ~isfield(data, "label")
-    data.label = "uncertain";
-end
-if ~isfield(data, "is_reasonable")
-    data.is_reasonable = false;
+required = ["label", "is_reasonable", "student_level"];
+for i = 1:numel(required)
+    if ~isfield(data, required(i))
+        error("CiTT:SocraticClassificationInvalid", ...
+            "Socratic classification JSON is missing field: %s", required(i));
+    end
 end
 if ~isfield(data, "misconception")
     data.misconception = "";
@@ -261,40 +379,46 @@ end
 if ~isfield(data, "next_hint")
     data.next_hint = "";
 end
+data.student_level = normalizeStudentLevel(data.student_level);
 end
 
-function data = fallbackClassification(step, studentAnswer)
-answer = lower(string(studentAnswer));
-concept = lower(string(step.concept));
-hasMeasuredNode = contains(answer, "v_m") || contains(answer, "vm") || contains(answer, "membrane");
-hasReference = contains(answer, "reference") || contains(answer, "ground") || contains(answer, "gnd");
-hasUnits = contains(answer, "ohm") || contains(answer, "ω") || contains(answer, "\omega") || ...
-    contains(answer, "amp") || contains(answer, " a") || contains(answer, "volt") || contains(answer, " v");
-hasLoading = contains(answer, "input impedance") || contains(answer, "high impedance") || ...
-    contains(answer, "voltage drop") || contains(answer, "i_c") || contains(answer, "current") || ...
-    contains(answer, "r_c") || contains(answer, "rc");
+function value = normalizeStudentLevel(value)
+value = lower(strtrim(string(value)));
+if value == "beginner"
+    value = "novice";
+elseif value == "intermediate"
+    value = "developing";
+elseif value == "expert"
+    value = "advanced";
+end
+if ~ismember(value, ["novice", "developing", "advanced"])
+    error("CiTT:SocraticClassificationInvalid", ...
+        "Socratic classification JSON has invalid student_level: %s", value);
+end
+end
 
-data = struct();
-if hasMeasuredNode && hasReference && hasUnits && hasLoading
-    data.label = "reasonable";
-    data.is_reasonable = true;
-    data.misconception = "";
-    data.next_hint = "Connect the measured node to the reference node and state why the electrode drop is approximately zero volts.";
-elseif contains(concept, "reference") && ~hasReference
-    data.label = "missing_reference";
-    data.is_reasonable = false;
-    data.misconception = "The answer does not name the reference node.";
-    data.next_hint = "Say what voltage is measured relative to ground before discussing the buffer.";
-elseif ~hasUnits
-    data.label = "missing_units";
-    data.is_reasonable = false;
-    data.misconception = "The answer skips units.";
-    data.next_hint = "Use Ohm's law with amperes, ohms, and volts.";
-else
-    data.label = "uncertain";
-    data.is_reasonable = false;
-    data.misconception = "The answer could not be safely classified as complete.";
-    data.next_hint = "Name the measured node, reference node, current through Rc, and voltage drop across Rc.";
+function text = studentFacingText(text)
+text = string(text);
+if strlength(text) == 0
+    return
+end
+patterns = [
+    "\bC_AA_FAULT\b", "the 100 uF capacitor";
+    "\bCERR_C_LP_100uF\b", "the 100 uF capacitor";
+    "\bC_LP_ALT\b", "the 100 uF capacitor";
+    "\bC_AA\b", "the capacitor";
+    "\bC_LP_100nF\b", "the capacitor";
+    "\bC_LP\b", "the capacitor";
+    "\bR_AA\b", "the resistor";
+    "\bR_LP_39p8k\b", "the resistor";
+    "\bR_LP\b", "the resistor";
+    "\bVOUT_PROBE\b", "the Vout probe";
+    "\bADC_500HZ\b", "the 500 Hz ADC";
+    "\bV_IN\b", "the input source";
+    "\bgnd\b", "ground"
+];
+for i = 1:size(patterns, 1)
+    text = regexprep(text, patterns(i, 1), patterns(i, 2));
 end
 end
 
@@ -318,10 +442,38 @@ end
 plan = jsondecode(fileread(path));
 end
 
+function writeText(path, text)
+[folder, ~, ~] = fileparts(char(path));
+if exist(folder, "dir") ~= 7
+    mkdir(folder);
+end
+fid = fopen(char(path), "w");
+if fid < 0
+    error("CiTT:FileWriteFailed", "Could not write file: %s", path);
+end
+cleanup = onCleanup(@() fclose(fid));
+fprintf(fid, "%s", char(text));
+delete(cleanup);
+end
+
 function value = getOptionalString(data, fieldName)
 if isfield(data, fieldName)
     value = string(data.(fieldName));
 else
     value = "";
+end
+end
+
+function quoted = shellQuote(value)
+raw = char(string(value));
+if ispc
+    raw = strrep(raw, '"', '\"');
+    quoted = """" + string(raw) + """";
+else
+    singleQuote = char(39);
+    doubleQuote = char(34);
+    replacement = [singleQuote doubleQuote singleQuote doubleQuote singleQuote];
+    raw = strrep(raw, singleQuote, replacement);
+    quoted = string([singleQuote raw singleQuote]);
 end
 end

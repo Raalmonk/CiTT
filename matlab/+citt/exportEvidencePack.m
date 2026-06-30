@@ -436,7 +436,7 @@ end
 
 function lines = structuredSpecSection(spec, specSource)
 lines = [
-    "## 2. Gemini Structured Circuit Spec"
+    "## 2. Structured Circuit Spec"
     ""
 ];
 if ~isstruct(spec) || isempty(spec)
@@ -848,7 +848,7 @@ end
 
 draft = strjoin([
     "CiTT demonstrates functional feasibility by turning a circuit image or prompt into auditable MATLAB evidence rather than a standalone chatbot answer."
-    "In the current workflow, Gemini is used only to produce a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing " + modelText + "."
+    "In the current workflow, the selected CLI produces a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing " + modelText + "."
     "The Evidence Pack records the original input, the structured spec, model path, focus map, probe map, model-check output, simulation summary, Lab Delta comparison, limitations, and risk controls in one reviewable artifact."
     "For this run, the requirement table contains " + string(summary.pass) + " PASS, " + string(summary.warn) + " WARN, " + string(summary.fail) + " FAIL, and " + string(summary.not_run) + " NOT_RUN items."
     "This makes the proof falsifiable: missing model checks, absent signal logging, unresolved topology ambiguity, or unavailable lab measurements are visible instead of hidden."
@@ -909,12 +909,12 @@ else
 end
 end
 
-function text = artifactEvidence(path, fallbackText)
+function text = artifactEvidence(path, defaultText)
 path = string(path);
 if strlength(path) > 0
     text = path;
 else
-    text = string(fallbackText);
+    text = string(defaultText);
 end
 end
 

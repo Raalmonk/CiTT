@@ -9,4 +9,4 @@ addpath("matlab")
 citt
 ```
 
-Then select a circuit image or enter a prompt, parse with Gemini, generate the SATK agent task, and build the Simscape/Simulink model.
+Then select a circuit image or enter a prompt, parse with the selected CLI, generate the SATK agent task, and build the Simscape/Simulink model through the configured agent workflow.

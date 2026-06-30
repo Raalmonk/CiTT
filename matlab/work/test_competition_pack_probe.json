@@ -1,0 +1,10 @@
+{
+  "probe_map": {
+    "probe_id": "probe_vout",
+    "focus_id": "output_node",
+    "label": "Probe Vout",
+    "target_paths": "test_model/Output Sensor",
+    "quantity": "voltage",
+    "instructions": "Place voltage sensor at vout."
+  }
+}

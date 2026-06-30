@@ -7,7 +7,7 @@ Version: `0.9.0-bmes2026-rc1`
 ## Package Artifacts
 
 - [x] MATLAB toolbox package created: `release/CiTT_BMES_2026.mltbx`
-- [x] Source fallback package created: `release/CiTT_BMES_2026_Source.zip`
+- [x] Source package created: `release/CiTT_BMES_2026_Source.zip`
 - [x] Toolbox package is non-empty: 241193 bytes
 - [x] Source zip is non-empty: 203974 bytes
 - [x] SHA-256 recorded for both artifacts in `package_log.md`
@@ -43,7 +43,7 @@ Version: `0.9.0-bmes2026-rc1`
 - [x] Test toolbox was uninstalled after smoke test.
 - [x] Installed-toolbox examples verification passed with `release/verify_installed_examples.m`.
 - [x] Installed GUI launch screenshot captured: `release/example_repro/installed_gui_smoke.png`.
-- [x] Benchmark 1 RC reproduced installed-plugin artifacts, model check, Bode plot, teaching plan, and evidence pack.
+- [x] Benchmark 1 RC reproduced the installed-plugin structured spec and external-agent task.
 - [x] Benchmark 2 TEVC opened/checked the evidence model and reproduced teaching/evidence outputs.
 - [x] Benchmark 3 mixed-signal opened/checked the evidence model and reproduced teaching/evidence outputs from parameterized metrics.
 
@@ -54,8 +54,7 @@ Version: `0.9.0-bmes2026-rc1`
 - [x] `bmes_live_evidence_report.md` says all three benchmarks are complete.
 - [x] Benchmark 3 is labeled educational scaled benchmark evidence, not medical-use validation.
 - [x] Lab Delta CSV comparison is not claimed as completed.
-- [x] Gemini-only no-tools baseline outputs exist for all three benchmarks.
-- [x] Scorecard reflects honest Gemini-only and CiTT comparisons.
+- [x] Scorecard reflects model-grounded CiTT evidence without provider-specific baseline files.
 
 ## Not Claimed
 

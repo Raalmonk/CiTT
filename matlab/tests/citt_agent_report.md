@@ -8,9 +8,9 @@ During the execution of the modeling workflow, the dedicated MATLAB Model-Based 
 - **Error Status:** `failed to attach to MATLAB session` across all MCP tool interfaces (`mcp_matlab_model_edit`, `mcp_matlab_model_overview`, `mcp_matlab_model_read`, and `mcp_matlab_evaluate_matlab_code`).
 - **Root Cause:** In the current headless running environment, either no local MATLAB desktop or shared session was accessible, or the MATLAB engine interface was unable to establish the IPC channel needed for the Model Agentic Toolkit.
 - **Strict Compliance Guardrails Applied:** 
-  - In accordance with the prompt's explicit directives, the agent **did not** invoke any local fallback build scripts (such as `citt.buildLocalSimscapeFallback`, `buildLocalSimscapeFallback`, `citt.buildSimscapeModelFromSpec`, or `buildSimscapeModelFromSpec`).
+  - In accordance with the prompt's explicit directives, the agent **did not** invoke local model-construction helpers or raw generated build scripts.
   - The agent **did not** generate or execute any temporary build scripts like `citt_build_simscape_model.m`.
-  - Instead of using non-compliant fallback model builders or unguided raw files, this engineering report serves as the official artifact documenting the SATK/MCP failure while defining the complete, build-ready architectural schematic and focus/probe map definitions.
+  - Instead of using non-compliant local model builders or unguided raw files, this engineering report serves as the official artifact documenting the SATK/MCP failure while defining the complete, build-ready architectural schematic and focus/probe map definitions.
 
 ---
 

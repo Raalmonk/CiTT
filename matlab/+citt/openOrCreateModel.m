@@ -6,7 +6,13 @@ if nargin < 1 || isempty(modelPath)
     modelPath = config.GeneratedModelPath;
 end
 if nargin < 2
-    options = struct(); %#ok<NASGU>
+    options = struct();
+end
+showModel = false;
+if isfield(options, "ShowModel")
+    showModel = logical(options.ShowModel);
+elseif isfield(options, "Open")
+    showModel = logical(options.Open);
 end
 
 modelPath = string(modelPath);
@@ -21,10 +27,16 @@ fileCode = exist(modelPath, "file");
 if fileCode == 2 || fileCode == 4
     [~, modelName, ~] = fileparts(modelPath);
     load_system(char(modelPath));
-    open_system(char(modelName));
+    if showModel
+        open_system(char(modelName));
+    end
     result.success = true;
     result.model_name = string(modelName);
-    result.message = "Opened existing model.";
+    if showModel
+        result.message = "Opened existing model.";
+    else
+        result.message = "Loaded existing model.";
+    end
     return
 end
 

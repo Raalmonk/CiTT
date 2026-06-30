@@ -1,0 +1,15 @@
+{
+  "focus_map": {
+    "focus_id": "output_node",
+    "label": "Output node",
+    "explanation": "Low-pass output before ADC sampling.",
+    "model_paths": "test_evidence_model/Output Sensor",
+    "block_paths": "test_evidence_model/Voltage Sensor",
+    "related_components": [
+      "R1",
+      "C1"
+    ],
+    "related_nodes": "vout",
+    "teaching_question": "Why does this node define the anti-aliasing output?"
+  }
+}

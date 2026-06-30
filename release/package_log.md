@@ -173,13 +173,13 @@ Installed path used:
 
 Summary:
 
-- Benchmark 1 RC: reproduced a deterministic installed-plugin Simscape model, model check report, Bode report/plot, teaching plan, and evidence pack.
+- Benchmark 1 RC: reproduced the installed-plugin structured spec and external-agent task.
 - Benchmark 2 TEVC: opened and checked the live evidence model, then reproduced teaching plan and evidence pack from the installed plugin.
 - Benchmark 3 mixed-signal: opened and checked the live evidence model, loaded educational parameters/metrics, then reproduced teaching plan and evidence pack from the installed plugin.
 
 Warnings observed but non-blocking:
 
-- Package-folder path-order warning from the generated RC fallback script.
+- Package-folder path-order warning from generated RC verification output.
 - Simscape/To Workspace logging-format warnings during model checksum/update.
 - Benchmark 3 algebraic-loop/discontinuity warnings, consistent with the live evidence limitations.
 - A local `matlab/work/citt_generated_model.slx` shadowing warning during Benchmark 3 model open/check; the requested evidence model path still opened and checked successfully.

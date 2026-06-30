@@ -28,6 +28,7 @@ if isfield(options, "PreviewOnly")
 elseif isfield(options, "NoModify")
     previewOnly = logical(options.NoModify);
 end
+showModel = optionLogical(options, "ShowModel", false);
 
 result = struct();
 result.success = false;
@@ -57,17 +58,23 @@ end
 
 [~, modelName, ~] = fileparts(modelPath);
 load_system(char(modelPath));
-open_system(char(modelName));
+if showModel
+    open_system(char(modelName));
+end
 paths = getPathList(probe, "block_paths");
 if ~isempty(paths)
     targetPath = firstExistingPath(paths);
     if strlength(targetPath) == 0
         error("CiTT:ProbePathMissing", "None of the probe block_paths exist in the model for target: %s", string(targetId));
     end
-    clearResult = feval('citt.clearHighlights', modelPath);
-    result.automated_actions(end + 1) = "Cleared previous highlights for model: " + clearResult.model_name;
-    hilite_system(char(targetPath), "find");
-    result.automated_actions(end + 1) = "Highlighted target block: " + targetPath;
+    if showModel
+        clearResult = feval('citt.clearHighlights', modelPath);
+        result.automated_actions(end + 1) = "Cleared previous highlights for model: " + clearResult.model_name;
+        hilite_system(char(targetPath), "find");
+        result.automated_actions(end + 1) = "Highlighted target block: " + targetPath;
+    else
+        result.automated_actions(end + 1) = "Matched target block: " + targetPath;
+    end
     if previewOnly
         result.automated_actions(end + 1) = "Preview-only measurement: no probe blocks, logging blocks, lines, or model saves were added.";
     else
@@ -82,13 +89,28 @@ else
     if isempty(modelPaths)
         error("CiTT:ProbePathMissing", "Probe map entry has no block_paths or model_paths for target: %s", string(targetId));
     else
-        open_system(char(modelPaths(1)));
-        result.automated_actions(end + 1) = "Opened probe model path: " + modelPaths(1);
+        if showModel
+            open_system(char(modelPaths(1)));
+            result.automated_actions(end + 1) = "Opened probe model path: " + modelPaths(1);
+        else
+            result.automated_actions(end + 1) = "Matched probe model path: " + modelPaths(1);
+        end
     end
 end
 
 result.success = true;
 writeJson(outputPath, result);
+end
+
+function value = optionLogical(options, fieldName, defaultValue)
+value = logical(defaultValue);
+if isstruct(options) && isfield(options, fieldName)
+    try
+        value = logical(options.(fieldName));
+    catch
+        value = logical(defaultValue);
+    end
+end
 end
 
 function path = firstExistingPath(paths)

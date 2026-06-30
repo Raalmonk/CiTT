@@ -2,6 +2,7 @@ function report = checkSetup()
 %CHECKSETUP Inspect local MATLAB, parser, SATK, Simulink, and agent setup.
 
 config = feval('citt.loadConfig');
+toolkitSetup = feval('citt.ensureAgenticToolkit', config);
 toolboxes = feval('citt.util.findAvailableToolboxes');
 
 report = struct();
@@ -9,10 +10,9 @@ report.checked_at = string(datetime("now"));
 report.matlab_version = string(version);
 report.matlab_root = string(matlabroot);
 report.work_dir = config.WorkDir;
-report.gemini_key_found = strlength(config.GeminiApiKey) > 0;
-report.gemini_key_name = config.GeminiApiKeyName;
-report.gemini_model = config.GeminiModel;
-report.parser_backend = config.ParserBackend;
+report.codex_model = config.CodexModel;
+report.claude_model = config.ClaudeModel;
+report.deepseek_model = config.DeepSeekModel;
 report.simulink_available = logical(toolboxes.simulink);
 report.simulink_license = logical(toolboxes.simulink_license);
 report.simscape_available = logical(toolboxes.simscape);
@@ -21,31 +21,24 @@ report.simscape_electrical_available = logical(toolboxes.simscape_electrical);
 report.simscape_electrical_license = logical(toolboxes.simscape_electrical_license);
 report.matlab_mcp_available = mcpAvailable(config);
 report.satk_initialize_available = satkInitializeAvailable(config);
+report.satk_model_overview_available = logical(toolkitSetup.model_overview_available);
+report.satk_model_edit_available = logical(toolkitSetup.model_edit_available);
+report.satk_model_check_available = logical(toolkitSetup.model_check_available);
+report.satk_setup_message = toolkitSetup.message;
 report.setup_agentic_toolkit_available = exist("setupAgenticToolkit", "file") == 2;
 report.satk_path_hint = findSatkPathHint();
 report.satk_install_path = config.SatkInstallPath;
 report.matlab_agentic_toolkit_path = config.MatlabAgenticToolkitPath;
 report.matlab_mcp_server_path = config.MatlabMcpServerPath;
-report.agent_clis = findAgentClis();
-report.agent_backend = config.AgentBackend;
+report.agent_clis = findAgentClis(config);
 report.configured_agent_command = config.AgentCommand;
-report.codex_parser_cli_path = findCodexCliPath();
 report.parser_available = parserAvailable(report);
 report.guidance = setupGuidance(report);
 report.summary_text = setupSummary(report);
 end
 
 function available = parserAvailable(report)
-switch string(report.parser_backend)
-    case "codex"
-        available = strlength(report.codex_parser_cli_path) > 0;
-    case "gemini"
-        available = report.gemini_key_found;
-    case "local"
-        available = true;
-    otherwise
-        available = false;
-end
+available = strlength(strtrim(string(report.configured_agent_command))) > 0;
 end
 
 function pathHint = findSatkPathHint()
@@ -78,13 +71,16 @@ if ~available && strlength(config.MatlabMcpServerPath) > 0
 end
 end
 
-function clis = findAgentClis()
-names = ["codex", "gemini"];
+function clis = findAgentClis(config)
+names = ["codex", "claude", "deepseek"];
 clis = struct([]);
 for i = 1:numel(names)
     cli = struct();
     cli.name = names(i);
-    cli.path = commandPath(names(i));
+    cli.path = configuredCliPath(config, names(i));
+    if strlength(cli.path) == 0
+        cli.path = commandPath(names(i));
+    end
     if names(i) == "codex" && strlength(cli.path) == 0
         cli.path = findCodexCliPath();
     end
@@ -93,13 +89,32 @@ for i = 1:numel(names)
 end
 end
 
-function available = agentBackendAvailable(report)
-available = false;
-for i = 1:numel(report.agent_clis)
-    if report.agent_clis(i).name == string(report.agent_backend)
-        available = logical(report.agent_clis(i).available);
-        return
-    end
+function pathText = configuredCliPath(config, name)
+pathText = "";
+switch string(name)
+    case "codex"
+        if isfield(config, "CodexCliPath")
+            pathText = existingExecutablePath(config.CodexCliPath);
+        end
+    case "claude"
+        if isfield(config, "ClaudeCliPath")
+            pathText = existingExecutablePath(config.ClaudeCliPath);
+        end
+    case "deepseek"
+        if isfield(config, "DeepSeekCliPath")
+            pathText = existingExecutablePath(config.DeepSeekCliPath);
+        end
+end
+end
+
+function pathText = existingExecutablePath(pathCandidate)
+pathText = "";
+pathCandidate = strtrim(string(pathCandidate));
+if strlength(pathCandidate) == 0
+    return
+end
+if exist(pathCandidate, "file") == 2
+    pathText = pathCandidate;
 end
 end
 
@@ -150,14 +165,7 @@ end
 function lines = setupGuidance(report)
 lines = strings(0, 1);
 if ~report.parser_available
-    switch string(report.parser_backend)
-        case "codex"
-            lines(end + 1) = "CITT_PARSER_BACKEND=codex is selected, but Codex CLI was not found. Set CITT_CODEX_CLI or install Codex.";
-        case "gemini"
-            lines(end + 1) = "CITT_PARSER_BACKEND=gemini is selected, but GEMINI_API_KEY is missing.";
-        otherwise
-            lines(end + 1) = "Set CITT_PARSER_BACKEND to codex, gemini, or local.";
-    end
+    lines(end + 1) = "Circuit parsing and model building require the selected CLI command. Set CITT_AGENT_COMMAND or save a CLI template in Settings; CiTT will not auto-select another CLI.";
 end
 if ~report.simulink_available
     lines(end + 1) = "Install Simulink and make sure the license is available.";
@@ -173,16 +181,6 @@ if ~report.satk_initialize_available
 end
 if ~report.matlab_mcp_available
     lines(end + 1) = "If your SATK workflow uses MATLAB MCP Server, add it to the MATLAB path and start it before running the external agent.";
-end
-if strlength(report.configured_agent_command) == 0 && ~agentBackendAvailable(report)
-    switch string(report.agent_backend)
-        case "codex"
-            lines(end + 1) = "CITT_AGENT_BACKEND=codex is selected, but Codex CLI was not found.";
-        case "gemini"
-            lines(end + 1) = "CITT_AGENT_BACKEND=gemini is selected, but Gemini CLI was not found.";
-        otherwise
-            lines(end + 1) = "Set CITT_AGENT_BACKEND to codex or gemini, or configure CITT_AGENT_COMMAND.";
-    end
 end
 if isempty(lines)
     lines = "Setup looks ready for the MATLAB-native SATK agent flow.";
@@ -201,11 +199,10 @@ end
 
 lines = [
     "MATLAB: " + report.matlab_version
-    "Circuit parser backend: " + report.parser_backend
-    "Circuit parser: " + foundMissing(report.parser_available)
-    "Codex parser CLI: " + foundMissing(strlength(report.codex_parser_cli_path) > 0) + " " + report.codex_parser_cli_path
-    "Gemini key: " + foundMissing(report.gemini_key_found) + " (" + report.gemini_key_name + ")"
-    "Gemini model: " + report.gemini_model
+    "Circuit parser CLI: " + foundMissing(report.parser_available)
+    "Codex model: " + report.codex_model
+    "Claude model: " + report.claude_model
+    "DeepSeek model: " + report.deepseek_model
     "Simulink: " + foundMissing(report.simulink_available) + ", license " + foundMissing(report.simulink_license)
     "Simscape: " + foundMissing(report.simscape_available) + ", license " + foundMissing(report.simscape_license)
     "Simscape Electrical: " + foundMissing(report.simscape_electrical_available)
@@ -216,8 +213,7 @@ lines = [
     "SATK install path: " + report.satk_install_path
     "MATLAB Agentic Toolkit path: " + report.matlab_agentic_toolkit_path
     "MCP server binary: " + report.matlab_mcp_server_path
-    "Agent backend: " + report.agent_backend
-    "Configured CITT_AGENT_COMMAND: " + report.configured_agent_command
+    "Selected CLI command: " + report.configured_agent_command
     "Agent CLIs:"
     cliLines(:)
     "Setup guidance:"

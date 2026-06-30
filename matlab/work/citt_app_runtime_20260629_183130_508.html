@@ -1,0 +1,2612 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --bg: #f7f9f6;
+      --rail: #ffffff;
+      --panel: #ffffff;
+      --panel-2: #f3f6f1;
+      --panel-3: #e8eee6;
+      --line: #d9e0d6;
+      --line-soft: #e8ede6;
+      --text: #17221a;
+      --muted: #5e6b62;
+      --faint: #8b978d;
+      --accent: #2f7a52;
+      --accent-strong: #23643f;
+      --accent-soft: #e6f1e9;
+      --accent-blue: #3f6f9d;
+      --warn: #a66f1d;
+      --bad: #b33b32;
+      --radius: 8px;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    button, input, textarea, select { font: inherit; }
+
+    .shell {
+      height: 100vh;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: clamp(220px, 24vw, 286px) minmax(0, 1fr);
+      background: var(--bg);
+    }
+    .shell.sidebar-collapsed {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .shell.sidebar-collapsed .sidebar {
+      display: none;
+    }
+
+    .sidebar {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--line-soft);
+      background: var(--rail);
+      overflow-x: hidden;
+    }
+
+    .brand {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: #2b8a5f;
+      color: white;
+      font-weight: 850;
+    }
+
+    .brand-title { min-width: 0; }
+    .brand-title strong { display: block; font-size: 14px; }
+    .brand-title span { color: var(--muted); font-size: 12px; }
+    .shell.sidebar-collapsed .brand-title,
+    .shell.sidebar-collapsed .project-label,
+    .shell.sidebar-collapsed .project-title,
+    .shell.sidebar-collapsed .task-list,
+    .shell.sidebar-collapsed .sidebar-bottom {
+      display: none;
+    }
+
+    .new-task {
+      margin-left: auto;
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f5f8f3;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .task-list {
+      min-height: 0;
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 8px 10px 10px;
+      display: grid;
+      align-content: start;
+      gap: 6px;
+    }
+
+    .project-label {
+      padding: 12px 12px 6px;
+      color: var(--faint);
+      font-size: 12px;
+    }
+
+    .project-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .task-item {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      padding: 10px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .task-item:hover { background: #f2f6ef; }
+    .task-item.active {
+      background: var(--accent-soft);
+      border-color: #b9d4c2;
+    }
+
+    .task-item strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .task-item p {
+      margin: 4px 0 8px;
+      color: var(--muted);
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .task-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--faint);
+      font-size: 11px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .task-meta span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sidebar-bottom {
+      padding: 10px;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .settings-button {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f7faf5;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      padding: 0 11px;
+    }
+
+    .main {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    .topbar {
+      min-height: 58px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 16px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line-soft);
+      background: #ffffff;
+      box-shadow: 0 1px 0 rgb(23 34 26 / 0.03);
+    }
+
+    .window-nav {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .nav-btn {
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 17px;
+    }
+    .nav-btn:hover { background: #eef4eb; color: var(--text); }
+    .nav-btn:disabled {
+      opacity: .35;
+      cursor: default;
+      background: transparent;
+    }
+    .top-new-task {
+      min-width: 58px;
+      height: 30px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f7faf7;
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .top-new-task:hover { background: #eef4eb; }
+
+    .task-heading { min-width: 0; }
+    .task-heading strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 15px;
+    }
+    .task-heading span {
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .progress {
+      min-width: 210px;
+      display: none;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .progress.active { display: block; }
+
+    .bar {
+      height: 6px;
+      margin-top: 5px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e4ebe1;
+    }
+    .bar span {
+      display: block;
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent);
+      transition: width 180ms ease;
+    }
+
+    .workspace {
+      min-height: 0;
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 16px 18px 24px;
+    }
+    .workspace.has-thread {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .workspace.empty {
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding-bottom: 12vh;
+      background: var(--bg);
+    }
+
+    .welcome {
+      display: none;
+      width: min(920px, 100%);
+      margin: 0 auto 28px;
+      text-align: center;
+    }
+
+    .workspace.empty .welcome { display: block; }
+
+    .welcome h1 {
+      margin: 0;
+      color: var(--text);
+      font-size: clamp(28px, 4.4vw, 44px);
+      font-weight: 520;
+      letter-spacing: 0;
+    }
+
+    .composer {
+      max-width: 960px;
+      margin: 0 auto 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+    .workspace.has-thread .composer {
+      order: 40;
+      position: sticky;
+      bottom: 12px;
+      z-index: 12;
+      width: min(960px, 100%);
+      margin-top: 16px;
+      margin-bottom: 0;
+      box-shadow: 0 14px 42px rgb(35 100 63 / 0.14);
+    }
+
+    .workspace.empty .composer {
+      width: min(920px, 100%);
+      margin-bottom: 0;
+      border-radius: 18px;
+      background: #ffffff;
+      border-color: var(--line);
+      box-shadow: 0 18px 52px rgb(35 100 63 / 0.10);
+    }
+
+    .composer.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgb(47 122 82 / 0.14);
+    }
+
+    .composer-body {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .workspace.empty .composer-body {
+      gap: 0;
+      padding: 0;
+    }
+
+    .step-hud {
+      max-width: 960px;
+      margin: 0 auto 12px;
+      display: none;
+      justify-content: flex-start;
+      position: relative;
+      z-index: 3;
+    }
+    .workspace.has-thread .step-hud { order: 1; width: min(960px, 100%); }
+    .step-hud.show { display: flex; }
+    .workspace.empty .step-hud {
+      width: min(920px, 100%);
+      justify-content: center;
+    }
+    .step-pill {
+      min-height: 34px;
+      border: 1px solid var(--line-soft);
+      border-radius: 999px;
+      background: #ffffff;
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      box-shadow: 0 8px 30px rgb(35 100 63 / 0.10);
+      cursor: default;
+    }
+    .workspace.empty .step-pill {
+      background: #ffffff;
+      color: var(--text);
+      border-color: var(--line-soft);
+      box-shadow: 0 12px 36px rgb(35 100 63 / 0.10);
+    }
+    .step-ring {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      background: transparent;
+      flex: 0 0 auto;
+    }
+    .step-popover {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      width: min(430px, calc(100vw - 42px));
+      display: none;
+      border: 1px solid #d8dbe3;
+      border-radius: 14px;
+      background: rgb(255 255 255 / 0.96);
+      color: var(--muted);
+      padding: 10px 0;
+      box-shadow: 0 24px 70px rgb(35 100 63 / 0.16);
+    }
+    .workspace.empty .step-popover {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .step-hud:hover .step-popover,
+    .step-hud:focus-within .step-popover { display: block; }
+    .step-row {
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      padding: 7px 14px;
+    }
+    .step-row-dot {
+      width: 11px;
+      height: 11px;
+      margin-top: 3px;
+      border-radius: 50%;
+      border: 2px solid #aeb5c0;
+    }
+    .step-row[data-status="done"] .step-row-dot {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+    .step-row[data-status="ready"] .step-row-dot {
+      border-color: var(--accent-blue);
+    }
+    .step-row strong {
+      display: block;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    .step-row span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .prompt-input {
+      min-height: 88px;
+      border: 0;
+      border-radius: 18px 18px 0 0;
+      background: transparent;
+      color: var(--text);
+      padding: 18px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .workspace.empty .prompt-input {
+      color: var(--text);
+      min-height: 104px;
+      font-size: 16px;
+    }
+
+    .prompt-input::placeholder { color: var(--faint); }
+
+    .composer-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 48px;
+      padding: 8px 12px 10px;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .workspace.empty .composer-toolbar {
+      border-top-color: var(--line-soft);
+      color: var(--muted);
+    }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .icon-btn:hover { background: rgb(127 134 148 / 0.12); }
+
+    .image-status {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: inherit;
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    .drop {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px dashed #8bb89a;
+      border-radius: var(--radius);
+      background: #f4faf5;
+      color: var(--muted);
+      padding: 10px 12px;
+    }
+    .drop.active {
+      border-color: var(--accent);
+      background: #edf8ef;
+    }
+    .drop strong { color: var(--text); }
+
+    .form-grid {
+      display: grid;
+      gap: 9px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 96px minmax(0, 1fr) auto;
+      gap: 9px;
+      align-items: center;
+    }
+    .row.two { grid-template-columns: 96px minmax(0, 1fr); }
+    label {
+      color: var(--muted);
+      font-weight: 650;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--text);
+      outline: none;
+      padding: 8px 10px;
+    }
+    textarea {
+      min-height: 82px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgb(47 122 82 / 0.14);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .btn {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 0 12px;
+      background: #ffffff;
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #f2f6ef; }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+      font-weight: 800;
+    }
+    .btn.primary:hover { background: var(--accent-strong); }
+
+    .tool-groups {
+      max-width: 960px;
+      margin: 0 auto 14px;
+      display: none;
+      gap: 8px;
+    }
+
+    .workspace.has-thread .tool-groups {
+      display: none;
+    }
+    details {
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+    summary {
+      cursor: pointer;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-weight: 750;
+    }
+    details[open] summary {
+      color: var(--text);
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .details-body {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .thinking {
+      order: 30;
+      flex: 0 0 auto;
+      width: min(960px, 100%);
+      max-width: 960px;
+      margin: 0 auto 14px;
+      position: relative;
+      z-index: 8;
+      display: none;
+      overflow: hidden;
+      border: 1px solid #bfd7c6;
+      border-radius: 12px;
+      background: rgb(255 255 255 / 0.96);
+      box-shadow: none;
+      scroll-margin-bottom: 220px;
+    }
+    .thinking.show { display: block; }
+    .thinking-head {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 46px;
+      padding: 9px 14px;
+      list-style: none;
+      color: var(--text);
+      font-weight: 700;
+    }
+    .thinking-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid #cfe0d2;
+      border-top-color: var(--accent);
+      background: transparent;
+      box-shadow: none;
+      flex: 0 0 auto;
+      animation: spin 900ms linear infinite;
+    }
+    .thinking-time {
+      color: var(--faint);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .thinking-detail {
+      border-top: 1px solid var(--line-soft);
+      padding: 11px 14px 13px 40px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: min(38vh, 360px);
+      overflow: auto;
+      background: #fbfdf9;
+    }
+    .thinking.compact .thinking-detail { display: none; }
+    .workspace.empty .thinking {
+      background: rgb(255 255 255 / 0.96);
+      border-color: #bfd7c6;
+      box-shadow: 0 18px 58px rgb(35 100 63 / 0.18);
+    }
+    .workspace.empty .thinking-head { color: var(--text); }
+    .workspace.empty .thinking-detail {
+      border-top-color: var(--line-soft);
+      color: var(--muted);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .model-preview {
+      max-width: 960px;
+      margin: 0 auto 14px;
+      display: none;
+      overflow: hidden;
+      border: 1px solid var(--line-soft);
+      border-radius: 18px;
+      background: #ffffff;
+      box-shadow: 0 16px 44px rgb(35 100 63 / 0.10);
+    }
+    .workspace.has-thread .model-preview { order: 2; width: min(960px, 100%); }
+    .model-preview.show { display: block; }
+    .model-preview-head {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px 8px 12px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .model-preview-title {
+      min-width: 0;
+      flex: 1;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .model-preview-title span {
+      color: var(--faint);
+      margin-left: 6px;
+      font-size: 12px;
+    }
+    .model-preview-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .model-preview-actions select {
+      width: 150px;
+      min-height: 30px;
+      padding: 4px 8px;
+    }
+    .model-preview-actions .btn {
+      min-height: 30px;
+      padding: 0 10px;
+    }
+    .model-preview-frame {
+      min-height: 190px;
+      max-height: 460px;
+      display: grid;
+      place-items: center;
+      background: #fbfdf9;
+      overflow: auto;
+    }
+    .model-preview-frame img {
+      display: block;
+      max-width: 100%;
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .learning-surface {
+      order: 2;
+      width: min(1360px, calc(100% - 16px));
+      max-width: 1360px;
+      margin: 0 auto 14px;
+      display: none;
+      gap: 12px;
+    }
+    .learning-surface.show { display: grid; }
+    .workspace.learning-ready .step-hud,
+    .workspace.learning-ready .thread,
+    .workspace.learning-ready .model-preview,
+    .workspace.learning-ready .tool-groups,
+    .workspace.learning-ready .composer {
+      display: none !important;
+    }
+    .learning-model {
+      min-height: 260px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #ffffff;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .learning-model img {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      object-fit: contain;
+    }
+    .learning-empty {
+      color: var(--faint);
+      font-weight: 700;
+      padding: 24px;
+      text-align: center;
+    }
+    .learning-dialog {
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .learning-step {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .learning-question {
+      color: var(--text);
+      font-size: 18px;
+      line-height: 1.45;
+      font-weight: 750;
+    }
+    .learning-concept {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .teaching-feedback {
+      color: var(--muted);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border-left: 3px solid #94bfa2;
+      padding-left: 10px;
+    }
+    .teaching-feedback.empty {
+      display: none;
+    }
+    .learning-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .student-reasoning {
+      min-height: 64px;
+    }
+    .probe-bar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+    }
+    .probe-result {
+      color: var(--muted);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .thread {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+      padding-bottom: 12px;
+    }
+    .workspace.has-thread .thread {
+      order: 20;
+      width: min(960px, 100%);
+      flex: 1 0 auto;
+    }
+
+    .workspace.empty .thread { display: none; }
+
+    .message {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 10px;
+    }
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: #edf2ea;
+      color: var(--muted);
+      font-weight: 850;
+    }
+    .message.assistant .avatar { background: var(--accent-soft); color: var(--accent-strong); }
+    .message.user .avatar { background: #e9eef6; color: #315677; }
+    .message.system .avatar { background: #f1eef7; color: #675281; }
+
+    .message-content {
+      min-width: 0;
+      border-bottom: 1px solid var(--line-soft);
+      padding-bottom: 13px;
+    }
+    .message-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      color: var(--text);
+      font-weight: 800;
+    }
+    .message-body {
+      color: #26332a;
+      line-height: 1.52;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .message-body .math {
+      display: inline-block;
+      max-width: 100%;
+      overflow-x: auto;
+      vertical-align: middle;
+      color: #26332a;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 1.18em;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+    .message-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .message-actions .btn {
+      min-height: 32px;
+      padding: 7px 10px;
+      background: #ffffff;
+    }
+
+    .message-detail {
+      margin-top: 10px;
+      border-color: var(--line);
+      background: #fbfdf9;
+    }
+    .message-detail summary {
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+    .message-detail-body {
+      padding: 10px;
+      color: var(--muted);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: min(46vh, 520px);
+      overflow: auto;
+    }
+
+    .preview {
+      margin: 0 12px 8px;
+      min-height: 44px;
+      max-height: 160px;
+      overflow: auto;
+      border: 1px solid #b9d4c2;
+      border-radius: 7px;
+      background: #fbfdf9;
+      color: #26332a;
+      padding: 9px 10px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .preview.empty {
+      display: none;
+      color: var(--faint);
+      place-items: center;
+      white-space: normal;
+    }
+    .preview .math {
+      display: inline-block;
+      max-width: 100%;
+      overflow-x: auto;
+      vertical-align: middle;
+      color: #26332a;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 1.18em;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+
+    .inspector {
+      position: fixed;
+      top: 72px;
+      right: 18px;
+      z-index: 18;
+      width: 42px;
+      height: 42px;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      border: 1px solid #bfd7c6;
+      border-radius: 10px;
+      background: #ffffff;
+      padding: 0;
+      box-shadow: 0 12px 32px rgb(35 100 63 / 0.12);
+    }
+    .inspector-head {
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      overflow: hidden;
+      font-size: 0;
+      line-height: 1;
+      font-weight: 850;
+      color: transparent;
+      cursor: default;
+    }
+    .inspector-head::before {
+      content: "i";
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      color: var(--accent);
+      font-size: 18px;
+      line-height: 1;
+      font-weight: 900;
+    }
+    .inspector-body {
+      position: absolute;
+      top: 50px;
+      right: 0;
+      width: min(320px, calc(100vw - 36px));
+      max-height: min(440px, calc(100vh - 140px));
+      overflow: auto;
+      display: none;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 18px 54px rgb(35 100 63 / 0.16);
+    }
+    .inspector:hover .inspector-body,
+    .inspector:focus-within .inspector-body {
+      display: block;
+    }
+    .side-section {
+      border: 0;
+      border-radius: 0;
+      background: #ffffff;
+      padding: 14px;
+      box-shadow: none;
+    }
+    .side-section + .side-section {
+      border-top: 1px solid var(--line-soft);
+    }
+    .steps-section { display: none; }
+    .side-section h2 {
+      margin: 0 0 9px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .side-section p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .assumption-status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 9px;
+      margin-bottom: 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-size: 12px;
+    }
+    .chip-list, .source-list, .step-list {
+      display: grid;
+      gap: 7px;
+    }
+    .chip, .source, .step {
+      border-radius: 7px;
+      background: #f2f6ef;
+      padding: 8px;
+      color: var(--muted);
+      min-width: 0;
+    }
+    .source strong, .step strong {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--text);
+      font-size: 12px;
+    }
+    .source span, .step span {
+      color: var(--muted);
+      font-size: 11px;
+      word-break: break-word;
+    }
+    .step[data-status="done"] { border-left: 3px solid var(--accent); }
+    .step[data-status="ready"] { border-left: 3px solid var(--accent-blue); }
+    .step[data-status="waiting"] { border-left: 3px solid #cad4ca; }
+
+    .busy {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      place-items: center;
+      background: rgb(247 249 246 / 0.72);
+      backdrop-filter: blur(10px);
+    }
+    .busy.show { display: grid; }
+    .busy-box {
+      width: min(420px, calc(100vw - 40px));
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 18px;
+      background: #ffffff;
+      box-shadow: 0 18px 60px rgb(35 100 63 / 0.18);
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      place-items: center;
+      background: rgb(247 249 246 / 0.72);
+      backdrop-filter: blur(10px);
+    }
+    .modal.show { display: grid; }
+    .modal-card {
+      width: min(640px, calc(100vw - 28px));
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 24px 80px rgb(35 100 63 / 0.22);
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .modal-head h2 { margin: 0; font-size: 15px; }
+    .modal-body {
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 40;
+      max-width: 420px;
+      display: none;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #ffffff;
+      box-shadow: 0 14px 40px rgb(35 100 63 / 0.16);
+      color: var(--text);
+    }
+    .toast.show { display: block; }
+
+    @media (max-width: 1180px) {
+      .shell { grid-template-columns: clamp(210px, 28vw, 250px) minmax(0, 1fr); }
+    }
+
+    @media (max-width: 760px) {
+      body { overflow: auto; }
+      .shell {
+        height: auto;
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        max-height: 220px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .topbar {
+        grid-template-columns: 1fr;
+        padding: 12px;
+      }
+      .progress { min-width: 0; }
+      .workspace { padding: 12px; }
+      .workspace.has-thread { padding-bottom: 238px; }
+      .workspace.has-thread .composer {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        width: auto;
+        margin: 0;
+      }
+      .thinking {
+        width: 100%;
+        margin-bottom: 12px;
+        scroll-margin-bottom: 238px;
+      }
+      .row, .row.two { grid-template-columns: 1fr; }
+      .actions .btn { flex: 1 1 auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="mark">Ci</div>
+        <div class="brand-title">
+          <strong>CiTT</strong>
+          <span id="sidebarStatus">Local workspace</span>
+        </div>
+        <button class="new-task" id="newTaskButton" title="New task">+</button>
+      </div>
+      <div class="project-label">Projects</div>
+      <div class="project-title"><span>▱</span><strong>CiTT</strong></div>
+      <div class="task-list" id="taskList"></div>
+      <div class="sidebar-bottom">
+        <button class="settings-button" id="settingsButton">Settings</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="window-nav">
+          <button class="nav-btn" id="sidebarToggleButton" title="Fold sidebar">▣</button>
+          <button class="nav-btn" id="navBackButton" title="Back">←</button>
+          <button class="nav-btn" id="navForwardButton" title="Forward">→</button>
+          <button class="top-new-task" id="topNewTaskButton" title="New task">New</button>
+        </div>
+        <div class="task-heading">
+          <strong id="taskTitle">Circuit task</strong>
+          <span id="taskSubtitle">Ready for circuit input.</span>
+        </div>
+        <div class="progress" id="topProgress">
+          <span id="progressText">0%</span>
+          <div class="bar"><span id="progressBar"></span></div>
+        </div>
+      </header>
+
+      <section class="workspace empty">
+        <section class="welcome" id="welcome">
+          <h1>What should we build in CiTT?</h1>
+        </section>
+
+        <section class="step-hud" id="stepHud">
+          <div class="step-pill" tabindex="0"><span class="step-ring"></span><span id="stepHudLabel">Step 1 / 1</span></div>
+          <div class="step-popover" id="stepPopover"></div>
+        </section>
+
+        <section class="composer" id="composerBox">
+          <div class="composer-body">
+            <textarea id="prompt" class="prompt-input" placeholder="Do anything"></textarea>
+            <div class="preview empty" id="promptPreview">LaTeX preview</div>
+            <div class="composer-toolbar">
+              <button class="icon-btn" data-action="select_image" title="Attach image">+</button>
+              <span class="image-status" id="imageStatus">No image attached</span>
+              <span class="toolbar-spacer"></span>
+              <button class="btn primary" data-action="run_pipeline">Run</button>
+            </div>
+            <input id="imagePath" type="hidden">
+          </div>
+        </section>
+
+        <section class="thinking" id="thinkingBox">
+          <div class="thinking-head"><span class="thinking-dot"></span><span id="thinkingText">Working...</span><span class="thinking-time" id="thinkingTime">0s</span></div>
+          <div class="thinking-detail" id="thinkingDetails"></div>
+        </section>
+
+        <section class="model-preview" id="modelPreview">
+          <div class="model-preview-head">
+            <div class="model-preview-title">Simulink preview <span id="modelPreviewStatus"></span></div>
+            <div class="model-preview-actions">
+              <select id="previewFocusSelector" title="Focus target"></select>
+              <button class="btn" data-action="highlight_focus">Highlight</button>
+              <button class="btn" data-action="refresh_model_snapshot">Refresh</button>
+              <button class="btn" data-action="open_model">Open Generated</button>
+            </div>
+          </div>
+          <div class="model-preview-frame">
+            <img id="modelPreviewImage" alt="Simulink model preview">
+          </div>
+        </section>
+
+        <section class="learning-surface" id="learningSurface">
+          <div class="learning-model" id="learningModel">
+            <img id="learningModelImage" alt="Simscape model view">
+            <div class="learning-empty" id="learningModelEmpty">Model view will appear here.</div>
+          </div>
+          <div class="learning-dialog">
+            <div class="learning-step">
+              <span id="learningStepLabel">Step 1 / 1</span>
+              <span id="learningFocusLabel"></span>
+            </div>
+            <div class="learning-question" id="learningQuestion">Teaching question will appear here.</div>
+            <div class="learning-concept" id="learningConcept"></div>
+            <div class="teaching-feedback empty" id="learningFeedback"></div>
+            <textarea id="learningAnswer" class="student-reasoning" placeholder="Try explaining what you think is happening in the model."></textarea>
+            <div class="preview empty" id="learningAnswerPreview">LaTeX preview</div>
+            <div class="learning-actions">
+              <button class="btn" data-action="next_hint">Hint</button>
+              <button class="btn" data-action="reveal">Reveal</button>
+              <button class="btn" data-action="highlight_focus">Highlight in model</button>
+              <button class="btn primary" id="learningNextButton" data-action="next_teaching_step">Next step</button>
+            </div>
+            <div class="probe-bar">
+              <input id="probeAsk" type="text" placeholder="Measure a model signal in plain language">
+              <button class="btn primary" data-action="run_command">Measure</button>
+            </div>
+            <div class="probe-result" id="learningProbeResult">Ask for a measurement in plain language, for example: measure amplifier input voltage.</div>
+          </div>
+        </section>
+
+        <section class="tool-groups">
+          <details id="buildTools">
+            <summary>Build and model</summary>
+            <div class="details-body">
+              <div class="row">
+                <label>Model</label>
+                <input id="modelPath" type="text">
+                <button class="btn" data-action="select_model">Choose Existing</button>
+              </div>
+              <div class="row two">
+                <label>Command</label>
+                <input id="commandField" type="text" placeholder="highlight feedback loop">
+              </div>
+              <div class="actions">
+                <button class="btn" data-action="open_spec">Open Spec</button>
+                <button class="btn" data-action="open_task">Open Task</button>
+                <button class="btn" data-action="open_model">Open Generated Model</button>
+                <button class="btn" data-action="run_simulation">Simulate</button>
+                <button class="btn" data-action="bode_plot">Bode</button>
+                <button class="btn" data-action="run_command">Run Command</button>
+                <button class="btn" data-action="refresh_setup">Refresh</button>
+              </div>
+            </div>
+          </details>
+
+          <details id="teachingTools">
+            <summary>Teaching</summary>
+            <div class="details-body">
+              <div class="row two">
+                <label>Answer</label>
+                <textarea id="studentAnswer" placeholder="Student reasoning, HTML, or LaTeX."></textarea>
+              </div>
+              <div class="row two">
+                <label>Preview</label>
+                <div class="preview empty" id="answerPreview">LaTeX preview</div>
+              </div>
+              <div class="row">
+                <label>Image</label>
+                <input id="teachingImagePath" type="text">
+                <button class="btn" data-action="select_teaching_image">Browse</button>
+              </div>
+              <div class="row two">
+                <label>Focus</label>
+                <select id="focusSelector"></select>
+              </div>
+              <div class="actions">
+                <button class="btn" data-action="next_hint">Hint</button>
+                <button class="btn" data-action="reveal">Reveal</button>
+                <button class="btn" data-action="highlight_focus">Highlight</button>
+                <button class="btn" data-action="clear_highlights">Clear</button>
+              </div>
+            </div>
+          </details>
+
+          <details id="probeTools">
+            <summary>Probe, lab delta, evidence</summary>
+            <div class="details-body">
+              <div class="row two">
+                <label>Probe</label>
+                <select id="probeSelector"></select>
+              </div>
+              <div class="row">
+                <label>CSV</label>
+                <input id="labCsvPath" type="text">
+                <button class="btn" data-action="select_csv">Browse</button>
+              </div>
+              <div class="row two">
+                <label>Op-amp</label>
+                <input id="opAmpPart" type="text" placeholder="LM741, TL072">
+              </div>
+              <div class="row two">
+                <label>Explain</label>
+                <select id="explainSelector"></select>
+              </div>
+              <div class="row two">
+                <label>Pack</label>
+                <input id="evidencePath" type="text">
+              </div>
+              <div class="actions">
+                <button class="btn" data-action="add_probe">Probe</button>
+                <button class="btn" data-action="compare_delta">Compare</button>
+                <button class="btn" data-action="analyze_lab_error">Analyze</button>
+                <button class="btn" data-action="requirements">Requirements</button>
+                <button class="btn" data-action="sweep">Sweep</button>
+                <button class="btn" data-action="faults">Faults</button>
+                <button class="btn" data-action="build_explainability">Map</button>
+                <button class="btn" data-action="highlight_explainability">Highlight Map</button>
+                <button class="btn" data-action="open_evidence">Open Pack</button>
+              </div>
+            </div>
+          </details>
+
+          <details id="assessmentTools">
+            <summary>Assessment and planning</summary>
+            <div class="details-body">
+              <div class="row two">
+                <label>Concept</label>
+                <input id="assessmentConcept" type="text" value="cutoff frequency output node">
+              </div>
+              <div class="row two">
+                <label>Hints</label>
+                <input id="hintLevels" type="number" min="0" value="0">
+              </div>
+              <textarea id="beforeAnswer" placeholder="Before answer"></textarea>
+              <textarea id="afterAnswer" placeholder="After answer"></textarea>
+              <div class="actions">
+                <button class="btn" data-action="assessment">Assess</button>
+                <button class="btn" data-action="economics">Cost Plan</button>
+                <button class="btn" data-action="scope">Scope</button>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <section class="thread" id="thread"></section>
+      </section>
+    </main>
+
+    <aside class="inspector">
+      <div class="inspector-head">Context</div>
+      <div class="inspector-body">
+        <section class="side-section assumption-card">
+          <div class="assumption-status" id="assumptionStatus">Waiting</div>
+          <h2 id="assumptionSummary">Assumptions</h2>
+          <p id="assumptionText">Assumptions will appear after CiTT reads a circuit.</p>
+        </section>
+      </div>
+    </aside>
+  </div>
+
+  <div class="busy" id="busyOverlay">
+    <div class="busy-box">
+      <strong id="busyText">Working...</strong>
+      <div class="bar"><span id="busyBar"></span></div>
+    </div>
+  </div>
+
+  <div class="modal" id="settingsModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>Settings</h2>
+        <button class="btn" id="closeSettingsButton">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="row two">
+          <label>CLI</label>
+          <input id="settingAgentCommand" type="text" placeholder="codex/claude/deepseek ... {taskPath}">
+        </div>
+        <div class="row two">
+          <label>Agent</label>
+          <select id="settingAgentBackend">
+            <option value="codex">Codex</option>
+            <option value="claude">Claude</option>
+            <option value="deepseek">DeepSeek</option>
+          </select>
+        </div>
+        <div class="row two">
+          <label>Attempts</label>
+          <input id="settingMaxAttempts" type="number" min="1">
+        </div>
+        <div class="row two">
+          <label>Retry sec</label>
+          <input id="settingRetryDelay" type="number" min="0">
+        </div>
+        <p id="settingsStatus"></p>
+        <div class="actions">
+          <button class="btn primary" id="saveSettingsButton">Save Settings</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    var htmlComponent = null;
+    var state = {};
+    var requestId = 0;
+    var currentTaskId = "";
+    var activeRunStartedAt = 0;
+    var activeRunStatusText = "";
+    var dataListenerAttached = false;
+    var wired = false;
+    var readySent = false;
+    var lastNewTaskSentAt = 0;
+    var lastActionEventKey = "";
+    var lastActionEventAt = 0;
+    var lastModelPreviewSrc = "";
+    var lastLearningModelSrc = "";
+    var learningSurfaceWasShown = false;
+    var taskBackStack = [];
+    var taskForwardStack = [];
+
+    function setClass(el, name, enabled) {
+      if (!el) return;
+      if (enabled) {
+        el.classList.add(name);
+      } else {
+        el.classList.remove(name);
+      }
+    }
+
+    function toggleClass(el, name) {
+      if (!el) return;
+      if (el.classList.contains(name)) {
+        el.classList.remove(name);
+      } else {
+        el.classList.add(name);
+      }
+    }
+
+    function elementMatches(el, selector) {
+      if (!el || el.nodeType !== 1) return false;
+      var fn = el.matches || el.webkitMatchesSelector || el.msMatchesSelector;
+      return !!fn && fn.call(el, selector);
+    }
+
+    function closestElement(el, selector) {
+      while (el && el.nodeType === 1) {
+        if (elementMatches(el, selector)) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+
+    function setup(component) {
+      htmlComponent = component;
+      if (!dataListenerAttached) {
+        component.addEventListener("DataChanged", function() {
+          receive(component.Data);
+        });
+        dataListenerAttached = true;
+      }
+      wire();
+      if (!readySent) {
+        readySent = true;
+        send("ready", {});
+      }
+    }
+
+    function wire() {
+      if (wired) return;
+      wired = true;
+      bindInteractiveButtons(document);
+      wireNewTaskButton("newTaskButton");
+      wireNewTaskButton("topNewTaskButton");
+      document.addEventListener("keydown", function(event) {
+        var key = String(event.key || "").toLowerCase();
+        if ((event.metaKey || event.ctrlKey) && key === "n") {
+          event.preventDefault();
+          newTask();
+        }
+      });
+      document.addEventListener("paste", pasteIntoPromptFromWindow);
+      document.getElementById("sidebarToggleButton").addEventListener("click", toggleSidebar);
+      document.getElementById("navBackButton").addEventListener("click", goBack);
+      document.getElementById("navForwardButton").addEventListener("click", goForward);
+      document.getElementById("settingsButton").addEventListener("click", openSettings);
+      document.getElementById("closeSettingsButton").addEventListener("click", closeSettings);
+      document.getElementById("saveSettingsButton").addEventListener("click", saveSettings);
+      document.getElementById("composerBox").addEventListener("click", focusPromptFromComposer);
+      document.getElementById("prompt").addEventListener("input", function() {
+        renderPreview("promptPreview", value("prompt"));
+      });
+      document.getElementById("prompt").addEventListener("keydown", function(event) {
+        var key = String(event.key || "").toLowerCase();
+        if ((event.metaKey || event.ctrlKey) && key === "enter") {
+          event.preventDefault();
+          runAction("run_pipeline");
+        }
+      });
+      document.getElementById("studentAnswer").addEventListener("input", function() {
+        renderPreview("answerPreview", value("studentAnswer"));
+      });
+      document.getElementById("learningAnswer").addEventListener("input", function() {
+        renderPreview("learningAnswerPreview", value("learningAnswer"));
+      });
+      document.querySelector(".main").addEventListener("wheel", routeMainWheel, { passive: false });
+      document.getElementById("probeAsk").addEventListener("keydown", function(event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          runAction("run_command");
+        }
+      });
+      setInterval(updateThinkingElapsed, 1000);
+      try {
+        if (localStorage.getItem("cittSidebarCollapsed") === "1") {
+          document.querySelector(".shell").classList.add("sidebar-collapsed");
+        }
+      } catch (_err) {
+      }
+      updateNavButtons();
+      setupDropZone();
+    }
+
+    function focusPromptFromComposer(event) {
+      if (closestElement(event.target, "button, input, textarea, select")) return;
+      var prompt = document.getElementById("prompt");
+      if (prompt) prompt.focus();
+    }
+
+    function pasteIntoPromptFromWindow(event) {
+      if (closestElement(event.target, "textarea, input, select, [contenteditable='true']")) return;
+      var workspace = document.querySelector(".workspace");
+      var prompt = document.getElementById("prompt");
+      if (!workspace || !prompt || !workspace.classList.contains("empty")) return;
+      var clipboard = event.clipboardData || window.clipboardData;
+      if (!clipboard) return;
+      var pasted = String(clipboard.getData("text/plain") || "").trim();
+      if (!pasted) return;
+      event.preventDefault();
+      prompt.focus();
+      prompt.value = pasted;
+      prompt.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    function wireNewTaskButton(id) {
+      var button = document.getElementById(id);
+      if (!button) return;
+      var events = ["pointerup", "click"];
+      for (var i = 0; i < events.length; i += 1) {
+        button.addEventListener(events[i], function(event) {
+          event.preventDefault();
+          newTask();
+        });
+      }
+    }
+
+    function toggleSidebar() {
+      var shell = document.querySelector(".shell");
+      toggleClass(shell, "sidebar-collapsed");
+      try {
+        localStorage.setItem("cittSidebarCollapsed", shell.classList.contains("sidebar-collapsed") ? "1" : "0");
+      } catch (_err) {
+      }
+    }
+
+    function newTask() {
+      var now = Date.now();
+      if (now - lastNewTaskSentAt < 1200) return;
+      lastNewTaskSentAt = now;
+      if (currentTaskId) taskBackStack.push(currentTaskId);
+      taskForwardStack.length = 0;
+      updateNavButtons();
+      send("new_task", {});
+    }
+
+    function selectTask(taskId, pushHistory) {
+      if (pushHistory == null) pushHistory = true;
+      if (!taskId || taskId === currentTaskId) return;
+      if (pushHistory && currentTaskId) {
+        taskBackStack.push(currentTaskId);
+        taskForwardStack.length = 0;
+      }
+      updateNavButtons();
+      send("select_task", { taskId: taskId });
+    }
+
+    function goBack() {
+      if (taskBackStack.length === 0 || !currentTaskId) return;
+      var target = taskBackStack.pop();
+      taskForwardStack.push(currentTaskId);
+      updateNavButtons();
+      send("select_task", { taskId: target });
+    }
+
+    function goForward() {
+      if (taskForwardStack.length === 0 || !currentTaskId) return;
+      var target = taskForwardStack.pop();
+      taskBackStack.push(currentTaskId);
+      updateNavButtons();
+      send("select_task", { taskId: target });
+    }
+
+    function updateNavButtons() {
+      var back = document.getElementById("navBackButton");
+      var forward = document.getElementById("navForwardButton");
+      if (back) back.disabled = taskBackStack.length === 0;
+      if (forward) forward.disabled = taskForwardStack.length === 0;
+    }
+
+    function routeMainWheel(event) {
+      if (closestElement(event.target, "textarea, input, select, .modal-card, .model-preview-frame, .thinking-detail, .message-detail-body, .step-popover")) return;
+      var workspace = document.querySelector(".workspace");
+      if (!workspace) return;
+      workspace.scrollTop += event.deltaY;
+      event.preventDefault();
+    }
+
+    function setupDropZone() {
+      var drop = document.getElementById("composerBox");
+      var stop = function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+      };
+      var enterEvents = ["dragenter", "dragover"];
+      for (var i = 0; i < enterEvents.length; i += 1) {
+        var enterName = enterEvents[i];
+        drop.addEventListener(enterName, function(event) {
+          stop(event);
+          drop.classList.add("active");
+        });
+      }
+      var leaveEvents = ["dragleave", "drop"];
+      for (var j = 0; j < leaveEvents.length; j += 1) {
+        var leaveName = leaveEvents[j];
+        drop.addEventListener(leaveName, function(event) {
+          stop(event);
+          drop.classList.remove("active");
+        });
+      }
+      drop.addEventListener("drop", function(event) {
+        var file = event.dataTransfer.files && event.dataTransfer.files[0];
+        if (!file || String(file.type || "").indexOf("image/") !== 0) {
+          toast("Please drop an image file.");
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function() {
+          send("drop_image", {
+          name: file.name,
+          mimeType: file.type,
+          dataUrl: String(reader.result)
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function runAction(action) {
+      send(action, collectPayload(action));
+    }
+
+    function runActionFromButton(event) {
+      var button = event.currentTarget;
+      var action = button.getAttribute("data-action");
+      var key = action + ":" + (button.id || button.textContent || "");
+      var now = Date.now();
+      event.preventDefault();
+      event.stopPropagation();
+      if (key === lastActionEventKey && now - lastActionEventAt < 400) return;
+      lastActionEventKey = key;
+      lastActionEventAt = now;
+      runAction(action);
+    }
+
+    function collectPayload(action) {
+      var naturalProbe = value("probeAsk");
+      var commandText = naturalProbe ? naturalProbe : value("commandField");
+      if (naturalProbe && !/^\s*(measure|probe|show|highlight|zoom|open|clear|simulate|check)\b/i.test(commandText)) {
+        commandText = "measure " + commandText;
+      }
+      var studentReasoning = value("learningAnswer") || value("studentAnswer");
+      var payload = {
+        imagePath: value("imagePath"),
+        modelPath: value("modelPath"),
+        command: commandText,
+        studentAnswer: studentReasoning,
+        teachingImagePath: value("teachingImagePath"),
+        focus: value("previewFocusSelector") || value("focusSelector"),
+        probe: value("probeSelector"),
+        labCsvPath: value("labCsvPath"),
+        opAmpPart: value("opAmpPart"),
+        explainAction: value("explainSelector"),
+        evidencePath: value("evidencePath"),
+        assessmentConcept: value("assessmentConcept"),
+        hintLevels: Number(value("hintLevels") || 0),
+        beforeAnswer: value("beforeAnswer"),
+        afterAnswer: value("afterAnswer")
+      };
+      if (action === "read" || action === "run_pipeline") {
+        payload.prompt = value("prompt");
+      }
+      return payload;
+    }
+
+    function bindInteractiveButtons(root) {
+      var actionButtons = root.querySelectorAll("[data-action]");
+      for (var i = 0; i < actionButtons.length; i += 1) {
+        if (actionButtons[i].getAttribute("data-wired") === "1") continue;
+        actionButtons[i].setAttribute("data-wired", "1");
+        actionButtons[i].addEventListener("pointerup", runActionFromButton);
+        actionButtons[i].addEventListener("click", runActionFromButton);
+      }
+      var panelButtons = root.querySelectorAll("[data-panel]");
+      for (var j = 0; j < panelButtons.length; j += 1) {
+        if (panelButtons[j].getAttribute("data-panel-wired") === "1") continue;
+        panelButtons[j].setAttribute("data-panel-wired", "1");
+        panelButtons[j].addEventListener("click", function(event) {
+          openToolPanel(event.currentTarget.getAttribute("data-panel"));
+        });
+      }
+    }
+
+    function openToolPanel(panelId) {
+      var panel = document.getElementById(panelId);
+      if (!panel) return;
+      panel.open = true;
+      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function send(action, payload) {
+      if (!htmlComponent) return;
+      requestId += 1;
+      htmlComponent.Data = {
+        kind: "action",
+        action: action,
+        requestId: requestId,
+        payload: payload || {}
+      };
+    }
+
+    function receive(data) {
+      if (!data || typeof data !== "object") return;
+      if (data.kind === "toast") {
+        toast(data.message || "", data.tone || "");
+        return;
+      }
+      if (data.kind !== "state") return;
+      state = data;
+      renderState();
+    }
+
+    function hasLearningSurface(currentState) {
+      var paths = (currentState || {}).paths || {};
+      var preview = (currentState || {}).modelPreview || {};
+      var teach = (currentState || {}).teach || {};
+      var probe = (currentState || {}).probe || {};
+      var hasModel = !!(preview.available || paths.modelSnapshotPath);
+      var hasTeachingPlan = !!teach.hasPlan || Number(teach.totalSteps || 0) > 0;
+      var hasProbe = hasModel && (!!probe.hasOutput || listHasItems(probe.probeItems));
+      return !!(hasModel || hasTeachingPlan || hasProbe);
+    }
+
+    function renderState() {
+      var paths = state.paths || {};
+      var thread = state.thread || {};
+      currentTaskId = thread.taskId || currentTaskId || "";
+      updateNavButtons();
+      var messages = (state.thread || {}).messages || [];
+      var activePage = String(state.activePage || "");
+      var learningReady = hasLearningSurface(state) && activePage !== "evidence";
+      var workspace = document.querySelector(".workspace");
+      setClass(workspace, "empty", messages.length === 0 && !learningReady);
+      setClass(workspace, "has-thread", messages.length > 0 || learningReady);
+      setClass(workspace, "learning-ready", learningReady);
+      text("taskTitle", thread.title || "Circuit task");
+      text("taskSubtitle", thread.subtitle || state.pipelineMessage || "");
+      text("sidebarStatus", state.status || "Local workspace");
+      text("progressText", String(state.pipelineProgress || 0) + "%");
+      setWidth("progressBar", state.pipelineProgress || 0);
+      var runStatus = state.runStatus || {};
+      setClass(document.getElementById("topProgress"), "active", !!runStatus.active);
+      setWidth("busyBar", state.pipelineProgress || 0);
+      document.getElementById("busyOverlay").classList.remove("show");
+      text("busyText", state.busyText || "Working...");
+
+      setValue("imagePath", paths.imagePath);
+      text("imageStatus", paths.imagePath ? "Image attached" : "No image attached");
+      updateComposerPrompt(paths.prompt, messages.length > 0);
+      setValue("modelPath", paths.modelPath);
+      setValue("teachingImagePath", paths.teachingImagePath);
+      setValue("studentAnswer", paths.studentAnswer);
+      setValue("learningAnswer", paths.studentAnswer);
+      setValue("probeAsk", paths.probeAsk);
+      setValue("labCsvPath", paths.labCsvPath);
+      setValue("opAmpPart", paths.opAmpPart);
+      setValue("evidencePath", paths.evidencePath);
+      renderPreview("promptPreview", value("prompt"));
+      renderPreview("answerPreview", value("studentAnswer"));
+      renderPreview("learningAnswerPreview", value("learningAnswer"));
+      renderRunStatus(runStatus);
+      setClass(document.querySelector(".shell"), "sidebar-collapsed", !!state.sidebarCollapsed);
+
+      var teach = state.teach || {};
+      fillSelect("focusSelector", teach.focusItems || []);
+      fillSelect("previewFocusSelector", (state.modelPreview || {}).focusItems || teach.focusItems || []);
+      var probe = state.probe || {};
+      fillSelect("probeSelector", probe.probeItems || []);
+      var evidence = state.evidence || {};
+      fillSelect("explainSelector", evidence.explainabilityItems || []);
+
+      renderTasks(state.tasks || []);
+      renderThread(messages);
+      renderLearningSurface(state);
+      renderModelPreview(state.modelPreview || {});
+      renderAssumptions(state.assumptions || {});
+      renderStepHud(state.workflowSteps || []);
+      renderSettings(state.settings || {});
+      if (activePage === "evidence" && workspace) {
+        requestAnimationFrame(function() {
+          workspace.scrollTop = workspace.scrollHeight;
+        });
+      }
+      text("settingsStatus", state.settingsStatus || "");
+    }
+
+    function updateComposerPrompt(savedPrompt, hasThread) {
+      var prompt = document.getElementById("prompt");
+      if (!prompt) return;
+      if (!hasThread) {
+        prompt.placeholder = "Do anything";
+        setValue("prompt", savedPrompt);
+        return;
+      }
+      prompt.placeholder = "Ask a follow-up or start a new task";
+      if (document.activeElement === prompt) return;
+      if (prompt.value === String(savedPrompt || "")) {
+        prompt.value = "";
+      }
+    }
+
+    function renderTasks(tasks) {
+      var root = document.getElementById("taskList");
+      root.innerHTML = "";
+      if (!Array.isArray(tasks) || tasks.length === 0) {
+        var empty = document.createElement("div");
+        empty.className = "task-item";
+        empty.innerHTML = "<strong>No chats</strong><p>Start with a circuit prompt or image.</p>";
+        root.appendChild(empty);
+        return;
+      }
+      for (var i = 0; i < tasks.length; i += 1) {
+        var task = tasks[i] || {};
+        var button = document.createElement("button");
+        button.className = "task-item" + (task.active ? " active" : "");
+        button.innerHTML =
+          "<strong>" + escapeHtml(task.title || "Circuit task") + "</strong>" +
+          "<p>" + escapeHtml(task.summary || "") + "</p>" +
+          "<div class=\"task-meta\"><span>" + escapeHtml(task.stage || "") + "</span><span>" + escapeHtml(task.updatedAt || "") + "</span></div>";
+        button.setAttribute("data-task-id", task.id || "");
+        button.addEventListener("click", function(event) {
+          selectTask(event.currentTarget.getAttribute("data-task-id"));
+        });
+        root.appendChild(button);
+      }
+    }
+
+    function renderLearningSurface(currentState) {
+      var root = document.getElementById("learningSurface");
+      if (!root) return;
+      var show = hasLearningSurface(currentState);
+      root.classList.toggle("show", show);
+      if (!show) {
+        learningSurfaceWasShown = false;
+        return;
+      }
+      if (!learningSurfaceWasShown) {
+        var workspace = document.querySelector(".workspace");
+        if (workspace) workspace.scrollTop = 0;
+        learningSurfaceWasShown = true;
+      }
+
+      var preview = currentState.modelPreview || {};
+      var img = document.getElementById("learningModelImage");
+      var empty = document.getElementById("learningModelEmpty");
+      var available = !!preview.available && (!!preview.dataUri || !!preview.path);
+      if (available) {
+        var src = preview.dataUri || localFileUrl(preview.path, preview.updatedAt || "");
+        if (src && src !== lastLearningModelSrc) {
+          img.src = src;
+          lastLearningModelSrc = src;
+        }
+        img.style.display = "block";
+        empty.style.display = "none";
+      } else {
+        img.removeAttribute("src");
+        img.style.display = "none";
+        empty.style.display = "block";
+        lastLearningModelSrc = "";
+      }
+
+      var teach = currentState.teach || {};
+      var stepIndex = Number(teach.currentStepIndex || 0);
+      var stepTotal = Number(teach.totalSteps || 0);
+      var stepLabel = stepTotal > 0 ? ("Step " + stepIndex + " / " + stepTotal) : "Teaching";
+      text("learningStepLabel", stepLabel);
+      text("learningFocusLabel", focusDisplayLabel(teach.currentFocus));
+      text("learningNextButton", stepTotal > 0 && stepIndex >= stepTotal ? "Finish" : "Next step");
+      html("learningQuestion", richText(latexifyCircuitSymbols(teach.currentQuestion || "Look at the model and describe what changed in the signal path.")));
+      html("learningConcept", richText(latexifyCircuitSymbols(teach.currentConcept || "")));
+      renderTeachingFeedback(teach.output, teach.currentQuestion);
+
+      var probe = currentState.probe || {};
+      var probeText = String(probe.probeOutput || "").trim();
+      var probeStatus = String(probe.probeStatus || "").trim();
+      html("learningProbeResult", richText(latexifyCircuitSymbols(studentProbeText(probeStatus, probeText))));
+      bindInteractiveButtons(root);
+    }
+
+    function focusDisplayLabel(focusId) {
+      var raw = String(focusId || "").trim();
+      if (!raw) return "";
+      var labels = {
+        fp_command_step: "Command step",
+        fp_amplifier_limits: "Amplifier limits",
+        fp_electrode_series_resistance: "Electrode resistance",
+        fp_membrane_dynamics: "Membrane dynamics",
+        fp_vm_probe: "Voltage and current probes",
+        fp_adc_quantization: "ADC quantization",
+        fp_digital_control: "Digital control",
+        fp_feedback_path: "Feedback path"
+      };
+      if (labels[raw]) return labels[raw];
+      var cleaned = raw.replace(/^fp_/, "").replace(/_/g, " ");
+      return cleaned.replace(/\b\w/g, function(match) { return match.toUpperCase(); });
+    }
+
+    function renderTeachingFeedback(output, currentQuestion) {
+      var root = document.getElementById("learningFeedback");
+      if (!root) return;
+      var feedback = String(output || "").trim();
+      var question = String(currentQuestion || "").trim();
+      var show = feedback && feedback !== question;
+      root.classList.toggle("empty", !show);
+      root.innerHTML = show ? richText(latexifyCircuitSymbols(feedback)) : "";
+    }
+
+    function latexifyCircuitSymbols(raw) {
+      var textValue = String(raw == null ? "" : raw);
+      if (!textValue.trim() || hasLatex(textValue)) return textValue;
+      var replacements = [
+        [/\bVout\s*=\s*100\s*\*\s*\(\s*Vbuffer\s*-\s*Vfeedback\s*\)/g, "$V_{out}=100\\,(V_{buffer}-V_{feedback})$"],
+        [/\bVbuffer\b/g, "$V_{buffer}$"],
+        [/\bVfeedback\b/g, "$V_{feedback}$"],
+        [/\bVout\b/g, "$V_{out}$"],
+        [/\bV_m\b/g, "$V_m$"],
+        [/\bV_c\b/g, "$V_c$"],
+        [/\bVc\b/g, "$V_c$"],
+        [/\bVm\b/g, "$V_m$"],
+        [/\bV_adc_ref\b/g, "$V_{adc\\,ref}$"],
+        [/\bA_ol\b/g, "$A_{ol}$"],
+        [/\bC_m\b/g, "$C_m$"],
+        [/\bR_e\b/g, "$R_e$"],
+        [/\bRe\b/g, "$R_e$"],
+        [/\bR_o\b/g, "$R_o$"],
+        [/\bRo\b/g, "$R_o$"],
+        [/\bR_m\b/g, "$R_m$"],
+        [/\bRm\b/g, "$R_m$"],
+        [/\bT_s\b/g, "$T_s$"],
+        [/\bN_bits\b/g, "$N_{bits}$"],
+        [/\bK_ctrl\b/g, "$K_{ctrl}$"],
+        [/\bI_leak\b/g, "$I_{leak}$"],
+        [/\bn_vm\b/g, "$n_{vm}$"],
+        [/\bn_ref\b/g, "$n_{ref}$"],
+        [/\bn_vc\b/g, "$n_{vc}$"],
+        [/\bn_cmd\b/g, "$n_{cmd}$"],
+        [/\bn_feedback\b/g, "$n_{feedback}$"],
+        [/\bn_buffer_out\b/g, "$n_{buffer\\,out}$"],
+        [/\bn_feedback_sense\b/g, "$n_{feedback\\,sense}$"],
+        [/\bn_amp_out\b/g, "$n_{amp\\,out}$"]
+      ];
+      for (var i = 0; i < replacements.length; i += 1) {
+        textValue = textValue.replace(replacements[i][0], replacements[i][1]);
+      }
+      return textValue;
+    }
+
+    function studentProbeText(status, raw) {
+      var textValue = String(raw || "");
+      if (!textValue.trim()) return "Ask for a measurement in plain language.";
+      var targetMatch = textValue.match(/Probe target:\s*([^,\n]+)/i);
+      var quantityMatch = textValue.match(/Quantity:\s*([^,\n]+)/i);
+      var instructionMatch = textValue.match(/Agent instructions:\s*([^.\n]+(?:\.[^\n]*)?)/i);
+      var measuredMatch = textValue.match(/Measured result\s*([\s\S]*?)(?:\n\n|$)/i);
+      var target = targetMatch ? targetMatch[1].trim() : "";
+      var quantity = quantityMatch ? quantityMatch[1].trim() : "";
+      var instruction = instructionMatch ? instructionMatch[1].trim() : "";
+      var measured = measuredMatch ? measuredMatch[1].trim() : "";
+      var lines = [];
+      if (target) {
+        lines.push("Measuring: " + target + ".");
+      } else if (status) {
+        lines.push(status.replace(/^Placed or highlighted probe:\s*/i, "Measuring: "));
+      } else {
+        lines.push("Measurement ready.");
+      }
+      if (quantity) lines.push("Quantity: " + quantity + ".");
+      if (measured && !/^No numeric measurement/i.test(measured)) lines.push(measured);
+      if (instruction) lines.push(instruction);
+      return lines.join("\n");
+    }
+
+    function listHasItems(items) {
+      if (Array.isArray(items)) {
+        for (var i = 0; i < items.length; i += 1) {
+          if (String(items[i] || "").trim()) return true;
+        }
+        return false;
+      }
+      return !!String(items || "").trim();
+    }
+
+    function renderThread(messages) {
+      var root = document.getElementById("thread");
+      root.innerHTML = "";
+      for (var i = 0; i < messages.length; i += 1) {
+        var message = messages[i] || {};
+        var item = document.createElement("article");
+        var role = message.role || "assistant";
+        var messageTitle = String(message.title || "");
+        var detail = String(message.detail || "").trim();
+        var openDetail = messageTitle === "Evidence";
+        var detailHtml = detail
+          ? "<details class=\"message-detail\"" + (openDetail ? " open" : "") + "><summary>Details</summary><div class=\"message-detail-body\">" + richText(detail) + "</div></details>"
+          : "";
+        var actionHtml = messageActionsHtml(message);
+        item.className = "message " + role;
+        item.innerHTML =
+          "<div class=\"avatar\">" + avatarText(role) + "</div>" +
+          "<div class=\"message-content\">" +
+          "<div class=\"message-title\">" + escapeHtml(messageTitle) + "</div>" +
+          "<div class=\"message-body\">" + richText(message.body || "") + "</div>" +
+          actionHtml +
+          detailHtml +
+          "</div>";
+        root.appendChild(item);
+        bindInteractiveButtons(item);
+      }
+    }
+
+    function messageActionsHtml(message) {
+      var title = String((message || {}).title || "");
+      var buttons = [];
+      if (title === "Teaching") {
+        buttons.push("<button class=\"btn\" data-panel=\"teachingTools\">Open Teaching</button>");
+        buttons.push("<button class=\"btn\" data-action=\"next_hint\">Hint</button>");
+        buttons.push("<button class=\"btn\" data-action=\"highlight_focus\">Highlight</button>");
+      } else if (title === "Probe and lab delta") {
+        buttons.push("<button class=\"btn\" data-panel=\"probeTools\">Open Probe</button>");
+        buttons.push("<button class=\"btn\" data-action=\"add_probe\">Probe</button>");
+      } else if (title === "Model build") {
+        buttons.push("<button class=\"btn\" data-action=\"open_model\">Open Model</button>");
+      } else if (title === "Evidence") {
+        buttons.push("<button class=\"btn\" data-panel=\"probeTools\">Open Evidence</button>");
+        buttons.push("<button class=\"btn\" data-action=\"export_evidence\">Export Pack</button>");
+      }
+      if (buttons.length === 0) return "";
+      return "<div class=\"message-actions\">" + buttons.join("") + "</div>";
+    }
+
+    function avatarText(role) {
+      if (role === "user") return "U";
+      if (role === "system") return "S";
+      return "C";
+    }
+
+    function renderEnvironment(env) {
+      var root = document.getElementById("environmentList");
+      if (!root) return;
+      root.innerHTML = "";
+      var lines = [];
+      var status = String(env.status || "");
+      var agent = String(env.agent || "");
+      if (status && status !== "Local workspace") lines.push("Status: " + status);
+      if (agent && agent.indexOf("needs") === 0) lines.push("Agent: " + agent);
+      lines.push("Local");
+      if (env.workDir) lines.push("Work: " + compactPath(env.workDir));
+      for (var i = 0; i < lines.length; i += 1) {
+        var chip = document.createElement("div");
+        chip.className = "chip";
+        chip.textContent = lines[i];
+        root.appendChild(chip);
+      }
+    }
+
+    function renderAssumptions(assumptions) {
+      text("assumptionStatus", assumptions.status || "Waiting");
+      text("assumptionSummary", assumptions.summary || "Assumptions");
+      var box = document.getElementById("assumptionText");
+      if (box) {
+        box.innerHTML = richText(assumptions.text || "Assumptions will appear after CiTT reads a circuit.");
+      }
+    }
+
+    function renderRunStatus(status) {
+      var box = document.getElementById("thinkingBox");
+      var details = document.getElementById("thinkingDetails");
+      var stream = String(status.stream || "").trim();
+      var detail = stream || String(status.detail || "").trim();
+      var active = !!status.active;
+      setClass(box, "show", active);
+      if (active && !activeRunStartedAt) activeRunStartedAt = Date.now();
+      if (!active) activeRunStartedAt = 0;
+      activeRunStatusText = String(status.text || "Working...");
+      updateThinkingElapsed();
+      setClass(box, "compact", !(active && detail.length > 0));
+      details.innerHTML = detail ? richText(detail) : "Waiting for agent output...";
+      if (active) requestAnimationFrame(function() {
+        details.scrollTop = details.scrollHeight;
+        box.scrollIntoView({ block: "end", inline: "nearest" });
+      });
+    }
+
+    function updateThinkingElapsed() {
+      if (!activeRunStartedAt) {
+        if (activeRunStatusText) text("thinkingText", activeRunStatusText);
+        text("thinkingTime", "");
+        return;
+      }
+      var elapsed = Math.max(0, Math.floor((Date.now() - activeRunStartedAt) / 1000));
+      text("thinkingText", activeRunStatusText);
+      text("thinkingTime", formatElapsed(elapsed));
+    }
+
+    function formatElapsed(seconds) {
+      if (seconds < 60) return String(seconds) + "s";
+      var minutes = Math.floor(seconds / 60);
+      var rest = seconds % 60;
+      return String(minutes) + "m " + String(rest).padStart(2, "0") + "s";
+    }
+
+    function renderModelPreview(preview) {
+      var box = document.getElementById("modelPreview");
+      var img = document.getElementById("modelPreviewImage");
+      var available = !!preview.available && (!!preview.dataUri || !!preview.path);
+      setClass(box, "show", available);
+      text("modelPreviewStatus", preview.status || "");
+      if (!available) {
+        if (lastModelPreviewSrc) {
+          img.removeAttribute("src");
+          lastModelPreviewSrc = "";
+        }
+        return;
+      }
+      var src = preview.dataUri || localFileUrl(preview.path, preview.updatedAt || "");
+      if (src && src !== lastModelPreviewSrc) {
+        img.src = src;
+        lastModelPreviewSrc = src;
+      }
+    }
+
+    function renderStepHud(steps) {
+      var box = document.getElementById("stepHud");
+      var popover = document.getElementById("stepPopover");
+      var values = Array.isArray(steps) ? steps : [];
+      if (values.length === 0) {
+        box.classList.remove("show");
+        return;
+      }
+      var index = values.length - 1;
+      for (var i = 0; i < values.length; i += 1) {
+        if (((values[i] || {}).status || "") !== "done") {
+          index = i;
+          break;
+        }
+      }
+      box.classList.add("show");
+      text("stepHudLabel", "Step " + (index + 1) + " / " + values.length);
+      var html = "";
+      for (var j = 0; j < values.length; j += 1) {
+        var step = values[j] || {};
+        html +=
+          "<div class=\"step-row\" data-status=\"" + escapeHtml(step.status || "waiting") + "\">" +
+          "<span class=\"step-row-dot\"></span>" +
+          "<div><strong>" + escapeHtml(step.label || "Step " + (j + 1)) + "</strong><span>" + escapeHtml(step.detail || step.status || "") + "</span></div>" +
+          "</div>";
+      }
+      popover.innerHTML = html;
+    }
+
+    function renderSteps(steps) {
+      var root = document.getElementById("stepList");
+      if (!root) return;
+      root.innerHTML = "";
+      var values = Array.isArray(steps) ? steps : [];
+      for (var i = 0; i < values.length; i += 1) {
+        var step = values[i] || {};
+        var item = document.createElement("div");
+        item.className = "step";
+        item.setAttribute("data-status", step.status || "waiting");
+        item.innerHTML = "<strong>" + escapeHtml(step.label || "") + " · " + escapeHtml(step.status || "") + "</strong><span>" + escapeHtml(step.detail || "") + "</span>";
+        root.appendChild(item);
+      }
+    }
+
+    function renderSources(sources) {
+      var root = document.getElementById("sourceList");
+      if (!root) return;
+      root.innerHTML = "";
+      var values = Array.isArray(sources) ? sources : [];
+      for (var i = 0; i < values.length; i += 1) {
+        var source = values[i] || {};
+        var item = document.createElement("div");
+        item.className = "source";
+        item.innerHTML = "<strong>" + escapeHtml(source.label || "") + " · " + escapeHtml(source.status || "") + "</strong><span>" + escapeHtml(source.path || "") + "</span>";
+        root.appendChild(item);
+      }
+    }
+
+    function renderSettings(settings) {
+      setValue("settingAgentBackend", settings.agentBackend || "codex");
+      setValue("settingAgentCommand", settings.agentCommand || "");
+      setValue("settingMaxAttempts", settings.agentMaxAttempts || "4");
+      setValue("settingRetryDelay", settings.agentRetryDelaySeconds || "20");
+    }
+
+    function openSettings() {
+      document.getElementById("settingsModal").classList.add("show");
+    }
+
+    function closeSettings() {
+      document.getElementById("settingsModal").classList.remove("show");
+    }
+
+    function saveSettings() {
+      send("save_settings", {
+        agentBackend: value("settingAgentBackend") || "codex",
+        agentCommand: value("settingAgentCommand"),
+        agentMaxAttempts: Number(value("settingMaxAttempts") || 4),
+        agentRetryDelaySeconds: Number(value("settingRetryDelay") || 20)
+      });
+    }
+
+    function fillSelect(id, items) {
+      var select = document.getElementById(id);
+      if (!select) return;
+      var current = select.value;
+      select.innerHTML = "";
+      var values = [];
+      if (Array.isArray(items)) {
+        values = items;
+      } else if (items) {
+        values = [items];
+      }
+      if (values.length === 0) values.push("");
+      var hasCurrent = false;
+      for (var i = 0; i < values.length; i += 1) {
+        var item = values[i];
+        var option = document.createElement("option");
+        option.value = item;
+        option.textContent = item || "none";
+        select.appendChild(option);
+        if (item === current) hasCurrent = true;
+      }
+      if (hasCurrent) select.value = current;
+    }
+
+    function setWidth(id, valueToSet) {
+      var el = document.getElementById(id);
+      if (el) el.style.width = String(valueToSet) + "%";
+    }
+
+    function compactPath(path) {
+      var value = String(path || "");
+      var rawParts = value.split(/[\\/]+/);
+      var parts = [];
+      for (var i = 0; i < rawParts.length; i += 1) {
+        if (rawParts[i]) parts.push(rawParts[i]);
+      }
+      if (parts.length <= 2) return value;
+      return parts.slice(-2).join("/");
+    }
+
+    function localFileUrl(path, version) {
+      var raw = String(path || "");
+      if (!raw) return "";
+      if (/^(file|data|https?):/i.test(raw)) return raw;
+      var rawParts = raw.split("/");
+      var encodedParts = [];
+      for (var i = 0; i < rawParts.length; i += 1) {
+        encodedParts.push(i === 0 ? "" : encodeURIComponent(rawParts[i]));
+      }
+      var encoded = encodedParts.join("/");
+      var suffix = version ? "?v=" + encodeURIComponent(String(version)) : "";
+      return "file://" + encoded + suffix;
+    }
+
+    function text(id, valueToSet) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = valueToSet == null ? "" : String(valueToSet);
+    }
+
+    function html(id, valueToSet) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = valueToSet == null ? "" : String(valueToSet);
+    }
+
+    function value(id) {
+      var el = document.getElementById(id);
+      return el ? el.value : "";
+    }
+
+    function setValue(id, valueToSet) {
+      var el = document.getElementById(id);
+      if (!el || document.activeElement === el) return;
+      el.value = valueToSet == null ? "" : String(valueToSet);
+    }
+
+    function renderPreview(id, raw) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var rawText = String(raw || "");
+      if (!rawText.trim() || !hasLatex(rawText)) {
+        el.className = "preview empty";
+        el.textContent = "LaTeX preview";
+        return;
+      }
+      el.className = "preview";
+      el.innerHTML = richText(rawText);
+    }
+
+    function hasLatex(text) {
+      return /\$\$[\s\S]+?\$\$|\$[^$]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\\(frac|sqrt|alpha|beta|gamma|delta|theta|lambda|mu|pi|rho|sigma|omega|Omega|ohm|sum|int|partial)/.test(text);
+    }
+
+    function richText(raw) {
+      var valueText = String(raw == null ? "" : raw);
+      if (!valueText.trim()) return "";
+      var out = "";
+      for (var i = 0; i < valueText.length;) {
+        if (startsWithAt(valueText, "$$", i)) {
+          var end = valueText.indexOf("$$", i + 2);
+          if (end > i) {
+            out += "<span class=\"math\">" + parseLatex(valueText.slice(i + 2, end)) + "</span>";
+            i = end + 2;
+            continue;
+          }
+        }
+        if (startsWithAt(valueText, "\\[", i)) {
+          var endBlock = valueText.indexOf("\\]", i + 2);
+          if (endBlock > i) {
+            out += "<span class=\"math\">" + parseLatex(valueText.slice(i + 2, endBlock)) + "</span>";
+            i = endBlock + 2;
+            continue;
+          }
+        }
+        if (startsWithAt(valueText, "\\(", i)) {
+          var endInline = valueText.indexOf("\\)", i + 2);
+          if (endInline > i) {
+            out += "<span class=\"math\">" + parseLatex(valueText.slice(i + 2, endInline)) + "</span>";
+            i = endInline + 2;
+            continue;
+          }
+        }
+        if (valueText[i] === "$") {
+          var endDollar = valueText.indexOf("$", i + 1);
+          if (endDollar > i + 1) {
+            out += "<span class=\"math\">" + parseLatex(valueText.slice(i + 1, endDollar)) + "</span>";
+            i = endDollar + 1;
+            continue;
+          }
+        }
+        out += valueText[i] === "\n" ? "<br>" : escapeHtml(valueText[i]);
+        i += 1;
+      }
+      return out;
+    }
+
+    function startsWithAt(text, needle, index) {
+      return text.slice(index, index + needle.length) === needle;
+    }
+
+    var commands = {
+      alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε",
+      zeta: "ζ", eta: "η", theta: "θ", lambda: "λ", mu: "μ", pi: "π",
+      rho: "ρ", sigma: "σ", tau: "τ", omega: "ω", Omega: "Ω", ohm: "Ω",
+      cdot: "·", times: "×", pm: "±", approx: "≈", neq: "≠",
+      leq: "≤", geq: "≥", infty: "∞", rightarrow: "→",
+      int: "∫", sum: "∑", prod: "∏", partial: "∂",
+      sin: "sin", cos: "cos", tan: "tan", log: "log", ln: "ln", exp: "exp",
+      ",": " ", ";": " ", ":": " ", "!": "", " ": " "
+    };
+
+    function readGroup(src, start) {
+      if (src[start] !== "{") return { value: src[start] || "", next: start + 1 };
+      var depth = 0;
+      for (var i = start; i < src.length; i += 1) {
+        if (src[i] === "{") depth += 1;
+        if (src[i] === "}") depth -= 1;
+        if (depth === 0) return { value: src.slice(start + 1, i), next: i + 1 };
+      }
+      return { value: src.slice(start + 1), next: src.length };
+    }
+
+    function readCommand(src, start) {
+      var i = start + 1;
+      while (i < src.length && /[A-Za-z]/.test(src[i])) i += 1;
+      if (i === start + 1) i += 1;
+      return { name: src.slice(start + 1, i), next: i };
+    }
+
+    function parseLatex(src) {
+      var out = "";
+      for (var i = 0; i < src.length;) {
+        var ch = src[i];
+        if (ch === "\\") {
+          var cmd = readCommand(src, i);
+          if (cmd.name === "frac") {
+            var top = readGroup(src, cmd.next);
+            var bottom = readGroup(src, top.next);
+            out += "<span style=\"display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.92em\"><span style=\"border-bottom:1px solid currentColor;padding:0 .18em .08em\">" + parseLatex(top.value) + "</span><span style=\"padding:.08em .18em 0\">" + parseLatex(bottom.value) + "</span></span>";
+            i = bottom.next;
+            continue;
+          }
+          if (cmd.name === "sqrt") {
+            var group = readGroup(src, cmd.next);
+            out += "<span style=\"display:inline-flex;align-items:flex-start;gap:.04em\">√<span style=\"border-top:1px solid currentColor;padding:.02em .08em 0 .18em\">" + parseLatex(group.value) + "</span></span>";
+            i = group.next;
+            continue;
+          }
+          if (cmd.name === "text" || cmd.name === "mathrm") {
+            var textGroup = readGroup(src, cmd.next);
+            out += escapeHtml(textGroup.value);
+            i = textGroup.next;
+            continue;
+          }
+          if (cmd.name === "left" || cmd.name === "right") {
+            i = cmd.next;
+            continue;
+          }
+          out += escapeHtml(commands[cmd.name] || cmd.name);
+          i = cmd.next;
+          continue;
+        }
+        if (ch === "_" || ch === "^") {
+          var scriptGroup = readGroup(src, i + 1);
+          var tag = ch === "_" ? "sub" : "sup";
+          out += "<" + tag + ">" + parseLatex(scriptGroup.value) + "</" + tag + ">";
+          i = scriptGroup.next;
+          continue;
+        }
+        if (ch === "{") {
+          var braceGroup = readGroup(src, i);
+          out += parseLatex(braceGroup.value);
+          i = braceGroup.next;
+          continue;
+        }
+        if (ch === "}") {
+          i += 1;
+          continue;
+        }
+        out += escapeHtml(ch);
+        i += 1;
+      }
+      return out;
+    }
+
+    function escapeHtml(text) {
+      return String(text == null ? "" : text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function toast(message) {
+      var box = document.getElementById("toast");
+      box.textContent = message || "";
+      box.classList.add("show");
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(function() {
+        box.classList.remove("show");
+      }, 4200);
+    }
+  </script>
+</body>
+</html>

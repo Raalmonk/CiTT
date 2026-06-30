@@ -1,0 +1,14 @@
+# CiTT Risk / Fault Injection
+
+Created: 29-Jun-2026 18:00:48
+
+| Fault | Injected Change | Observed Effect | Explanation | Mitigation | Status |
+| --- | --- | --- | --- | --- | --- |
+| Open lead / disconnected electrode | Disconnect the input source or electrode path. | Output becomes floating, zero, or dominated by noise depending on bias path. | The measured signal path is broken before the modeled filter can act. | Add connectivity checks and teach students to verify reference nodes first. | READY |
+| Shorted capacitor | Force the filter capacitor impedance toward zero. | Nominal cutoff 40.81 Hz is no longer meaningful because the output node is effectively shorted. | A shorted shunt capacitor can clamp the output node or destroy the intended pole. | Probe both sides of the capacitor and flag near-zero impedance faults. | READY |
+| Wrong capacitor unit: nF vs uF | Scale capacitance by 1/1000 or 1000. | If C is 1000x too small, cutoff shifts from 40.81 Hz to 4.081e+04 Hz; if 1000x too large, it shifts to 0.04081 Hz. | Unit-prefix mistakes move the cutoff by orders of magnitude. | Run a parameter sanity check before simulation and display SI prefixes in reports. | READY |
+| Op-amp output saturation | Limit output to assumed supply rails. | Waveform clips; small-signal frequency response no longer predicts output amplitude. | Active stages can leave their linear operating region. | Add output range requirements and inspect saturation source highlights. | PLAN |
+| ADC undersampling | Lower sampling frequency below Nyquist margin. | High-frequency content aliases into the measurement band. | Sampling is part of the measurement system, not a cosmetic detail. | Add an fs >= 2*fmax requirement and sweep sampling frequency. | PLAN |
+| 60 Hz interference too large | Increase mains interference amplitude. | Output shows residual line-frequency content if filtering or shielding is insufficient. | Biomedical front-ends are sensitive to common-mode and environmental pickup. | Measure 60 Hz attenuation and include grounding/shielding assumptions. | PLAN |
+| Sensor noise increased | Increase source or measurement noise. | Signal-to-noise ratio drops; small feature detection becomes unreliable. | Noise can hide physiological or low-amplitude circuit behavior. | Log SNR and compare expected versus measured noise floor. | PLAN |
+| Load impedance too low | Decrease load resistance at the output node. | The output node is pulled away from the ideal unloaded response. | Measurement equipment and downstream stages can alter the circuit under test. | Add input/load impedance requirements and teach loading as a failure mode. | PLAN |

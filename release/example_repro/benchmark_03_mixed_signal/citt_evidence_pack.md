@@ -86,7 +86,7 @@ Required generated plots:
 - **Spec source:** submission_assets/live_gui_evidence/benchmark_03_mixed_signal/artifacts/citt_spec_parameterized.json
 - **Circuit type:** not specified
 
-## 2. Gemini Structured Circuit Spec
+## 2. Structured Circuit Spec
 
 - **Source:** submission_assets/live_gui_evidence/benchmark_03_mixed_signal/artifacts/citt_spec_parameterized.json
 - **Likely analysis:** not specified
@@ -272,7 +272,7 @@ Required generated plots:
   ],
   "limitations": [
     "Educational scaled parameters are selected for stable, visible benchmark behavior and are not medical-use validation.",
-    "If the generated Simscape model cannot execute in a local MATLAB install, deterministic fallback plots must be labeled as fallback evidence."
+    "If the generated Simscape model cannot execute in a local MATLAB install, stop instead of substituting plots for model evidence."
   ]
 }
 ```
@@ -422,7 +422,7 @@ Report has not been generated yet.
 
 ## 13. BMES Functional Proof Draft
 
-CiTT demonstrates functional feasibility by turning a circuit image or prompt into auditable MATLAB evidence rather than a standalone chatbot answer. In the current workflow, Gemini is used only to produce a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing the generated Simscape model at submission_assets/live_gui_evidence/benchmark_03_mixed_signal/artifacts/citt_generated_model.slx. The Evidence Pack records the original input, the structured spec, model path, focus map, probe map, model-check output, simulation summary, Lab Delta comparison, limitations, and risk controls in one reviewable artifact. For this run, the requirement table contains 8 PASS, 1 WARN, 0 FAIL, and 1 NOT_RUN items. This makes the proof falsifiable: missing model checks, absent signal logging, unresolved topology ambiguity, or unavailable lab measurements are visible instead of hidden. The teaching value comes from connecting each verification artifact back to focus-map highlights and probe locations, allowing students to inspect why a node, component, or requirement matters. The current scope remains educational and proposal-facing, not medical-device verification. The next strongest evidence would be logged performance requirements, parameter sweeps, and a measured lab CSV for the same circuit. Primary current limitation: Simulation executed and summary captured is marked WARN.
+CiTT demonstrates functional feasibility by turning a circuit image or prompt into auditable MATLAB evidence rather than a standalone chatbot answer. In the current workflow, the selected CLI produces a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing the generated Simscape model at submission_assets/live_gui_evidence/benchmark_03_mixed_signal/artifacts/citt_generated_model.slx. The Evidence Pack records the original input, the structured spec, model path, focus map, probe map, model-check output, simulation summary, Lab Delta comparison, limitations, and risk controls in one reviewable artifact. For this run, the requirement table contains 8 PASS, 1 WARN, 0 FAIL, and 1 NOT_RUN items. This makes the proof falsifiable: missing model checks, absent signal logging, unresolved topology ambiguity, or unavailable lab measurements are visible instead of hidden. The teaching value comes from connecting each verification artifact back to focus-map highlights and probe locations, allowing students to inspect why a node, component, or requirement matters. The current scope remains educational and proposal-facing, not medical-device verification. The next strongest evidence would be logged performance requirements, parameter sweeps, and a measured lab CSV for the same circuit. Primary current limitation: Simulation executed and summary captured is marked WARN.
 
 ## Artifact Index
 

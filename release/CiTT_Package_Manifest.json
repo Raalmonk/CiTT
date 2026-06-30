@@ -12,7 +12,7 @@
     "Simscape Electrical preferred",
     "Simulink Agentic Toolkit / SATK-compatible flow",
     "MATLAB MCP Server",
-    "configured LLM/agent backend (Gemini supported)",
+    "configured CLI/agent backend (Codex/Claude/DeepSeek CLI supported)",
     "agent CLI"
   ],
   "artifacts": {
@@ -48,7 +48,6 @@
     "Full agent-assisted circuit interpretation and SATK/MCP model generation require configured external services and agent CLI.",
     "Benchmark 3 is educational scaled benchmark evidence, not medical-use validation.",
     "Lab Delta CSV comparison is not completed without an external lab CSV.",
-    "Gemini-only baseline is a no-tools comparison artifact, not an exhaustive evaluation.",
     "Smoke tests verify package install, setup, resources, app launch, and close; they do not rerun every live benchmark."
   ],
   "post_package_validation": {

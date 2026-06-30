@@ -36,7 +36,7 @@
       overflow: hidden;
       background: var(--bg);
       color: var(--text);
-      font-size: 13px;
+      font-size: 14px;
     }
 
     button, input, textarea, select { font: inherit; }
@@ -250,6 +250,18 @@
       cursor: default;
       background: transparent;
     }
+    .top-new-task {
+      min-width: 58px;
+      height: 30px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f7faf7;
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .top-new-task:hover { background: #eef4eb; }
 
     .task-heading { min-width: 0; }
     .task-heading strong {
@@ -479,13 +491,17 @@
       background: transparent;
       color: var(--text);
       padding: 18px;
-      resize: vertical;
+      resize: none;
       line-height: 1.5;
+      position: relative;
+      z-index: 1;
     }
 
     .workspace.empty .prompt-input {
       color: var(--text);
       min-height: 104px;
+      max-height: 150px;
+      overflow: auto;
       font-size: 16px;
     }
 
@@ -498,6 +514,8 @@
       min-height: 48px;
       padding: 8px 12px 10px;
       border-top: 1px solid var(--line-soft);
+      position: relative;
+      z-index: 3;
     }
 
     .workspace.empty .composer-toolbar {
@@ -595,6 +613,8 @@
       color: var(--text);
       cursor: pointer;
       white-space: nowrap;
+      position: relative;
+      z-index: 4;
     }
     .btn:hover { background: #f2f6ef; }
     .btn:active { transform: translateY(1px); }
@@ -748,6 +768,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      position: relative;
     }
     .model-preview-actions select {
       width: 150px;
@@ -757,6 +778,27 @@
     .model-preview-actions .btn {
       min-height: 30px;
       padding: 0 10px;
+    }
+    .preview-tool-wrap {
+      position: relative;
+      flex: 0 0 auto;
+    }
+    .preview-more-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      z-index: 24;
+      display: none;
+      width: min(240px, calc(100vw - 48px));
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 18px 54px rgb(35 100 63 / 0.16);
+      padding: 8px;
+    }
+    .preview-more-menu.open {
+      display: grid;
+      gap: 6px;
     }
     .model-preview-frame {
       min-height: 190px;
@@ -776,11 +818,13 @@
 
     .learning-surface {
       order: 2;
-      width: min(1360px, calc(100% - 16px));
-      max-width: 1360px;
+      width: min(1240px, calc(100% - 12px));
+      max-width: 1240px;
       margin: 0 auto 14px;
       display: none;
       gap: 12px;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
     }
     .learning-surface.show { display: grid; }
     .workspace.learning-ready .step-hud,
@@ -791,18 +835,22 @@
       display: none !important;
     }
     .learning-model {
-      min-height: 260px;
+      height: clamp(240px, 38vh, 420px);
+      min-height: 0;
+      max-height: 420px;
       border: 1px solid var(--line-soft);
       border-radius: 8px;
       background: #ffffff;
       display: grid;
       place-items: center;
-      overflow: hidden;
+      overflow: auto;
+      position: relative;
     }
     .learning-model img {
       display: block;
       width: 100%;
       max-width: 100%;
+      max-height: none;
       height: auto;
       object-fit: contain;
     }
@@ -831,13 +879,35 @@
     }
     .learning-question {
       color: var(--text);
-      font-size: 18px;
+      font-size: 20px;
       line-height: 1.45;
       font-weight: 750;
     }
     .learning-concept {
       color: var(--muted);
       line-height: 1.5;
+    }
+    .learning-facts {
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #f7faf5;
+      color: var(--muted);
+      line-height: 1.4;
+      font-size: 13px;
+    }
+    .learning-facts.empty {
+      display: none;
+    }
+    .learning-fact {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .learning-fact strong {
+      color: var(--text);
+      font-weight: 800;
     }
     .teaching-feedback {
       color: var(--muted);
@@ -852,11 +922,102 @@
     }
     .learning-actions {
       display: flex;
-      flex-wrap: wrap;
+      align-items: center;
       gap: 8px;
     }
     .student-reasoning {
       min-height: 64px;
+      resize: vertical;
+    }
+    .learning-composer {
+      display: grid;
+      gap: 8px;
+      position: relative;
+    }
+    .learning-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+    }
+    .learning-toolbar .toolbar-spacer {
+      flex: 1;
+    }
+    .learning-tool-wrap {
+      position: relative;
+      flex: 0 0 auto;
+    }
+    .learning-more-menu {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 8px);
+      z-index: 24;
+      display: none;
+      width: min(460px, calc(100vw - 48px));
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 18px 54px rgb(35 100 63 / 0.16);
+      padding: 8px;
+    }
+    .learning-more-menu.open {
+      display: grid;
+      gap: 6px;
+    }
+    .learning-menu-action {
+      min-height: 38px;
+      width: 100%;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      padding: 0 10px;
+    }
+    .learning-menu-action:hover {
+      background: #f2f6ef;
+    }
+    .learning-menu-measure {
+      display: grid;
+      gap: 8px;
+      padding: 8px;
+      border-top: 1px solid var(--line-soft);
+      margin-top: 2px;
+    }
+    .learning-menu-measure .btn {
+      justify-self: end;
+    }
+
+    @media (max-width: 1600px) {
+      .shell {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .sidebar {
+        display: none;
+      }
+      .workspace {
+        padding: 12px 12px 18px;
+      }
+      .learning-surface {
+        width: min(100%, calc(100% - 4px));
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .learning-model {
+        height: clamp(220px, 34vh, 360px);
+        max-height: 360px;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .learning-model,
+      .learning-dialog {
+        max-height: none;
+      }
+      .learning-model img {
+        width: 100%;
+        max-height: none;
+      }
     }
     .probe-bar {
       display: grid;
@@ -869,6 +1030,9 @@
       line-height: 1.5;
       white-space: pre-wrap;
       word-break: break-word;
+    }
+    .probe-result.empty {
+      display: none;
     }
 
     .thread {
@@ -1190,7 +1354,8 @@
     .toast.show { display: block; }
 
     @media (max-width: 1180px) {
-      .shell { grid-template-columns: clamp(210px, 28vw, 250px) minmax(0, 1fr); }
+      .shell { grid-template-columns: minmax(0, 1fr); }
+      .sidebar { display: none; }
     }
 
     @media (max-width: 760px) {
@@ -1255,6 +1420,7 @@
           <button class="nav-btn" id="sidebarToggleButton" title="Fold sidebar">▣</button>
           <button class="nav-btn" id="navBackButton" title="Back">←</button>
           <button class="nav-btn" id="navForwardButton" title="Forward">→</button>
+          <button class="top-new-task" id="topNewTaskButton" title="New task">New</button>
         </div>
         <div class="task-heading">
           <strong id="taskTitle">Circuit task</strong>
@@ -1276,19 +1442,19 @@
           <div class="step-popover" id="stepPopover"></div>
         </section>
 
-        <section class="composer" id="composerBox">
+        <form class="composer" id="composerBox" action="javascript:void(0)">
           <div class="composer-body">
-            <textarea id="prompt" class="prompt-input" placeholder="Do anything"></textarea>
+            <textarea id="prompt" class="prompt-input" placeholder="Describe the circuit or lesson to build"></textarea>
             <div class="preview empty" id="promptPreview">LaTeX preview</div>
             <div class="composer-toolbar">
-              <button class="icon-btn" data-action="select_image" title="Attach image">+</button>
+              <button type="button" class="icon-btn" data-action="select_image" title="Attach image">+</button>
               <span class="image-status" id="imageStatus">No image attached</span>
               <span class="toolbar-spacer"></span>
-              <button class="btn primary" data-action="run_pipeline">Run</button>
+              <button type="submit" class="btn primary" data-action="run_pipeline">Run</button>
             </div>
             <input id="imagePath" type="hidden">
           </div>
-        </section>
+        </form>
 
         <section class="thinking" id="thinkingBox">
           <div class="thinking-head"><span class="thinking-dot"></span><span id="thinkingText">Working...</span><span class="thinking-time" id="thinkingTime">0s</span></div>
@@ -1300,9 +1466,14 @@
             <div class="model-preview-title">Simulink preview <span id="modelPreviewStatus"></span></div>
             <div class="model-preview-actions">
               <select id="previewFocusSelector" title="Focus target"></select>
-              <button class="btn" data-action="highlight_focus">Highlight</button>
-              <button class="btn" data-action="refresh_model_snapshot">Refresh</button>
-              <button class="btn" data-action="open_model">Open Generated</button>
+              <div class="preview-tool-wrap">
+                <button type="button" class="icon-btn" id="previewToolsButton" title="More model actions" aria-expanded="false">+</button>
+                <div class="preview-more-menu" id="previewMoreMenu">
+                  <button type="button" class="learning-menu-action" data-action="highlight_focus">Highlight selected focus</button>
+                  <button type="button" class="learning-menu-action" data-action="refresh_model_snapshot">Refresh preview</button>
+                  <button type="button" class="learning-menu-action" data-action="open_model">Open generated model</button>
+                </div>
+              </div>
             </div>
           </div>
           <div class="model-preview-frame">
@@ -1322,18 +1493,27 @@
             </div>
             <div class="learning-question" id="learningQuestion">Teaching question will appear here.</div>
             <div class="learning-concept" id="learningConcept"></div>
+            <div class="learning-facts empty" id="learningFacts"></div>
             <div class="teaching-feedback empty" id="learningFeedback"></div>
-            <textarea id="learningAnswer" class="student-reasoning" placeholder="Try explaining what you think is happening in the model."></textarea>
-            <div class="preview empty" id="learningAnswerPreview">LaTeX preview</div>
-            <div class="learning-actions">
-              <button class="btn" data-action="next_hint">Hint</button>
-              <button class="btn" data-action="reveal">Reveal</button>
-              <button class="btn" data-action="highlight_focus">Highlight in model</button>
-              <button class="btn primary" id="learningNextButton" data-action="next_teaching_step">Next step</button>
-            </div>
-            <div class="probe-bar">
-              <input id="probeAsk" type="text" placeholder="Measure a model signal in plain language">
-              <button class="btn primary" data-action="run_command">Measure</button>
+            <div class="learning-composer">
+              <textarea id="learningAnswer" class="student-reasoning" placeholder="Try explaining what you think is happening in the model."></textarea>
+              <div class="preview empty" id="learningAnswerPreview">LaTeX preview</div>
+              <div class="learning-toolbar">
+                <div class="learning-tool-wrap">
+                  <button type="button" class="icon-btn" id="learningToolsButton" title="More actions" aria-expanded="false">+</button>
+                  <div class="learning-more-menu" id="learningMoreMenu">
+                    <button type="button" class="learning-menu-action" data-action="reveal">Reveal answer</button>
+                    <button type="button" class="learning-menu-action" data-action="highlight_focus">Show highlight</button>
+                    <div class="learning-menu-measure">
+                      <input id="probeAsk" type="text" placeholder="Measure a model signal in plain language">
+                      <button type="button" class="btn primary" data-action="run_command">Measure</button>
+                    </div>
+                  </div>
+                </div>
+                <span class="toolbar-spacer"></span>
+                <button type="button" class="btn" data-action="next_hint">Hint</button>
+                <button type="button" class="btn primary" id="learningNextButton" data-action="next_teaching_step">Next step</button>
+              </div>
             </div>
             <div class="probe-result" id="learningProbeResult">Ask for a measurement in plain language, for example: measure amplifier input voltage.</div>
           </div>
@@ -1484,31 +1664,8 @@
       </div>
       <div class="modal-body">
         <div class="row two">
-          <label>Parser</label>
-          <select id="settingParserBackend">
-            <option value="codex">Codex</option>
-            <option value="gemini">Gemini</option>
-            <option value="local">Local</option>
-          </select>
-        </div>
-        <div class="row two">
-          <label>Gemini API key</label>
-          <input id="settingApiKey" type="password" placeholder="Leave blank to keep current key">
-        </div>
-        <div class="row two">
-          <label>Gemini model</label>
-          <input id="settingModel" type="text" placeholder="gemini-3.5-flash">
-        </div>
-        <div class="row two">
-          <label>CLI</label>
-          <input id="settingAgentCommand" type="text" placeholder="codex exec ... {taskPath}">
-        </div>
-        <div class="row two">
-          <label>Agent</label>
-          <select id="settingAgentBackend">
-            <option value="codex">Codex</option>
-            <option value="gemini">Gemini</option>
-          </select>
+          <label>Selected CLI</label>
+          <input id="settingAgentCommand" type="text" placeholder="codex/claude/deepseek ... {taskPath}">
         </div>
         <div class="row two">
           <label>Attempts</label>
@@ -1539,6 +1696,8 @@
     var wired = false;
     var readySent = false;
     var lastNewTaskSentAt = 0;
+    var lastActionEventKey = "";
+    var lastActionEventAt = 0;
     var lastModelPreviewSrc = "";
     var lastLearningModelSrc = "";
     var learningSurfaceWasShown = false;
@@ -1596,15 +1755,37 @@
       if (wired) return;
       wired = true;
       bindInteractiveButtons(document);
-      document.getElementById("newTaskButton").addEventListener("click", newTask);
+      wireNewTaskButton("newTaskButton");
+      wireNewTaskButton("topNewTaskButton");
+      document.addEventListener("mousedown", delegateActionEvent, true);
+      document.addEventListener("pointerup", delegateActionEvent, true);
+      document.addEventListener("mouseup", delegateActionEvent, true);
+      document.addEventListener("click", delegateActionEvent, true);
+      document.addEventListener("keydown", function(event) {
+        var key = String(event.key || "").toLowerCase();
+        if ((event.metaKey || event.ctrlKey) && key === "n") {
+          event.preventDefault();
+          newTask();
+        }
+        if ((event.metaKey || event.ctrlKey) && isEnterKey(event) && String(value("prompt") || "").trim().length > 0) {
+          submitComposer(event);
+        }
+      });
+      document.addEventListener("paste", pasteIntoPromptFromWindow);
       document.getElementById("sidebarToggleButton").addEventListener("click", toggleSidebar);
       document.getElementById("navBackButton").addEventListener("click", goBack);
       document.getElementById("navForwardButton").addEventListener("click", goForward);
       document.getElementById("settingsButton").addEventListener("click", openSettings);
       document.getElementById("closeSettingsButton").addEventListener("click", closeSettings);
       document.getElementById("saveSettingsButton").addEventListener("click", saveSettings);
+      document.getElementById("composerBox").addEventListener("click", focusPromptFromComposer);
       document.getElementById("prompt").addEventListener("input", function() {
         renderPreview("promptPreview", value("prompt"));
+      });
+      document.getElementById("prompt").addEventListener("keydown", function(event) {
+        if (isEnterKey(event) && !event.shiftKey) {
+          submitComposer(event);
+        }
       });
       document.getElementById("studentAnswer").addEventListener("input", function() {
         renderPreview("answerPreview", value("studentAnswer"));
@@ -1612,11 +1793,23 @@
       document.getElementById("learningAnswer").addEventListener("input", function() {
         renderPreview("learningAnswerPreview", value("learningAnswer"));
       });
+      document.getElementById("learningAnswer").addEventListener("keydown", function(event) {
+        if (isEnterKey(event) && !event.shiftKey) {
+          event.preventDefault();
+          event.stopPropagation();
+          runAction("next_hint");
+        }
+      });
+      document.getElementById("learningToolsButton").addEventListener("click", toggleLearningTools);
+      document.getElementById("previewToolsButton").addEventListener("click", togglePreviewTools);
+      document.addEventListener("click", closeLearningToolsFromOutside);
+      document.addEventListener("click", closePreviewToolsFromOutside);
       document.querySelector(".main").addEventListener("wheel", routeMainWheel, { passive: false });
+      document.getElementById("composerBox").addEventListener("submit", submitComposer);
       document.getElementById("probeAsk").addEventListener("keydown", function(event) {
         if (event.key === "Enter") {
           event.preventDefault();
-          runAction("run_command");
+          runAction("run_command", event.currentTarget);
         }
       });
       setInterval(updateThinkingElapsed, 1000);
@@ -1628,6 +1821,84 @@
       }
       updateNavButtons();
       setupDropZone();
+    }
+
+    function focusPromptFromComposer(event) {
+      if (closestElement(event.target, "button, input, textarea, select")) return;
+      var prompt = document.getElementById("prompt");
+      if (prompt) prompt.focus();
+    }
+
+    function toggleLearningTools(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      var menu = document.getElementById("learningMoreMenu");
+      setLearningToolsOpen(!(menu && menu.classList.contains("open")));
+    }
+
+    function closeLearningToolsFromOutside(event) {
+      if (closestElement(event.target, "#learningMoreMenu, #learningToolsButton")) return;
+      setLearningToolsOpen(false);
+    }
+
+    function setLearningToolsOpen(open) {
+      var menu = document.getElementById("learningMoreMenu");
+      var button = document.getElementById("learningToolsButton");
+      if (menu) menu.classList.toggle("open", !!open);
+      if (button) button.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) {
+        var probe = document.getElementById("probeAsk");
+        if (probe) {
+          probe.value = normalizeProbeAskText(probe.value);
+          setTimeout(function() { probe.focus(); }, 0);
+        }
+      }
+    }
+
+    function togglePreviewTools(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      var menu = document.getElementById("previewMoreMenu");
+      setPreviewToolsOpen(!(menu && menu.classList.contains("open")));
+    }
+
+    function closePreviewToolsFromOutside(event) {
+      if (closestElement(event.target, "#previewMoreMenu, #previewToolsButton")) return;
+      setPreviewToolsOpen(false);
+    }
+
+    function setPreviewToolsOpen(open) {
+      var menu = document.getElementById("previewMoreMenu");
+      var button = document.getElementById("previewToolsButton");
+      if (menu) menu.classList.toggle("open", !!open);
+      if (button) button.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function pasteIntoPromptFromWindow(event) {
+      if (closestElement(event.target, "textarea, input, select, [contenteditable='true']")) return;
+      var workspace = document.querySelector(".workspace");
+      var prompt = document.getElementById("prompt");
+      if (!workspace || !prompt || !workspace.classList.contains("empty")) return;
+      var clipboard = event.clipboardData || window.clipboardData;
+      if (!clipboard) return;
+      var pasted = String(clipboard.getData("text/plain") || "").trim();
+      if (!pasted) return;
+      event.preventDefault();
+      prompt.focus();
+      prompt.value = pasted;
+      prompt.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    function wireNewTaskButton(id) {
+      var button = document.getElementById(id);
+      if (!button) return;
+      var events = ["mousedown", "pointerup", "mouseup", "click"];
+      for (var i = 0; i < events.length; i += 1) {
+        button.addEventListener(events[i], function(event) {
+          event.preventDefault();
+          newTask();
+        });
+      }
     }
 
     function toggleSidebar() {
@@ -1731,14 +2002,58 @@
       });
     }
 
-    function runAction(action) {
-      send(action, collectPayload(action));
+    function runAction(action, sourceElement) {
+      send(action, collectPayload(action, sourceElement));
     }
 
-    function collectPayload(action) {
-      var naturalProbe = value("probeAsk");
-      var commandText = naturalProbe ? naturalProbe : value("commandField");
-      if (naturalProbe && !/^\s*(measure|probe|show|highlight|zoom|open|clear|simulate|check)\b/i.test(commandText)) {
+    function isEnterKey(event) {
+      return String(event.key || "").toLowerCase() === "enter" ||
+        String(event.code || "").toLowerCase() === "enter" ||
+        event.keyCode === 13 || event.which === 13;
+    }
+
+    function submitComposer(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      if (!String(value("prompt") || "").trim() && !String(value("imagePath") || "").trim()) {
+        toast("Add a circuit prompt or image first.");
+        return;
+      }
+      runActionFromElement(document.querySelector("[data-action='run_pipeline']"), event || { preventDefault: function(){}, stopPropagation: function(){} });
+    }
+
+    function runActionFromButton(event) {
+      runActionFromElement(event.currentTarget, event);
+    }
+
+    function delegateActionEvent(event) {
+      var button = closestElement(event.target, "[data-action]");
+      if (!button) return;
+      runActionFromElement(button, event);
+    }
+
+    function runActionFromElement(button, event) {
+      if (!button) return;
+      var action = button.getAttribute("data-action");
+      var key = action + ":" + (button.id || button.textContent || "");
+      var now = Date.now();
+      event.preventDefault();
+      event.stopPropagation();
+      if (key === lastActionEventKey && now - lastActionEventAt < 400) return;
+      lastActionEventKey = key;
+      lastActionEventAt = now;
+      setLearningToolsOpen(false);
+      setPreviewToolsOpen(false);
+      runAction(action, button);
+    }
+
+    function collectPayload(action, sourceElement) {
+      var fromLearningMeasure = !!closestElement(sourceElement, ".learning-menu-measure");
+      var naturalProbe = fromLearningMeasure ? normalizeProbeAskText(value("probeAsk")) : "";
+      var commandText = fromLearningMeasure ? naturalProbe : value("commandField");
+      if (fromLearningMeasure && naturalProbe && !/^\s*(measure|probe)\b/i.test(commandText)) {
         commandText = "measure " + commandText;
       }
       var studentReasoning = value("learningAnswer") || value("studentAnswer");
@@ -1746,6 +2061,7 @@
         imagePath: value("imagePath"),
         modelPath: value("modelPath"),
         command: commandText,
+        probeAsk: naturalProbe,
         studentAnswer: studentReasoning,
         teachingImagePath: value("teachingImagePath"),
         focus: value("previewFocusSelector") || value("focusSelector"),
@@ -1765,14 +2081,22 @@
       return payload;
     }
 
+    function normalizeProbeAskText(raw) {
+      var textValue = String(raw || "").replace(/\s+/g, " ").trim();
+      textValue = textValue.replace(/^(measure|probe)\s+/i, "").trim();
+      textValue = textValue.replace(/\b(\w+\s+\w+)(?:\s+\1\b)+/ig, "$1");
+      return textValue;
+    }
+
     function bindInteractiveButtons(root) {
       var actionButtons = root.querySelectorAll("[data-action]");
       for (var i = 0; i < actionButtons.length; i += 1) {
         if (actionButtons[i].getAttribute("data-wired") === "1") continue;
         actionButtons[i].setAttribute("data-wired", "1");
-        actionButtons[i].addEventListener("click", function(event) {
-          runAction(event.currentTarget.getAttribute("data-action"));
-        });
+        actionButtons[i].addEventListener("mousedown", runActionFromButton);
+        actionButtons[i].addEventListener("pointerup", runActionFromButton);
+        actionButtons[i].addEventListener("mouseup", runActionFromButton);
+        actionButtons[i].addEventListener("click", runActionFromButton);
       }
       var panelButtons = root.querySelectorAll("[data-panel]");
       for (var j = 0; j < panelButtons.length; j += 1) {
@@ -1814,10 +2138,14 @@
     }
 
     function hasLearningSurface(currentState) {
+      var paths = (currentState || {}).paths || {};
       var preview = (currentState || {}).modelPreview || {};
       var teach = (currentState || {}).teach || {};
       var probe = (currentState || {}).probe || {};
-      return !!(preview.available || teach.currentQuestion || teach.currentStep || listHasItems(probe.probeItems));
+      var hasModel = !!(preview.available || paths.modelSnapshotPath);
+      var hasTeachingPlan = !!teach.hasPlan || Number(teach.totalSteps || 0) > 0;
+      var hasProbe = hasModel && (!!probe.hasOutput || listHasItems(probe.probeItems));
+      return !!(hasModel || hasTeachingPlan || hasProbe);
     }
 
     function renderState() {
@@ -1887,7 +2215,7 @@
       var prompt = document.getElementById("prompt");
       if (!prompt) return;
       if (!hasThread) {
-        prompt.placeholder = "Do anything";
+        prompt.placeholder = "Describe the circuit or lesson to build";
         setValue("prompt", savedPrompt);
         return;
       }
@@ -1967,12 +2295,18 @@
       text("learningNextButton", stepTotal > 0 && stepIndex >= stepTotal ? "Finish" : "Next step");
       html("learningQuestion", richText(latexifyCircuitSymbols(teach.currentQuestion || "Look at the model and describe what changed in the signal path.")));
       html("learningConcept", richText(latexifyCircuitSymbols(teach.currentConcept || "")));
+      renderLearningFacts(teach.currentFacts || []);
       renderTeachingFeedback(teach.output, teach.currentQuestion);
 
       var probe = currentState.probe || {};
       var probeText = String(probe.probeOutput || "").trim();
       var probeStatus = String(probe.probeStatus || "").trim();
-      html("learningProbeResult", richText(latexifyCircuitSymbols(studentProbeText(probeStatus, probeText))));
+      var probeResult = document.getElementById("learningProbeResult");
+      var hasProbeOutput = !!probe.hasOutput && (probeText || probeStatus);
+      if (probeResult) {
+        probeResult.classList.toggle("empty", !hasProbeOutput);
+        probeResult.innerHTML = hasProbeOutput ? richText(latexifyCircuitSymbols(studentProbeText(probeStatus, probeText))) : "";
+      }
       bindInteractiveButtons(root);
     }
 
@@ -2004,14 +2338,52 @@
       root.innerHTML = show ? richText(latexifyCircuitSymbols(feedback)) : "";
     }
 
+    function renderLearningFacts(facts) {
+      var root = document.getElementById("learningFacts");
+      if (!root) return;
+      var values = [];
+      if (Array.isArray(facts)) {
+        values = facts;
+      } else if (facts != null && String(facts).trim()) {
+        values = [facts];
+      }
+      var htmlText = "";
+      for (var i = 0; i < values.length; i += 1) {
+        var raw = String(values[i] || "").trim();
+        if (!raw) continue;
+        var pieces = raw.split(/:\s*/);
+        if (pieces.length > 1) {
+          var label = pieces.shift();
+          htmlText += "<div class=\"learning-fact\"><strong>" + escapeHtml(label) + ":</strong> " +
+            richText(latexifyCircuitSymbols(pieces.join(": "))) + "</div>";
+        } else {
+          htmlText += "<div class=\"learning-fact\">" + richText(latexifyCircuitSymbols(raw)) + "</div>";
+        }
+      }
+      root.classList.toggle("empty", htmlText.length === 0);
+      root.innerHTML = htmlText;
+    }
+
     function latexifyCircuitSymbols(raw) {
       var textValue = String(raw == null ? "" : raw);
       if (!textValue.trim() || hasLatex(textValue)) return textValue;
       var replacements = [
         [/\bVout\s*=\s*100\s*\*\s*\(\s*Vbuffer\s*-\s*Vfeedback\s*\)/g, "$V_{out}=100\\,(V_{buffer}-V_{feedback})$"],
+        [/\bZc\s*=\s*1\s*\/\s*\(j\s*\*\s*2\s*\*\s*pi\s*\*\s*f\s*\*\s*C\)/gi, "$Z_C=1/(j\\,2\\pi f C)$"],
+        [/\bdV\/dt\b/g, "$dV/dt$"],
         [/\bVbuffer\b/g, "$V_{buffer}$"],
         [/\bVfeedback\b/g, "$V_{feedback}$"],
         [/\bVout\b/g, "$V_{out}$"],
+        [/\bV_mem\b/g, "$V_{mem}$"],
+        [/\bVmem\b/g, "$V_{mem}$"],
+        [/\bV_cmd\b/g, "$V_{cmd}$"],
+        [/\bVcmd\b/g, "$V_{cmd}$"],
+        [/\bV_leak_rev\b/g, "$V_{leak\\,rev}$"],
+        [/\bV_leak\b/g, "$V_{leak}$"],
+        [/\bI_clamp\b/g, "$I_{clamp}$"],
+        [/\bG_leak\b/g, "$G_{leak}$"],
+        [/\bR_series\b/g, "$R_{series}$"],
+        [/\bZc\b/g, "$Z_C$"],
         [/\bV_m\b/g, "$V_m$"],
         [/\bV_c\b/g, "$V_c$"],
         [/\bVc\b/g, "$V_c$"],
@@ -2143,7 +2515,6 @@
       if (status && status !== "Local workspace") lines.push("Status: " + status);
       if (agent && agent.indexOf("needs") === 0) lines.push("Agent: " + agent);
       lines.push("Local");
-      if (env.geminiModel) lines.push("Gemini model: " + env.geminiModel);
       if (env.workDir) lines.push("Work: " + compactPath(env.workDir));
       for (var i = 0; i < lines.length; i += 1) {
         var chip = document.createElement("div");
@@ -2278,16 +2649,9 @@
     }
 
     function renderSettings(settings) {
-      setValue("settingParserBackend", settings.parserBackend || "codex");
-      setValue("settingAgentBackend", settings.agentBackend || "codex");
-      setValue("settingModel", settings.geminiModel || "");
       setValue("settingAgentCommand", settings.agentCommand || "");
       setValue("settingMaxAttempts", settings.agentMaxAttempts || "4");
       setValue("settingRetryDelay", settings.agentRetryDelaySeconds || "20");
-      var key = document.getElementById("settingApiKey");
-      if (key && document.activeElement !== key && !key.value) {
-        key.placeholder = settings.geminiApiKey || "Leave blank to keep current key";
-      }
     }
 
     function openSettings() {
@@ -2300,15 +2664,10 @@
 
     function saveSettings() {
       send("save_settings", {
-        geminiApiKey: value("settingApiKey"),
-        geminiModel: value("settingModel"),
-        parserBackend: value("settingParserBackend") || "codex",
-        agentBackend: value("settingAgentBackend") || "codex",
         agentCommand: value("settingAgentCommand"),
         agentMaxAttempts: Number(value("settingMaxAttempts") || 4),
         agentRetryDelaySeconds: Number(value("settingRetryDelay") || 20)
       });
-      document.getElementById("settingApiKey").value = "";
     }
 
     function fillSelect(id, items) {
@@ -2400,8 +2759,11 @@
     }
 
     function hasLatex(text) {
-      return /\$\$[\s\S]+?\$\$|\$[^$]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\\(frac|sqrt|alpha|beta|gamma|delta|theta|lambda|mu|pi|rho|sigma|omega|Omega|ohm|sum|int|partial)/.test(text);
+      return /\$\$[\s\S]+?\$\$|\$[^$]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\\(frac|dfrac|tfrac|sqrt|alpha|beta|gamma|delta|Delta|theta|lambda|mu|pi|rho|sigma|tau|omega|Omega|ohm|sum|int|partial|approx|times|cdot|mathrm|text|operatorname)/.test(text);
     }
+
+    var MAX_LATEX_CHARS = 700;
+    var MAX_LATEX_DEPTH = 14;
 
     function richText(raw) {
       var valueText = String(raw == null ? "" : raw);
@@ -2411,7 +2773,7 @@
         if (startsWithAt(valueText, "$$", i)) {
           var end = valueText.indexOf("$$", i + 2);
           if (end > i) {
-            out += "<span class=\"math\">" + parseLatex(valueText.slice(i + 2, end)) + "</span>";
+            out += mathOrPlain(valueText.slice(i + 2, end), valueText.slice(i, end + 2));
             i = end + 2;
             continue;
           }
@@ -2419,7 +2781,7 @@
         if (startsWithAt(valueText, "\\[", i)) {
           var endBlock = valueText.indexOf("\\]", i + 2);
           if (endBlock > i) {
-            out += "<span class=\"math\">" + parseLatex(valueText.slice(i + 2, endBlock)) + "</span>";
+            out += mathOrPlain(valueText.slice(i + 2, endBlock), valueText.slice(i, endBlock + 2));
             i = endBlock + 2;
             continue;
           }
@@ -2427,7 +2789,7 @@
         if (startsWithAt(valueText, "\\(", i)) {
           var endInline = valueText.indexOf("\\)", i + 2);
           if (endInline > i) {
-            out += "<span class=\"math\">" + parseLatex(valueText.slice(i + 2, endInline)) + "</span>";
+            out += mathOrPlain(valueText.slice(i + 2, endInline), valueText.slice(i, endInline + 2));
             i = endInline + 2;
             continue;
           }
@@ -2435,7 +2797,7 @@
         if (valueText[i] === "$") {
           var endDollar = valueText.indexOf("$", i + 1);
           if (endDollar > i + 1) {
-            out += "<span class=\"math\">" + parseLatex(valueText.slice(i + 1, endDollar)) + "</span>";
+            out += mathOrPlain(valueText.slice(i + 1, endDollar), valueText.slice(i, endDollar + 1));
             i = endDollar + 1;
             continue;
           }
@@ -2446,6 +2808,28 @@
       return out;
     }
 
+    function mathOrPlain(latex, originalText) {
+      if (!latexLooksSafe(latex)) return escapeHtml(originalText);
+      try {
+        return "<span class=\"math\">" + parseLatex(latex, 0) + "</span>";
+      } catch (_err) {
+        return escapeHtml(originalText);
+      }
+    }
+
+    function latexLooksSafe(raw) {
+      var src = String(raw == null ? "" : raw);
+      if (!src.trim() || src.length > MAX_LATEX_CHARS) return false;
+      if (/\\(begin|end|def|newcommand|renewcommand|input|include|write|href|url|html)/i.test(src)) return false;
+      var depth = 0;
+      for (var i = 0; i < src.length; i += 1) {
+        if (src[i] === "{") depth += 1;
+        if (src[i] === "}") depth -= 1;
+        if (depth < 0 || depth > MAX_LATEX_DEPTH) return false;
+      }
+      return depth === 0;
+    }
+
     function startsWithAt(text, needle, index) {
       return text.slice(index, index + needle.length) === needle;
     }
@@ -2453,9 +2837,12 @@
     var commands = {
       alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε",
       zeta: "ζ", eta: "η", theta: "θ", lambda: "λ", mu: "μ", pi: "π",
+      Delta: "Δ", nabla: "∇",
       rho: "ρ", sigma: "σ", tau: "τ", omega: "ω", Omega: "Ω", ohm: "Ω",
       cdot: "·", times: "×", pm: "±", approx: "≈", neq: "≠",
-      leq: "≤", geq: "≥", infty: "∞", rightarrow: "→",
+      leq: "≤", geq: "≥", le: "≤", ge: "≥", infty: "∞",
+      rightarrow: "→", to: "→", leftarrow: "←", leftrightarrow: "↔",
+      prime: "′", degree: "°",
       int: "∫", sum: "∑", prod: "∏", partial: "∂",
       sin: "sin", cos: "cos", tan: "tan", log: "log", ln: "ln", exp: "exp",
       ",": " ", ";": " ", ":": " ", "!": "", " ": " "
@@ -2479,26 +2866,34 @@
       return { name: src.slice(start + 1, i), next: i };
     }
 
-    function parseLatex(src) {
+    function parseLatex(src, depth) {
+      depth = Number(depth || 0);
+      if (depth > MAX_LATEX_DEPTH) return escapeHtml(src);
       var out = "";
       for (var i = 0; i < src.length;) {
         var ch = src[i];
         if (ch === "\\") {
           var cmd = readCommand(src, i);
-          if (cmd.name === "frac") {
+          if (cmd.name === "frac" || cmd.name === "dfrac" || cmd.name === "tfrac") {
             var top = readGroup(src, cmd.next);
             var bottom = readGroup(src, top.next);
-            out += "<span style=\"display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.92em\"><span style=\"border-bottom:1px solid currentColor;padding:0 .18em .08em\">" + parseLatex(top.value) + "</span><span style=\"padding:.08em .18em 0\">" + parseLatex(bottom.value) + "</span></span>";
+            out += "<span style=\"display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.92em\"><span style=\"border-bottom:1px solid currentColor;padding:0 .18em .08em\">" + parseLatex(top.value, depth + 1) + "</span><span style=\"padding:.08em .18em 0\">" + parseLatex(bottom.value, depth + 1) + "</span></span>";
             i = bottom.next;
             continue;
           }
           if (cmd.name === "sqrt") {
             var group = readGroup(src, cmd.next);
-            out += "<span style=\"display:inline-flex;align-items:flex-start;gap:.04em\">√<span style=\"border-top:1px solid currentColor;padding:.02em .08em 0 .18em\">" + parseLatex(group.value) + "</span></span>";
+            out += "<span style=\"display:inline-flex;align-items:flex-start;gap:.04em\">√<span style=\"border-top:1px solid currentColor;padding:.02em .08em 0 .18em\">" + parseLatex(group.value, depth + 1) + "</span></span>";
             i = group.next;
             continue;
           }
-          if (cmd.name === "text" || cmd.name === "mathrm") {
+          if (cmd.name === "mathrm" || cmd.name === "operatorname") {
+            var romanGroup = readGroup(src, cmd.next);
+            out += "<span style=\"font-family:inherit;font-style:normal\">" + parseLatex(romanGroup.value, depth + 1) + "</span>";
+            i = romanGroup.next;
+            continue;
+          }
+          if (cmd.name === "text") {
             var textGroup = readGroup(src, cmd.next);
             out += escapeHtml(textGroup.value);
             i = textGroup.next;
@@ -2508,20 +2903,20 @@
             i = cmd.next;
             continue;
           }
-          out += escapeHtml(commands[cmd.name] || cmd.name);
+          out += escapeHtml(commands[cmd.name] || ("\\" + cmd.name));
           i = cmd.next;
           continue;
         }
         if (ch === "_" || ch === "^") {
           var scriptGroup = readGroup(src, i + 1);
           var tag = ch === "_" ? "sub" : "sup";
-          out += "<" + tag + ">" + parseLatex(scriptGroup.value) + "</" + tag + ">";
+          out += "<" + tag + ">" + parseLatex(scriptGroup.value, depth + 1) + "</" + tag + ">";
           i = scriptGroup.next;
           continue;
         }
         if (ch === "{") {
           var braceGroup = readGroup(src, i);
-          out += parseLatex(braceGroup.value);
+          out += parseLatex(braceGroup.value, depth + 1);
           i = braceGroup.next;
           continue;
         }

@@ -19,7 +19,7 @@ estimatedApiCost = totalCalls * assumedApiCostPerCall;
 
 software = [
     item("MATLAB / Simulink / Simscape", "assumed campus license", 0, "Budget separately if no campus license exists.")
-    item("Gemini API", sprintf("%d calls at assumed $%.4f/call", totalCalls, assumedApiCostPerCall), estimatedApiCost, "Assumption only; update from current billing before purchase.")
+    item("Selected agent CLI", sprintf("%d calls at assumed $%.4f/call", totalCalls, assumedApiCostPerCall), estimatedApiCost, "Assumption only; update from current provider billing before purchase.")
     item("CiTT MATLAB plugin", "local toolbox / course deployment", 0, "No per-seat cost modeled for prototype.")
 ];
 hardware = [

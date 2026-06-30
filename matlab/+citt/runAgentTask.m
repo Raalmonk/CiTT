@@ -2,6 +2,7 @@ function result = runAgentTask(taskPath, options)
 %RUNAGENTTASK Run a prepared SATK task with an external agent CLI.
 
 config = feval('citt.loadConfig');
+feval('citt.ensureAgenticToolkit', config);
 if nargin < 1 || isempty(taskPath)
     taskPath = config.AgentTaskPath;
 end
@@ -14,8 +15,8 @@ if exist(taskPath, "file") ~= 2
     error("CiTT:AgentTaskMissing", "Agent task file does not exist: %s", taskPath);
 end
 
-setup = requireRealRunSetup();
-runner = selectAgentRunner(config, setup, taskPath, options);
+requireRealRunSetup();
+runner = selectAgentRunner(config, taskPath);
 
 switch runner.mode
     case "external_agent"
@@ -24,10 +25,6 @@ switch runner.mode
         else
             result = runExternalAgent(runner, config);
         end
-    case "manual_agent"
-        result = manualAgentResult(taskPath, config);
-    case "local_fallback"
-        result = runLocalFallback(config, options, runner.reason);
     otherwise
         error("CiTT:UnknownAgentMode", "Unknown agent runner mode: %s", runner.mode);
 end
@@ -87,11 +84,9 @@ result.agent_attempts = systemResult.attempts;
 
 waitForRequiredArtifacts(config, artifactSnapshot, 10);
 [result, missingArtifacts] = collectArtifacts(result, config, artifactSnapshot);
-bypassedLocalFallback = localFallbackBypassDetected(result, config);
-if result.exit_status == 0 && isempty(missingArtifacts) && ~bypassedLocalFallback
+if result.exit_status == 0 && isempty(missingArtifacts)
     result.success = true;
     result.summary = "External SATK agent completed and produced CiTT model artifacts.";
-    result = openProducedModel(result);
 else
     result.success = false;
     result.summary = "External SATK agent did not complete the CiTT build contract.";
@@ -100,9 +95,6 @@ else
     end
     if ~isempty(missingArtifacts)
         result.stderr = appendLine(result.stderr, "Missing or stale required artifacts: " + strjoin(missingArtifacts, ", ") + ".");
-    end
-    if bypassedLocalFallback
-        result.stderr = appendLine(result.stderr, "Agent bypassed SATK/model_edit by invoking or writing the CiTT local Simscape builder.");
     end
 end
 end
@@ -128,8 +120,51 @@ end
 end
 
 function clearExternalGeneratedCode(config)
-if exist(config.GeneratedBuildScriptPath, "file") == 2
-    delete(char(config.GeneratedBuildScriptPath));
+generatedModelName = string(erase(filepartsOnly(config.GeneratedModelPath, "name"), ".slx"));
+if strlength(generatedModelName) > 0
+    try
+        if bdIsLoaded(char(generatedModelName))
+            close_system(char(generatedModelName), 0);
+        end
+    catch
+    end
+end
+
+paths = [
+    config.GeneratedBuildScriptPath
+    config.GeneratedModelPath
+    config.FocusMapPath
+    config.ProbeMapPath
+    config.AgentReportPath
+    config.ModelSnapshotPath
+    config.ModelCheckReportPath
+    config.SimulationSummaryPath
+    config.BodeReportPath
+    config.BodeMarkdownPath
+    config.BodePlotPath
+    config.TeachingPlanPath
+    config.ProbeActionPlanPath
+];
+for i = 1:numel(paths)
+    path = string(paths(i));
+    if exist(path, "file") == 2
+        try
+            delete(char(path));
+        catch
+        end
+    end
+end
+end
+
+function value = filepartsOnly(pathValue, part)
+[~, name, ext] = fileparts(char(string(pathValue)));
+switch string(part)
+    case "name"
+        value = string(name);
+    case "ext"
+        value = string(ext);
+    otherwise
+        value = string(name) + string(ext);
 end
 end
 
@@ -165,7 +200,7 @@ lines = [
     "    break"
     "  fi"
     "  if printf '%s' ""$combined"" | grep -Eq '503|service unavailable|temporarily unavailable|internal server error|server error|deadline exceeded|connection reset|econnreset|etimedout|socket hang up'; then"
-    "    echo ""CiTT retrying external agent after transient Gemini/API error in ${delay_seconds}s."" >> ""$stderr"""
+    "    echo ""CiTT retrying external agent after transient service/API error in ${delay_seconds}s."" >> ""$stderr"""
     "    sleep ""$delay_seconds"""
     "    attempt=$((attempt + 1))"
     "    continue"
@@ -210,7 +245,7 @@ for attempt = 1:maxAttempts
         return
     end
 
-    retryNote = "CiTT retrying external agent after transient Gemini/API error in " + ...
+    retryNote = "CiTT retrying external agent after transient service/API error in " + ...
         string(delaySeconds) + "s.";
     combinedStderr(end + 1) = retryNote;
     if delaySeconds > 0
@@ -260,57 +295,6 @@ else
 end
 end
 
-function result = manualAgentResult(taskPath, config)
-result = baseResult("manual agent: " + taskPath, config);
-result.mode = "manual_agent";
-result.agent_name = "manual";
-result.summary = "No configured Gemini/Codex agent CLI was found.";
-result.stdout = manualInstructions(taskPath, config);
-
-try
-    edit(char(taskPath));
-catch editError
-    result.stderr = "Could not open task markdown automatically: " + string(editError.message);
-end
-end
-
-function result = runLocalFallback(config, options, reason)
-specPath = config.LastSpecPath;
-if isfield(options, "SpecPath")
-    specPath = string(options.SpecPath);
-end
-
-buildResult = feval('citt.buildLocalSimscapeFallback', specPath, struct( ...
-    "ModelPath", config.GeneratedModelPath, ...
-    "ScriptPath", config.GeneratedBuildScriptPath, ...
-    "FocusMapPath", config.FocusMapPath, ...
-    "ProbeMapPath", config.ProbeMapPath, ...
-    "ReportPath", config.AgentReportPath, ...
-    "WriteGeneratedScript", true, ...
-    "RunGeneratedScript", true, ...
-    "OpenModel", true));
-
-result = baseResult("local Simscape builder: citt.buildLocalSimscapeFallback", config);
-result.mode = "local_fallback";
-result.agent_name = "local_simscape_builder";
-result.success = true;
-result.exit_status = 0;
-result.summary = "Agent build unavailable. Running local Simscape builder.";
-result.stdout = strjoin([
-    result.summary
-    "Reason: " + reason
-    buildResult.summary
-    "Generated local build code: " + buildResult.generated_code_path
-    "Model: " + buildResult.model_path
-], newline);
-result.produced_model_path = existingPath(buildResult.model_path);
-result.produced_focus_map_path = existingPath(buildResult.focus_map_path);
-result.produced_probe_map_path = existingPath(buildResult.probe_map_path);
-result.generated_code_path = buildResult.generated_code_path;
-result.agent_report_path = existingPath(buildResult.agent_report_path);
-result.build_result = buildResult;
-end
-
 function setup = requireRealRunSetup()
 setup = feval('citt.checkSetup');
 missing = strings(0, 1);
@@ -326,13 +310,22 @@ end
 if ~setup.matlab_mcp_available
     missing(end + 1) = "MATLAB MCP Server";
 end
+if isfield(setup, "satk_model_edit_available") && ~setup.satk_model_edit_available
+    missing(end + 1) = "SATK model_edit tool";
+end
+if isfield(setup, "satk_model_overview_available") && ~setup.satk_model_overview_available
+    missing(end + 1) = "SATK model_overview tool";
+end
+if isfield(setup, "satk_model_check_available") && ~setup.satk_model_check_available
+    missing(end + 1) = "SATK model_check tool";
+end
 if ~isempty(missing)
     error("CiTT:RealRunSetupMissing", ...
         "CiTT agent mode requires: %s", strjoin(missing, ", "));
 end
 end
 
-function runner = selectAgentRunner(config, setup, taskPath, options)
+function runner = selectAgentRunner(config, taskPath)
 runner = struct("mode", "", "name", "", "command", "", "reason", "");
 
 if strlength(strtrim(config.AgentCommand)) > 0
@@ -342,48 +335,8 @@ if strlength(strtrim(config.AgentCommand)) > 0
     return
 end
 
-backend = "codex";
-if isfield(config, "AgentBackend")
-    backend = lower(strtrim(string(config.AgentBackend)));
-end
-
-switch backend
-    case "codex"
-        codex = cliPath(setup, "codex");
-        if strlength(codex) > 0
-            runner.mode = "external_agent";
-            runner.name = "codex";
-            runner.command = codexCommand(codex, config, taskPath);
-            return
-        end
-    case "gemini"
-        gemini = cliPath(setup, "gemini");
-        if strlength(gemini) > 0
-            runner.mode = "external_agent";
-            runner.name = "gemini";
-            runner.command = geminiCommand(gemini, config, taskPath);
-            return
-        end
-    otherwise
-        runner.mode = "manual_agent";
-        runner.name = "manual";
-        runner.command = "manual agent: " + taskPath;
-        runner.reason = "Unsupported CITT_AGENT_BACKEND: " + backend;
-        return
-end
-
-if localFallbackEnabled(options)
-    runner.mode = "local_fallback";
-    runner.name = "local_simscape_builder";
-    runner.command = "citt.buildLocalSimscapeFallback";
-    runner.reason = "CITT_AGENT_BACKEND=" + backend + " did not resolve to an available CLI and the local Simscape builder was explicitly enabled.";
-    return
-end
-
-runner.mode = "manual_agent";
-runner.name = "manual";
-runner.command = "manual agent: " + taskPath;
-runner.reason = "CITT_AGENT_BACKEND=" + backend + " did not resolve to an available CLI.";
+error("CiTT:AgentCliMissing", ...
+    "No selected CLI command is configured. Set CITT_AGENT_COMMAND or save a CLI template in Settings; CiTT will not auto-select another CLI.");
 end
 
 function command = commandFromTemplate(commandTemplate, taskPath)
@@ -402,54 +355,13 @@ function name = configuredAgentName(commandTemplate)
 lowerCommand = lower(string(commandTemplate));
 if contains(lowerCommand, "codex")
     name = "codex";
-elseif contains(lowerCommand, "gemini")
-    name = "gemini";
+elseif contains(lowerCommand, "claude")
+    name = "claude";
+elseif contains(lowerCommand, "deepseek")
+    name = "deepseek";
 else
     name = "CITT_AGENT_COMMAND";
 end
-end
-
-function command = geminiCommand(geminiPath, config, taskPath)
-command = shellQuote(geminiPath) + " --approval-mode yolo --allowed-mcp-server-names matlab";
-if strlength(strtrim(config.GeminiModel)) > 0
-    command = command + " --model " + shellQuote(config.GeminiModel);
-end
-command = command + " --prompt " + taskContentArgument(taskPath);
-end
-
-function command = codexCommand(codexPath, config, taskPath)
-command = "cat " + shellQuote(taskPath) + " | " + ...
-    shellQuote(codexPath) + " exec " + ...
-    "--dangerously-bypass-approvals-and-sandbox " + ...
-    "--cd " + shellQuote(config.MatlabRoot) + " " + ...
-    "-";
-end
-
-function argument = taskContentArgument(taskPath)
-if ispc
-    argument = shellQuote(fileread(char(taskPath)));
-else
-    argument = """" + "$(cat " + shellQuote(taskPath) + ")" + """";
-end
-end
-
-function path = cliPath(setup, name)
-path = "";
-for i = 1:numel(setup.agent_clis)
-    if setup.agent_clis(i).name == string(name) && setup.agent_clis(i).available
-        path = string(setup.agent_clis(i).path);
-        return
-    end
-end
-end
-
-function enabled = localFallbackEnabled(options)
-enabled = false;
-if isfield(options, "UseLocalFallback")
-    enabled = logical(options.UseLocalFallback);
-end
-enabled = enabled || envFlag("CITT_USE_LOCAL_SIMSCAPE_FALLBACK") || ...
-    envFlag("CITT_LOCAL_SIMSCAPE_FALLBACK");
 end
 
 function enabled = asyncEnabled(options)
@@ -576,58 +488,12 @@ code = exist(pathCandidate, "file");
 exists = code == 2 || code == 4;
 end
 
-function detected = localFallbackBypassDetected(result, config)
-scriptText = "";
-if exist(config.GeneratedBuildScriptPath, "file") == 2
-    scriptText = readText(config.GeneratedBuildScriptPath);
-end
-reportText = "";
-if exist(config.AgentReportPath, "file") == 2
-    reportText = readText(config.AgentReportPath);
-end
-
-scriptPatterns = [
-    "Generated by CiTT local fallback"
-    "citt.buildLocalSimscapeFallback"
-    "buildLocalSimscapeFallback("
-    "citt.buildSimscapeModelFromSpec"
-    "buildSimscapeModelFromSpec("
-];
-reportPatterns = [
-    "Generated by CiTT local fallback"
-    "local Simscape fallback builder was used"
-    "local Simscape builder was used instead of SATK"
-];
-detected = any(contains(scriptText, scriptPatterns)) || any(contains(reportText, reportPatterns));
-end
-
 function text = readText(path)
 try
     text = string(fileread(char(path)));
 catch
     text = "";
 end
-end
-
-function text = manualInstructions(taskPath, config)
-text = strjoin([
-    "No configured Gemini/Codex agent CLI was found."
-    "CiTT opened the generated SATK task markdown."
-    ""
-    "Manual agent mode:"
-    "1. Paste this task into a SATK-configured agent with MATLAB MCP tools enabled."
-    "2. The agent must use SATK tools such as model_read, model_edit, model_check, model_query_params, and model_resolve_params."
-    "3. The agent must save the expected CiTT artifacts:"
-    "   Model: " + config.GeneratedModelPath
-    "   Focus map: " + config.FocusMapPath
-    "   Probe map: " + config.ProbeMapPath
-    "   Report: " + config.AgentReportPath
-    ""
-    "Set CITT_AGENT_COMMAND to automate this, for example: your-agent-command {taskPath}"
-    "For demo-only emergency use, set CITT_USE_LOCAL_SIMSCAPE_FALLBACK=1 to run the local Simscape builder."
-    ""
-    "Task: " + taskPath
-], newline);
 end
 
 function text = appendLine(text, line)

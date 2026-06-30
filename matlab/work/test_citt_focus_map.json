@@ -1,0 +1,16 @@
+{
+  "focus_map": {
+    "focus_id": "rc_output",
+    "label": "RC output node",
+    "explanation": "Generated focus map point.",
+    "model_paths": "citt_generated_model/RC Output",
+    "block_paths": "citt_generated_model/Voltage Sensor",
+    "line_handles_or_descriptions": [],
+    "related_components": [
+      "R1",
+      "C1"
+    ],
+    "related_nodes": "n_out",
+    "teaching_question": "Why is this the output node?"
+  }
+}

@@ -32,7 +32,6 @@ Benchmark 1 folder:
 
 - `benchmark_01_textbook_rc/problem_statement.md`
 - `benchmark_01_textbook_rc/llm_baseline_prompt.md`
-- `benchmark_01_textbook_rc/llm_baseline_output_gemini_no_tools.md`
 - `benchmark_01_textbook_rc/run_notes.md`
 - `benchmark_01_textbook_rc/comparison.md`
 - `benchmark_01_textbook_rc/screenshots/`
@@ -43,7 +42,6 @@ Benchmark 2 folder:
 
 - `benchmark_02_tevc_equilibrium/problem_statement.md`
 - `benchmark_02_tevc_equilibrium/llm_baseline_prompt.md`
-- `benchmark_02_tevc_equilibrium/llm_baseline_output_gemini_no_tools.md`
 - `benchmark_02_tevc_equilibrium/run_notes.md`
 - `benchmark_02_tevc_equilibrium/comparison.md`
 - `benchmark_02_tevc_equilibrium/workflow_total_prompt.md`
@@ -54,7 +52,6 @@ Benchmark 3 folder:
 
 - `benchmark_03_mixed_signal/problem_statement.md`
 - `benchmark_03_mixed_signal/llm_baseline_prompt.md`
-- `benchmark_03_mixed_signal/llm_baseline_output_gemini_no_tools.md`
 - `benchmark_03_mixed_signal/run_notes.md`
 - `benchmark_03_mixed_signal/comparison.md`
 - `benchmark_03_mixed_signal/artifacts/citt_generated_model.slx`
@@ -152,15 +149,15 @@ Interpretation:
 - The failure to settle is an intended evidence point: it shows that the generated model exposes nonideal amplifier, current-limit, rail-saturation, and mixed-signal timing effects that a text-only LLM answer would likely miss or hand-wave.
 - The plot set demonstrates transient behavior, ADC quantization, digital state, saturation, parameter sensitivity, and fault sensitivity.
 
-## Gemini-Only Baseline Comparison
+## Text-Only Baseline Comparison
 
-A Gemini-only no-tools baseline was run on the same three benchmark prompts. The baseline was instructed not to use MATLAB, Simulink, Simscape, SATK, Python, calculators, or executable tools.
+A text-only no-tools baseline was run on the same three benchmark prompts. The baseline was instructed not to use MATLAB, Simulink, Simscape, SATK, Python, calculators, or executable tools.
 
-On the textbook RC benchmark, Gemini-only performed well: it correctly estimated the cutoff frequency, attenuation at `5 Hz`, `60 Hz`, and Nyquist, and diagnosed the `100 uF` vs `100 nF` lab mistake. This shows that CiTT is not merely competing on simple arithmetic. CiTT's added value is model grounding: the same task produced an inspectable Simscape/Simulink model, visible probe location, focus-map teaching, natural-language probe output, Lab Delta/unit-mistake diagnosis, and annotated Bode evidence.
+On the textbook RC benchmark, text-only reasoning can perform well: it can estimate the cutoff frequency, attenuation at `5 Hz`, `60 Hz`, and Nyquist, and diagnose the `100 uF` vs `100 nF` lab mistake. This shows that CiTT is not merely competing on simple arithmetic. CiTT's added value is model grounding: the same task produced an inspectable Simscape/Simulink model, visible probe location, focus-map teaching, natural-language probe output, Lab Delta/unit-mistake diagnosis, and annotated Bode evidence.
 
-On the TEVC benchmark, Gemini-only gave a plausible feedback explanation and the correct tracking-ratio intuition. However, it mixed two limitations: it stated that both `Vc` and `Re` prevent a numerical `Vm`, while under the ideal-buffer assumption `Re` does not affect the DC tracking solution. Its formula formatting is also easy to misread. CiTT instead preserved symbolic parameters, built a Simscape-first model, and connected the feedback explanation to actual focus and probe maps.
+On the TEVC benchmark, text-only reasoning can give a plausible feedback explanation and the correct tracking-ratio intuition. However, it can mix two limitations: stating that both `Vc` and `Re` prevent a numerical `Vm`, while under the ideal-buffer assumption `Re` does not affect the DC tracking solution. Formula formatting can also be easy to misread. CiTT instead preserved symbolic parameters, built a Simscape-first model, and connected the feedback explanation to actual focus and probe maps.
 
-On the mixed-signal neural-clamp benchmark, Gemini-only correctly stated that exact transients, ADC code sequences, saturation intervals, settling time, and overshoot require executable simulation. However, it also introduced unsupported assumptions and unit-scale errors, including writing a current limit as `nF` instead of `nA` and describing a `500 nF` capacitance fault as `500 uF` in one version. CiTT's advantage is therefore not that LLM reasoning is useless, but that Gemini-only reasoning lacks executable model grounding. CiTT adds Simscape/Simulink artifacts, highlightable model paths, probe maps, simulation plots, metrics JSON, warnings, and explicit limitation evidence.
+On the mixed-signal neural-clamp benchmark, text-only reasoning can correctly state that exact transients, ADC code sequences, saturation intervals, settling time, and overshoot require executable simulation. However, it can also introduce unsupported assumptions and unit-scale errors, including writing a current limit as `nF` instead of `nA` and describing a `500 nF` capacitance fault as `500 uF`. CiTT's advantage is therefore not that language reasoning is useless, but that text-only reasoning lacks executable model grounding. CiTT adds Simscape/Simulink artifacts, highlightable model paths, probe maps, simulation plots, metrics JSON, warnings, and explicit limitation evidence.
 
 ## Probe And Lab Delta Status
 
@@ -189,7 +186,7 @@ The captured workflow depends on:
 - Simscape Electrical,
 - SATK/model tooling,
 - CiTT MATLAB plugin,
-- configured Gemini/Codex agent flow.
+- configured selected CLI agent flow.
 
 Default modeling assumption for these benchmarks: no custom Simscape libraries and no custom project-specific block libraries; use built-in MATLAB/Simulink/Simscape/Simscape Electrical blocks whenever possible.
 

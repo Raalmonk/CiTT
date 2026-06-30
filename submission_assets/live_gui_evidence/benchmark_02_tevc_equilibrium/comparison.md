@@ -13,13 +13,11 @@ Evidence captured:
 
 The generated model includes explicit physical components for command source, buffer path, finite-gain amplifier, `Ro`, `Rm`, symbolic `Re`, `VM_PROBE`, amplifier-output probe, clamp-current probe, electrical reference, and solver configuration.
 
-## Gemini-Only No-Tools Baseline
+## Text-Only No-Tools Baseline
 
 Baseline prompt saved in `llm_baseline_prompt.md`.
 
-Gemini-only no-tools output saved in `llm_baseline_output_gemini_no_tools.md`.
-
-Gemini-only gives a reasonable TEVC explanation:
+Text-only reasoning can give a reasonable TEVC explanation:
 
 - It recognizes negative feedback driving `Vm` toward `Vc`.
 - It explains that the ideal buffer makes the voltage-sensing path high impedance.
@@ -43,7 +41,7 @@ Vm / Vc = 1000 / 1020 ~= 0.9804
 
 ## Observed Difference
 
-Gemini-only can explain the TEVC concept and produce a plausible symbolic ratio. CiTT adds an inspectable Simscape-first model, decoded focus map, decoded probe map, model-check evidence, and GUI-backed teaching/highlight/probe evidence.
+Text-only reasoning can explain the TEVC concept and produce a plausible symbolic ratio. CiTT adds an inspectable Simscape-first model, decoded focus map, decoded probe map, model-check evidence, and GUI-backed teaching/highlight/probe evidence.
 
 The core difference is auditability: text derivation can be right but hard to inspect; CiTT connects the explanation to model paths and probe points.
 

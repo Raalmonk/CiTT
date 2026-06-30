@@ -1,0 +1,60 @@
+{
+  "success": true,
+  "created_at": "29-Jun-2026 18:00:49",
+  "software": [
+    {
+      "name": "MATLAB / Simulink / Simscape",
+      "assumption": "assumed campus license",
+      "estimated_cost_usd": 0,
+      "note": "Budget separately if no campus license exists."
+    },
+    {
+      "name": "Selected agent CLI",
+      "assumption": "288 calls at assumed $0.0050/call",
+      "estimated_cost_usd": 1.44,
+      "note": "Assumption only; update from current provider billing before purchase."
+    },
+    {
+      "name": "CiTT MATLAB plugin",
+      "assumption": "local toolbox / course deployment",
+      "estimated_cost_usd": 0,
+      "note": "No per-seat cost modeled for prototype."
+    }
+  ],
+  "hardware": [
+    {
+      "name": "Breadboard biomedical circuit kit",
+      "assumption": "optional per lab team",
+      "estimated_cost_usd": 35,
+      "note": "Resistors, capacitors, jumpers, rails."
+    },
+    {
+      "name": "ADC / microcontroller",
+      "assumption": "optional per lab team",
+      "estimated_cost_usd": 25,
+      "note": "Only needed for hardware comparison labs."
+    },
+    {
+      "name": "ECG/EMG front-end components",
+      "assumption": "optional per lab team",
+      "estimated_cost_usd": 40,
+      "note": "Use educational isolation/safety policy."
+    }
+  ],
+  "deployment": {
+    "students": 24,
+    "labs_per_course": 4,
+    "api_calls_per_lab": 3,
+    "estimated_api_cost_usd": 1.44,
+    "instructor_setup_hours": 4,
+    "assumptions": [
+      "MATLAB toolboxes are available through an institution or competition sponsor.",
+      "API cost is an editable planning assumption, not a live price quote.",
+      "Hardware kits are optional for simulation-only courses."
+    ]
+  },
+  "total_optional_hardware_per_team_usd": 100,
+  "total_estimated_api_cost_usd": 1.44,
+  "report_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_economics.json",
+  "markdown_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_economics.md"
+}

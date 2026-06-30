@@ -4,7 +4,11 @@ function results = run_all()
 testFiles = {
     "test_real_config"
     "test_agent_task_generation"
-    "test_simscape_model_generation"
+    "test_cli_only_contract"
+    "test_text_prompt_build_readiness"
+    "test_socratic_student_level_contract"
+    "test_socratic_verbose_cli_output"
+    "test_stop_time_parameter_repair"
     "test_teaching_plan_contract"
     "test_lab_delta"
     "test_evidence_pack_export"

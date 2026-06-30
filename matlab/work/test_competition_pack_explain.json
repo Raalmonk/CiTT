@@ -1,0 +1,74 @@
+{
+  "success": true,
+  "created_at": "29-Jun-2026 18:00:48",
+  "actions": [
+    {
+      "action_id": "focus_output_node",
+      "action_type": "output_path",
+      "label": "Output node",
+      "focus_id": "output_node",
+      "target_paths": [
+        "t",
+        "e",
+        "s",
+        "_",
+        "m",
+        "o",
+        "d",
+        "l",
+        "/",
+        "V",
+        "a",
+        "g",
+        " ",
+        "S",
+        "n",
+        "r",
+        "O",
+        "u",
+        "p"
+      ],
+      "reason": "Why does this output node define the anti-aliasing response?",
+      "status": "READY"
+    },
+    {
+      "action_id": "probe_probe_vout",
+      "action_type": "probe_location",
+      "label": "Probe Vout",
+      "focus_id": "output_node",
+      "target_paths": [
+        "t",
+        "e",
+        "s",
+        "_",
+        "m",
+        "o",
+        "d",
+        "l",
+        "/",
+        "O",
+        "u",
+        "p",
+        " ",
+        "S",
+        "n",
+        "r"
+      ],
+      "reason": "Place voltage sensor at vout.",
+      "status": "READY"
+    },
+    {
+      "action_id": "concept_aliasing_path",
+      "action_type": "aliasing_path",
+      "label": "Aliasing path",
+      "focus_id": "",
+      "target_paths": [],
+      "reason": "Connect analog bandwidth, sampling rate, and ADC output in the teaching explanation.",
+      "status": "CONCEPTUAL"
+    }
+  ],
+  "focus_map_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_focus.json",
+  "probe_map_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_probe.json",
+  "report_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_explain.json",
+  "markdown_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_explain.md"
+}

@@ -1,0 +1,17 @@
+{
+  "focus_id": "rc_output",
+  "label": "RC output node",
+  "explanation": "Output node for the low-pass response.",
+  "model_paths": "test_citt_generated_model_83446",
+  "block_paths": [
+    "test_citt_generated_model_83446/R1",
+    "test_citt_generated_model_83446/C1"
+  ],
+  "line_handles_or_descriptions": [],
+  "related_components": [
+    "R1",
+    "C1"
+  ],
+  "related_nodes": "n_out",
+  "teaching_question": "Why is n_out the natural probe point?"
+}

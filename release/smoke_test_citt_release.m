@@ -29,7 +29,7 @@ try
         "resources/ui/image_dropzone.html"
         "resources/ui/latex_preview.html"
         "resources/ui/citt_app.html"
-        "resources/prompts/gemini_circuit_parse_system.txt"
+        "resources/prompts/cli_circuit_parse_system.txt"
         "resources/prompts/agent_build_simscape_model.txt"
         "resources/prompts/socratic_teaching_system.txt"
         "resources/schemas/circuit_spec.schema.json"

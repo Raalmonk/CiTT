@@ -12,7 +12,13 @@ end
 outputPath = optionString(options, "OutputPath", config.ModelSnapshotPath);
 targetSystem = optionString(options, "TargetSystem", "");
 cropHighlights = optionLogical(options, "CropHighlights", false);
-cropBlockPath = optionString(options, "CropBlockPath", "");
+cropBlockPaths = optionStringList(options, "CropBlockPath");
+explicitCropBlockPaths = optionStringList(options, "CropBlockPaths");
+if ~isempty(explicitCropBlockPaths)
+    cropBlockPaths = explicitCropBlockPaths;
+end
+showModel = optionLogical(options, "ShowModel", false);
+trimWhitespace = optionLogical(options, "TrimWhitespace", true);
 
 result = struct();
 result.success = false;
@@ -32,16 +38,20 @@ end
 [~, modelName, ~] = fileparts(char(modelPath));
 try
     load_system(char(modelPath));
-    open_system(char(modelName));
+    if showModel
+        open_system(char(modelName));
+    end
 catch openError
     error("CiTT:ModelSnapshotOpenFailed", "Could not open model for preview: %s", openError.message);
 end
 
 printTarget = snapshotTarget(modelName, targetSystem);
 try
-    try
-        open_system(char(printTarget));
-    catch
+    if showModel
+        try
+            open_system(char(printTarget));
+        catch
+        end
     end
     try
         set_param(char(printTarget), "ZoomFactor", "FitSystem");
@@ -54,10 +64,13 @@ try
     drawnow;
     pause(0.15);
     print(char("-s" + printTarget), "-dpng", "-r160", char(outputPath));
-    if strlength(strtrim(cropBlockPath)) > 0
-        cropSnapshotAroundBlock(outputPath, modelName, cropBlockPath);
+    if ~isempty(cropBlockPaths)
+        cropSnapshotAroundBlock(outputPath, modelName, cropBlockPaths);
     elseif cropHighlights
         cropHighlightedSnapshot(outputPath);
+    end
+    if trimWhitespace
+        cropSnapshotToContent(outputPath);
     end
 catch printError
     error("CiTT:ModelSnapshotPrintFailed", "Could not export Simulink preview: %s", printError.message);
@@ -69,7 +82,11 @@ end
 
 result.success = true;
 result.target_system = string(printTarget);
-result.message = "Preview updated.";
+if trimWhitespace
+    result.message = "Preview updated and cropped to model content.";
+else
+    result.message = "Preview updated.";
+end
 end
 
 function value = optionString(options, fieldName, defaultValue)
@@ -80,6 +97,25 @@ if isstruct(options) && isfield(options, fieldName)
         value = string(raw);
     end
 end
+end
+
+function values = optionStringList(options, fieldName)
+values = strings(0, 1);
+if ~isstruct(options) || ~isfield(options, fieldName)
+    return
+end
+raw = options.(fieldName);
+if isempty(raw)
+    return
+end
+if iscell(raw)
+    for i = 1:numel(raw)
+        values(end + 1, 1) = string(raw{i}); %#ok<AGROW>
+    end
+else
+    values = string(raw(:));
+end
+values = values(strlength(strtrim(values)) > 0);
 end
 
 function value = optionLogical(options, fieldName, defaultValue)
@@ -138,11 +174,73 @@ else
 end
 end
 
-function cropSnapshotAroundBlock(outputPath, modelName, blockPath)
+function cropSnapshotToContent(outputPath)
 try
     [imageData, ~, alpha] = imread(char(outputPath));
-    targetPosition = get_param(char(blockPath), "Position");
 catch
+    return
+end
+if ndims(imageData) < 3 || size(imageData, 3) < 3
+    return
+end
+
+rgb = double(imageData(:, :, 1:3));
+% Simulink exports a white canvas. Crop it by keeping dark/colored pixels,
+% including anti-aliased text and highlighted diagram marks.
+nearWhite = rgb(:, :, 1) > 246 & rgb(:, :, 2) > 246 & rgb(:, :, 3) > 246;
+contentMask = ~nearWhite;
+if ~isempty(alpha)
+    contentMask = contentMask & alpha > 0;
+end
+[rows, cols] = find(contentMask);
+if numel(rows) < 40
+    return
+end
+
+[height, width, ~] = size(imageData);
+padX = max(32, round(0.025 * width));
+padY = max(28, round(0.025 * height));
+rowMin = max(1, min(rows) - padY);
+rowMax = min(height, max(rows) + padY);
+colMin = max(1, min(cols) - padX);
+colMax = min(width, max(cols) + padX);
+
+if rowMax - rowMin < 90 || colMax - colMin < 120
+    return
+end
+if rowMin == 1 && rowMax == height && colMin == 1 && colMax == width
+    return
+end
+
+cropped = imageData(rowMin:rowMax, colMin:colMax, :);
+if isempty(alpha)
+    imwrite(cropped, char(outputPath));
+else
+    croppedAlpha = alpha(rowMin:rowMax, colMin:colMax);
+    imwrite(cropped, char(outputPath), "Alpha", croppedAlpha);
+end
+end
+
+function cropSnapshotAroundBlock(outputPath, modelName, blockPaths)
+try
+    [imageData, ~, alpha] = imread(char(outputPath));
+catch
+    cropHighlightedSnapshot(outputPath);
+    return
+end
+
+blockPaths = string(blockPaths(:));
+targetPositions = zeros(numel(blockPaths), 4);
+validTargets = false(numel(blockPaths), 1);
+for i = 1:numel(blockPaths)
+    try
+        targetPositions(i, :) = get_param(char(blockPaths(i)), "Position");
+        validTargets(i) = true;
+    catch
+    end
+end
+targetPositions = targetPositions(validTargets, :);
+if isempty(targetPositions)
     cropHighlightedSnapshot(outputPath);
     return
 end
@@ -158,6 +256,7 @@ try
         catch
         end
     end
+    validBlockPaths = string(blocks(valid));
     positions = positions(valid, :);
     if isempty(positions)
         cropHighlightedSnapshot(outputPath);
@@ -178,10 +277,14 @@ if diagramRight <= diagramLeft || diagramBottom <= diagramTop
     return
 end
 
-targetCenterX = mean(targetPosition([1 3]));
-targetCenterY = mean(targetPosition([2 4]));
-viewWidth = max(360, (targetPosition(3) - targetPosition(1)) + 420);
-viewHeight = max(220, (targetPosition(4) - targetPosition(2)) + 260);
+targetLeft = min(targetPositions(:, 1));
+targetTop = min(targetPositions(:, 2));
+targetRight = max(targetPositions(:, 3));
+targetBottom = max(targetPositions(:, 4));
+targetCenterX = (targetLeft + targetRight) / 2;
+targetCenterY = (targetTop + targetBottom) / 2;
+viewWidth = max(520, (targetRight - targetLeft) + 360);
+viewHeight = max(220, (targetBottom - targetTop) + 240);
 viewAspect = 2.65;
 if viewWidth / viewHeight > viewAspect
     viewHeight = viewWidth / viewAspect;
@@ -193,6 +296,36 @@ coordLeft = targetCenterX - viewWidth / 2;
 coordRight = targetCenterX + viewWidth / 2;
 coordTop = targetCenterY - viewHeight / 2;
 coordBottom = targetCenterY + viewHeight / 2;
+
+otherPositions = positions(~ismember(validBlockPaths, blockPaths), :);
+if ~isempty(otherPositions)
+    rightNeighborLefts = otherPositions(otherPositions(:, 1) > targetRight + 8 & otherPositions(:, 1) < coordRight, 1);
+    if ~isempty(rightNeighborLefts)
+        nearestRight = min(rightNeighborLefts);
+        if nearestRight - targetRight < 80
+            coordRight = min(coordRight, targetRight + 2);
+        else
+            coordRight = min(coordRight, max(targetRight + 10, nearestRight - 10));
+        end
+    end
+    leftNeighborRights = otherPositions(otherPositions(:, 3) < targetLeft - 8 & otherPositions(:, 3) > coordLeft, 3);
+    if ~isempty(leftNeighborRights)
+        nearestLeft = max(leftNeighborRights);
+        if targetLeft - nearestLeft < 80
+            coordLeft = max(coordLeft, targetLeft - 2);
+        else
+            coordLeft = max(coordLeft, min(targetLeft - 10, nearestLeft + 10));
+        end
+    end
+    aboveNeighborBottoms = otherPositions(otherPositions(:, 4) < targetTop - 8 & otherPositions(:, 4) > coordTop, 4);
+    if ~isempty(aboveNeighborBottoms)
+        coordTop = max(coordTop, min(targetTop - 10, max(aboveNeighborBottoms) + 10));
+    end
+    belowNeighborTops = otherPositions(otherPositions(:, 2) > targetBottom + 8 & otherPositions(:, 2) < coordBottom, 2);
+    if ~isempty(belowNeighborTops)
+        coordBottom = min(coordBottom, max(targetBottom + 10, min(belowNeighborTops) - 10));
+    end
+end
 
 colMin = coordToPixel(coordLeft, diagramLeft, diagramRight, width);
 colMax = coordToPixel(coordRight, diagramLeft, diagramRight, width);

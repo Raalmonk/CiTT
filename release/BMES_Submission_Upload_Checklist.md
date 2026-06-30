@@ -31,7 +31,7 @@ These are graphical prototype representations for the submission portal. The ful
 
 - Prototype upload images: `release/prototype_upload_images/`
 - MATLAB toolbox package: `CiTT_BMES_2026.mltbx`
-- Source fallback package: `CiTT_BMES_2026_Source.zip`
+- Source package: `CiTT_BMES_2026_Source.zip`
 - Release notes: `CiTT_Release_Notes.md`
 - Reproducibility checklist: `CiTT_Reproducibility_Checklist.md`
 - Live GUI evidence entry point: `../submission_assets/live_gui_evidence/`
@@ -58,9 +58,8 @@ Use `paper_orchestra/bmes_application/application_answers_word_counts.md` to che
 
 - Benchmark 3 uses educational scaled parameters; it is not patient-facing or medical-use validation.
 - Lab Delta CSV comparison is incomplete until an external lab CSV is supplied.
-- Gemini-only baseline is a no-tools comparison artifact and is non-exhaustive.
 - CiTT is educational software, not a patient-facing device.
-- Gemini remains one supported provider; the required dependency is a configured LLM/agent backend.
+- The required dependency for the full flow is a configured CLI/agent backend.
 
 ## Manual Steps Before Submit
 

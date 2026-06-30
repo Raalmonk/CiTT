@@ -1,0 +1,90 @@
+{
+  "success": true,
+  "csv_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_lab_delta.csv",
+  "report_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_lab_delta_report.json",
+  "markdown_report_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_lab_error_report.md",
+  "spec_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_last_circuit_spec.json",
+  "probe_map_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_probe_map.json",
+  "nonideal_profiles": [],
+  "detected_columns": {
+    "names": [
+      "quantity",
+      "hand",
+      "simulation",
+      "measured",
+      "unit"
+    ],
+    "time": "quantity",
+    "quantity": "quantity",
+    "unit": "unit",
+    "measured": "measured",
+    "hand": "hand",
+    "simulation": "simulation"
+  },
+  "rows": {
+    "quantity": "fc_hz",
+    "unit": "Hz",
+    "measured_value": 251.3,
+    "hand_value": 40,
+    "simulation_value": 40.1,
+    "reference_source": "simulation",
+    "absolute_difference": 211.20000000000002,
+    "percent_difference": 526.68329177057353,
+    "status": "INVESTIGATE",
+    "sample_count": 1,
+    "mean_value": 251.3,
+    "std_value": 0,
+    "min_value": 251.3,
+    "max_value": 251.3,
+    "first_value": 251.3,
+    "final_value": 251.3,
+    "time_start": [],
+    "time_end": [],
+    "probe_id": "P_VIN",
+    "probe_label": "Input source voltage",
+    "probe_unit": "V",
+    "notes": "CSV unit differs from probe map unit: Hz vs V."
+  },
+  "likely_causes": [
+    {
+      "id": "large_error_fc_hz",
+      "label": "Large error in fc_hz",
+      "severity": "likely",
+      "explanation": "Measured value differs from the reference by more than 15%.",
+      "evidence": "fc_hz: measured=251.3, simulation=40.1, hand=40, diff=527%",
+      "next_action": "Check units, reference node, probe placement, and settling for this quantity first."
+    },
+    {
+      "id": "two_pi_fc_hz",
+      "label": "2*pi error",
+      "severity": "likely",
+      "explanation": "The measured/reference ratio is close to 2*pi or 1/(2*pi).",
+      "evidence": "fc_hz: measured=251.3, simulation=40.1, hand=40, diff=527%",
+      "next_action": "Check whether one side used Hz and the other used rad/s."
+    },
+    {
+      "id": "probe_unit_fc_hz",
+      "label": "Probe unit mismatch",
+      "severity": "warning",
+      "explanation": "The CSV unit differs from the probe-map unit.",
+      "evidence": "CSV unit differs from probe map unit: Hz vs V.",
+      "next_action": "Normalize units before comparing numeric values."
+    },
+    {
+      "id": "model_assumption_gap",
+      "label": "Model assumption may not match lab hardware",
+      "severity": "possible",
+      "explanation": "The circuit spec includes idealized or simplified assumptions that can produce lab/model mismatch.",
+      "evidence": "{\n  \"circuit_type\": \"single-pole RC low-pass ECG anti-alias front end with sampled ADC output\",\n  \"components\": [\n    {\n      \"id\": \"V_SRC\",\n      \"type\": \"composite_voltage_source\",\n      \"label\": \"ECG-like sensor plus 60 Hz interference\",\n      \"value\": {\n        \"ecg_amplitude\": 1,\n        \"ecg_frequency\": 5,\n        \"interference_frequency\": 60,\n        \"interference_amplitude\": \"unspecified\"\n      },\n      \"unit\": \"mV, Hz\",\n      \"terminals\": [\n        \"p\",\n        \"n\"\n      ],\n      \"confi...",
+      "next_action": "Check which assumptions are invalid in the lab setup before treating the error as a component fault."
+    }
+  ],
+  "next_probe_suggestion": "Start with fc_hz (INVESTIGATE), then verify probe P_VIN.",
+  "prioritized_next_actions": [
+    "Check units, reference node, probe placement, and settling for this quantity first.",
+    "Check whether one side used Hz and the other used rad/s.",
+    "Normalize units before comparing numeric values.",
+    "Check which assumptions are invalid in the lab setup before treating the error as a component fault."
+  ],
+  "notes": []
+}

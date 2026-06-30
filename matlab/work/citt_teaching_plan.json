@@ -1,0 +1,188 @@
+{
+  "created_at": "29-Jun-2026 22:24:20",
+  "source_spec": "matlab/work/citt_last_circuit_spec.json",
+  "model_check_source": "",
+  "simulation_source": "",
+  "steps": [
+    {
+      "id": "step_01",
+      "title": "Inspect PK concentration input",
+      "focus_id": "FP_PK_INPUT",
+      "concept": "One-compartment oral PK concentration C(t) is the upstream physiological driver for the front end.",
+      "student_question": "How do absorption and elimination rates shape the concentration waveform that the sensor must track?",
+      "expected_reasoning": "Use time-domain transient simulation of PK-driven sensor current, first-order membrane lag, TIA response, and ADC quantization/saturation behavior reasoning around components [SRC_PK] and nodes [n_concentration_C]. Explain the physical quantity before computing it.",
+      "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+      "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+      "optional_value_reference": "concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error",
+      "fact_lines": [
+        "Components: SRC_PK",
+        "Nodes: n_concentration_C",
+        "Known values: SRC_PK (one-compartment oral PK concentration profile C(t)) uses uM units; generated PK defaults: peak scale 10 uM, ka 0.02 1/s, ke 0.002 1/s, bioavailability 1",
+        "Model values: SRC PK time; SRC PK one compartment oral PK C uM; probe concentration C uM",
+        "Measured outputs: concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error"
+      ]
+    },
+    {
+      "id": "step_02",
+      "title": "Inspect membrane mass-transfer lag",
+      "focus_id": "FP_MEMBRANE_LAG",
+      "concept": "The first-order lag maps plasma/oral PK concentration to local membrane concentration and creates dynamic tracking error.",
+      "student_question": "What happens to peak timing and settling error when tau_m is increased or decreased?",
+      "expected_reasoning": "Use time-domain transient simulation of PK-driven sensor current, first-order membrane lag, TIA response, and ADC quantization/saturation behavior reasoning around components [LAG_M] and nodes [n_concentration_C, n_concentration_lagged]. Explain the physical quantity before computing it.",
+      "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+      "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+      "optional_value_reference": "concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error",
+      "fact_lines": [
+        "Components: LAG_M",
+        "Nodes: n_concentration_C, n_concentration_lagged",
+        "Known values: LAG_M (membrane mass-transfer lag tau_m) = 4 s",
+        "Model values: LAG M membrane tau m; probe lagged concentration uM",
+        "Measured outputs: concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error"
+      ]
+    },
+    {
+      "id": "step_03",
+      "title": "Inspect concentration-to-current conversion",
+      "focus_id": "FP_SENSOR_GAIN",
+      "concept": "The sensitivity gain creates the commanded faradaic current that drives the physical Simscape current source.",
+      "student_question": "For a given concentration range, what current range must the analog front end handle?",
+      "expected_reasoning": "Use time-domain transient simulation of PK-driven sensor current, first-order membrane lag, TIA response, and ADC quantization/saturation behavior reasoning around components [GAIN_SENS, I_SENSOR] and nodes [n_concentration_lagged, n_sensor_current_cmd, n_tia_sum]. Explain the physical quantity before computing it.",
+      "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+      "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+      "optional_value_reference": "concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error",
+      "fact_lines": [
+        "Components: GAIN_SENS, I_SENSOR",
+        "Nodes: n_concentration_lagged, n_sensor_current_cmd, n_tia_sum",
+        "Known values: GAIN_SENS (electrochemical sensor sensitivity) = 25 nA/uM; I_SENSOR (biosensor faradaic current source driven by lagged concentration) uses A units",
+        "Model values: GAIN SENS 25 nA per uM; I SENSOR current command A to PS; I SENSOR biosensor faradaic current; I SENSOR current probe; Sensor current A to Simulink; +1 more",
+        "Measured outputs: concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error"
+      ]
+    },
+    {
+      "id": "step_04",
+      "title": "Inspect TIA feedback network",
+      "focus_id": "FP_TIA_FEEDBACK",
+      "concept": "Rf and Cf form the transimpedance feedback path around the band-limited op amp.",
+      "student_question": "How do Rf and Cf trade output scale, bandwidth, settling time, and noise filtering?",
+      "expected_reasoning": "Use time-domain transient simulation of PK-driven sensor current, first-order membrane lag, TIA response, and ADC quantization/saturation behavior reasoning around components [U_TIA, RF, CF] and nodes [n_tia_sum, n_tia_out]. Explain the physical quantity before computing it.",
+      "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+      "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+      "optional_value_reference": "concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error",
+      "fact_lines": [
+        "Components: U_TIA, RF, CF",
+        "Nodes: n_tia_sum, n_tia_out",
+        "Known values: U_TIA (transimpedance amplifier op amp) is parameterized; RF (TIA feedback resistor Rf) = 1 MOhm; CF (TIA feedback capacitor Cf) = 10 nF; generated op-amp defaults: rails 0 to 3.3 V, open-loop gain 1e5, pole 100 kHz",
+        "Model values: U TIA band limited op amp; RF TIA feedback 1Mohm; CF TIA feedback 10 nF; TIA output voltage sensor; TIA output V to Simulink",
+        "Measured outputs: concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error"
+      ]
+    },
+    {
+      "id": "step_05",
+      "title": "Inspect ADC quantization and saturation",
+      "focus_id": "FP_ADC_RANGE",
+      "concept": "The TIA output is saturated to the named ADC input range and quantized to a 12-bit code.",
+      "student_question": "What concentration or current level first causes ADC saturation for the chosen reference range?",
+      "expected_reasoning": "Use time-domain transient simulation of PK-driven sensor current, first-order membrane lag, TIA response, and ADC quantization/saturation behavior reasoning around components [ADC1] and nodes [n_tia_out, n_adc_in, n_adc_code]. Explain the physical quantity before computing it.",
+      "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+      "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+      "optional_value_reference": "concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error",
+      "fact_lines": [
+        "Components: ADC1",
+        "Nodes: n_tia_out, n_adc_in, n_adc_code",
+        "Known values: ADC1 (12-bit ADC) = 12 bits; generated ADC references: Vref lo 0 V, Vref hi 3.3 V",
+        "Model values: ADC1 input range saturation; ADC1 shift by vref lo; ADC1 volts to code scale; ADC1 12 bit quantizer; probe adc code",
+        "Measured outputs: concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error"
+      ]
+    },
+    {
+      "id": "step_06",
+      "title": "Inspect settling error probe",
+      "focus_id": "FP_SETTLING_ERROR",
+      "concept": "The settling-error path compares measured TIA output against the Rf-based steady-state estimate from the sensor current command.",
+      "student_question": "Which dynamic element dominates settling error: membrane transport or TIA bandwidth?",
+      "expected_reasoning": "Use time-domain transient simulation of PK-driven sensor current, first-order membrane lag, TIA response, and ADC quantization/saturation behavior reasoning around components [LAG_M, U_TIA, RF, CF] and nodes [n_concentration_C, n_concentration_lagged, n_tia_out]. Explain the physical quantity before computing it.",
+      "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+      "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+      "optional_value_reference": "concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error",
+      "fact_lines": [
+        "Components: LAG_M, U_TIA, RF, CF",
+        "Nodes: n_concentration_C, n_concentration_lagged, n_tia_out",
+        "Known values: LAG_M (membrane mass-transfer lag tau_m) = 4 s; U_TIA (transimpedance amplifier op amp) is parameterized; RF (TIA feedback resistor Rf) = 1 MOhm; CF (TIA feedback capacitor Cf) = 10 nF; generated op-amp defaults: rails 0 to 3.3 V, open-loop gain 1e5, pole 100 kHz",
+        "Model values: Expected TIA steady state from current; Expected TIA add reference; SETTLING ERROR Vout minus expected; probe settling error V",
+        "Measured outputs: concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error"
+      ]
+    },
+    {
+      "id": "step_07",
+      "title": "Inspect PK input concept",
+      "focus_id": "TFP_PK_INPUT",
+      "concept": "Connects the one-compartment oral dosing model to the electrical simulation stimulus.",
+      "student_question": "Why is an oral PK input not a step input, and how does that affect sensor testing?",
+      "expected_reasoning": "Use time-domain transient simulation of PK-driven sensor current, first-order membrane lag, TIA response, and ADC quantization/saturation behavior reasoning around components [SRC_PK] and nodes [n_concentration_C]. Explain the physical quantity before computing it.",
+      "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+      "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+      "optional_value_reference": "concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error",
+      "fact_lines": [
+        "Components: SRC_PK",
+        "Nodes: n_concentration_C",
+        "Known values: SRC_PK (one-compartment oral PK concentration profile C(t)) uses uM units; generated PK defaults: peak scale 10 uM, ka 0.02 1/s, ke 0.002 1/s, bioavailability 1",
+        "Model values: SRC PK time; SRC PK one compartment oral PK C uM; probe concentration C uM",
+        "Measured outputs: concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error"
+      ]
+    },
+    {
+      "id": "step_08",
+      "title": "Inspect mass-transfer lag",
+      "focus_id": "TFP_MASS_TRANSFER",
+      "concept": "Highlights that the biosensor current follows local membrane concentration rather than upstream concentration instantly.",
+      "student_question": "How does a first-order lag change the measured peak compared with the true concentration peak?",
+      "expected_reasoning": "Use time-domain transient simulation of PK-driven sensor current, first-order membrane lag, TIA response, and ADC quantization/saturation behavior reasoning around components [LAG_M, GAIN_SENS, I_SENSOR] and nodes [n_concentration_C, n_concentration_lagged, n_tia_sum]. Explain the physical quantity before computing it.",
+      "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+      "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+      "optional_value_reference": "concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error",
+      "fact_lines": [
+        "Components: LAG_M, GAIN_SENS, I_SENSOR",
+        "Nodes: n_concentration_C, n_concentration_lagged, n_tia_sum",
+        "Known values: LAG_M (membrane mass-transfer lag tau_m) = 4 s; GAIN_SENS (electrochemical sensor sensitivity) = 25 nA/uM; I_SENSOR (biosensor faradaic current source driven by lagged concentration) uses A units",
+        "Model values: LAG M membrane tau m; probe lagged concentration uM",
+        "Measured outputs: concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error"
+      ]
+    },
+    {
+      "id": "step_09",
+      "title": "Inspect TIA bandwidth/noise tradeoff",
+      "focus_id": "TFP_TIA_TRADEOFF",
+      "concept": "Uses Rf, Cf, and the band-limited op amp to expose transimpedance gain, filtering, and response speed.",
+      "student_question": "Why might adding Cf reduce noise but worsen tracking of fast concentration changes?",
+      "expected_reasoning": "Use time-domain transient simulation of PK-driven sensor current, first-order membrane lag, TIA response, and ADC quantization/saturation behavior reasoning around components [U_TIA, RF, CF] and nodes [n_tia_sum, n_tia_out]. Explain the physical quantity before computing it.",
+      "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+      "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+      "optional_value_reference": "concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error",
+      "fact_lines": [
+        "Components: U_TIA, RF, CF",
+        "Nodes: n_tia_sum, n_tia_out",
+        "Known values: U_TIA (transimpedance amplifier op amp) is parameterized; RF (TIA feedback resistor Rf) = 1 MOhm; CF (TIA feedback capacitor Cf) = 10 nF; generated op-amp defaults: rails 0 to 3.3 V, open-loop gain 1e5, pole 100 kHz",
+        "Model values: U TIA band limited op amp; RF TIA feedback 1Mohm; CF TIA feedback 10 nF; TIA output voltage sensor; TIA output V to Simulink",
+        "Measured outputs: concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error"
+      ]
+    },
+    {
+      "id": "step_10",
+      "title": "Inspect ADC saturation",
+      "focus_id": "TFP_ADC_SATURATION",
+      "concept": "Shows how analog gain and ADC reference range constrain measurable concentration range.",
+      "student_question": "How would you choose Rf or ADC reference voltage to avoid clipping while preserving resolution?",
+      "expected_reasoning": "Use time-domain transient simulation of PK-driven sensor current, first-order membrane lag, TIA response, and ADC quantization/saturation behavior reasoning around components [ADC1, RF, GAIN_SENS] and nodes [n_tia_out, n_adc_code]. Explain the physical quantity before computing it.",
+      "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+      "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+      "optional_value_reference": "concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error",
+      "fact_lines": [
+        "Components: ADC1, RF, GAIN_SENS",
+        "Nodes: n_tia_out, n_adc_code",
+        "Known values: ADC1 (12-bit ADC) = 12 bits; RF (TIA feedback resistor Rf) = 1 MOhm; GAIN_SENS (electrochemical sensor sensitivity) = 25 nA/uM; generated ADC references: Vref lo 0 V, Vref hi 3.3 V",
+        "Model values: ADC1 input range saturation; ADC1 shift by vref lo; ADC1 volts to code scale; ADC1 12 bit quantizer; probe adc code",
+        "Measured outputs: concentration C(t), lagged concentration after membrane mass transfer, sensor current, TIA output voltage, ADC output code, settling error"
+      ]
+    }
+  ]
+}

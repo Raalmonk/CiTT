@@ -1,0 +1,24 @@
+{
+  "created_at": "29-Jun-2026 22:44:16",
+  "source_spec": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_citt_teaching_spec.json",
+  "model_check_source": "",
+  "simulation_source": "",
+  "steps": {
+    "id": "step_01",
+    "title": "Inspect RC output node",
+    "focus_id": "rc_output",
+    "concept": "Generated focus map point.",
+    "student_question": "Why is this the output node?",
+    "expected_reasoning": "Use transient_or_ac reasoning around components [R1, C1] and nodes [n_out]. Explain the physical quantity before computing it.",
+    "reveal_hint": "Name the component, node, or physical quantity first; then relate it to KCL/KVL, impedance, or energy storage.",
+    "common_mistake": "Jumping to a numeric answer before checking polarity, units, or the measured node.",
+    "optional_value_reference": "V(n_out)",
+    "fact_lines": [
+      "Components: R1, C1",
+      "Nodes: n_out",
+      "Known values: R1 = 1 kOhm; C1 = 1 uF",
+      "Model values: Voltage Sensor",
+      "Measured outputs: V(n_out)"
+    ]
+  }
+}

@@ -19,6 +19,7 @@ main.RowSpacing = 12;
 handles = struct();
 agentPollTimer = [];
 activeWorkflowPage = "read";
+lastTeachingAnswerText = "";
 palette = struct();
 palette.primary = [0.145 0.486 0.353];
 palette.primaryDark = [0.07 0.18 0.14];
@@ -165,7 +166,7 @@ refreshAll();
         handles.promptText.Layout.Column = [2 3];
 
         handles.parseButton = uibutton(inputGrid, "Text", "Read Circuit", ...
-            "ButtonPushedFcn", @(~, ~) onParseWithGemini());
+            "ButtonPushedFcn", @(~, ~) onParseWithCli());
         stylePrimary(handles.parseButton);
         handles.parseButton.Layout.Row = 5;
         handles.parseButton.Layout.Column = [1 2];
@@ -229,9 +230,9 @@ refreshAll();
         setupGrid.ColumnWidth = {"1x", "1x", "1x", "1x", "1.2x"};
         setupGrid.Padding = [12 8 12 10];
         setupGrid.ColumnSpacing = 8;
-        handles.geminiChip = makeStatusChip(setupGrid, "Gemini");
-        handles.geminiChip.Layout.Row = 1;
-        handles.geminiChip.Layout.Column = 1;
+        handles.parserChip = makeStatusChip(setupGrid, "Parser");
+        handles.parserChip.Layout.Row = 1;
+        handles.parserChip.Layout.Column = 1;
         handles.satkChip = makeStatusChip(setupGrid, "SATK");
         handles.satkChip.Layout.Row = 1;
         handles.satkChip.Layout.Column = 2;
@@ -915,11 +916,11 @@ refreshAll();
         area = makeSoftArea(parent, "Menlo");
     end
 
-    function preview = makeLatexPreview(parent, fallbackText)
+    function preview = makeLatexPreview(parent, placeholderText)
         htmlPath = fullfile(state.Config.MatlabRoot, "resources", "ui", "latex_preview.html");
         preview = uihtml(parent, "HTMLSource", htmlPath);
         try
-            preview.Data = struct("latex", "", "placeholder", char(fallbackText));
+            preview.Data = struct("latex", "", "placeholder", char(placeholderText));
         catch
         end
     end
@@ -1068,14 +1069,14 @@ refreshAll();
         end
     end
 
-    function onParseWithGemini()
+    function onParseWithCli()
         state.ImagePath = string(handles.imageField.Value);
         state.PromptText = textAreaText(handles.promptText);
         try
             setBusy("Reading circuit...", 25);
             progress = startProgress("Reading Circuit", "CiTT is parsing the image and prompt into a model spec.");
             cleanup = onCleanup(@() finishProgress(progress));
-            parsed = feval('citt.parseCircuitWithGemini', state.ImagePath, state.PromptText);
+            parsed = feval('citt.parseCircuitWithCli', state.ImagePath, state.PromptText);
             state.Spec = parsed.spec;
             state.SpecPath = parsed.spec_path;
             refreshAll();
@@ -1111,7 +1112,7 @@ refreshAll();
         selectWorkflowTab(destination);
         switch action
             case "read"
-                onParseWithGemini();
+                onParseWithCli();
             case "prepare"
                 onGenerateAgentTask();
             case "build"
@@ -1291,16 +1292,8 @@ refreshAll();
             handles.agentStatus.Text = "Agent running";
             setPipeline("Agent running. MATLAB is free for MCP/SATK tool calls.", 68);
         elseif isTruthy(fieldText(runResult, "success"))
-            if mode == "local_fallback"
-                handles.agentStatus.Text = "Local Simscape model built";
-                setPipeline("Local Simscape model built. Next: Check or Simulate.", 78);
-            else
-                handles.agentStatus.Text = "Model built by SATK agent";
-                setPipeline("Model built by agent. Next: Check or Simulate.", 78);
-            end
-        elseif mode == "manual_agent"
-            handles.agentStatus.Text = "Manual agent required";
-            setPipeline("Manual agent task opened. Run it in an SATK-configured agent.", 58);
+            handles.agentStatus.Text = "Model built by SATK agent";
+            setPipeline("Model built by agent. Next: Check or Simulate.", 78);
         else
             handles.agentStatus.Text = "Build incomplete";
             setPipeline("Build incomplete. See Agent Output.", 58);
@@ -1476,6 +1469,7 @@ refreshAll();
             state.TeachingPlan = built.plan;
             state.TeachingStepIndex = 1;
             state.HintLevel = 0;
+            lastTeachingAnswerText = "";
             showCurrentStep();
             updateFocusSelectors();
             setPipeline("Teaching plan ready. Work through the focus step.", 92);
@@ -1494,13 +1488,17 @@ refreshAll();
             syncInputsFromUi();
             validateTeachingImage();
             setBusy("Reading student answer...", 92);
-            progress = startProgress("Socratic Hint", "Gemini is classifying the answer and preparing one local hint.");
+            progress = startProgress("Socratic Hint", "The selected CLI is classifying the answer and preparing one local hint.");
             cleanup = onCleanup(@() finishProgress(progress));
             answer = teachingSubmissionText();
+            if strtrim(answer) ~= strtrim(lastTeachingAnswerText)
+                state.HintLevel = 0;
+                lastTeachingAnswerText = answer;
+            end
             turn = feval('citt.runSocraticTurn', state.TeachingPlan, state.TeachingStepIndex, answer, ...
                 struct("Action", "hint", "HintLevel", state.HintLevel, "AnswerImagePath", state.TeachingImagePath));
             state.HintLevel = turn.next_hint_level;
-            handles.teachStatus.Text = "Classification: " + turn.classification;
+            handles.teachStatus.Text = "Classification: " + turn.classification + " | Level: " + turn.student_level;
             setArea(handles.teachOutput, turn.message);
         catch hintError
             setArea(handles.teachOutput, "Hint failed: " + string(hintError.message));
@@ -2028,14 +2026,14 @@ refreshAll();
 
     function updateSetupChips(setup)
         if isempty(setup)
-            setStatusChip(handles.geminiChip, "Gemini", false, "not checked");
+            setStatusChip(handles.parserChip, "Parser", false, "not checked");
             setStatusChip(handles.satkChip, "SATK", false, "not checked");
             setStatusChip(handles.mcpChip, "MCP", false, "not checked");
             setStatusChip(handles.simscapeChip, "Simscape", false, "not checked");
             setStatusChip(handles.agentChip, "Agent", false, "not checked");
             return
         end
-        setStatusChip(handles.geminiChip, "Parser", parserReady(setup), parserStatusText(setup));
+        setStatusChip(handles.parserChip, "Parser", parserReady(setup), parserStatusText(setup));
         setStatusChip(handles.satkChip, "SATK", setup.satk_initialize_available, readyNeeds(setup.satk_initialize_available));
         setStatusChip(handles.mcpChip, "MCP", setup.matlab_mcp_available, readyNeeds(setup.matlab_mcp_available));
         setStatusChip(handles.simscapeChip, "Simscape", setup.simscape_available, readyNeeds(setup.simscape_available));
@@ -2062,40 +2060,15 @@ refreshAll();
         ready = false;
         if isfield(setup, "configured_agent_command") && strlength(strtrim(setup.configured_agent_command)) > 0
             ready = true;
-            return
-        end
-        if isfield(setup, "agent_clis")
-            for i = 1:numel(setup.agent_clis)
-                if isfield(setup.agent_clis(i), "available") && setup.agent_clis(i).available
-                    ready = true;
-                    return
-                end
-            end
         end
     end
 
     function text = setupAgentText(setup)
         if isfield(setup, "configured_agent_command") && strlength(strtrim(setup.configured_agent_command)) > 0
-            text = "ready: CITT_AGENT_COMMAND";
+            text = "configured CLI ready";
             return
         end
-        backend = agentBackendText(setup);
-        if isfield(setup, "agent_clis")
-            for i = 1:numel(setup.agent_clis)
-                if setup.agent_clis(i).name == backend && isfield(setup.agent_clis(i), "available") && setup.agent_clis(i).available
-                    text = backend + ": ready";
-                    return
-                end
-            end
-        end
-        text = backend + ": needs CLI";
-    end
-
-    function backend = agentBackendText(setup)
-        backend = "codex";
-        if isfield(setup, "agent_backend") && strlength(strtrim(setup.agent_backend)) > 0
-            backend = lower(strtrim(string(setup.agent_backend)));
-        end
+        text = "selected CLI missing";
     end
 
     function ready = parserReady(setup)
@@ -2104,49 +2077,18 @@ refreshAll();
             ready = logical(setup.parser_available);
             return
         end
-        backend = parserBackendText(setup);
-        switch backend
-            case "codex"
-                ready = isfield(setup, "codex_parser_cli_path") && strlength(strtrim(setup.codex_parser_cli_path)) > 0;
-            case "gemini"
-                ready = isfield(setup, "gemini_key_found") && logical(setup.gemini_key_found);
-            case "local"
-                ready = true;
+        if isfield(setup, "configured_agent_command") && strlength(strtrim(setup.configured_agent_command)) > 0
+            ready = true;
+            return
         end
     end
 
     function text = parserStatusText(setup)
-        backend = parserBackendText(setup);
         if parserReady(setup)
-            switch backend
-                case "codex"
-                    text = "codex: ready";
-                case "gemini"
-                    text = "gemini: ready";
-                case "local"
-                    text = "local: ready";
-                otherwise
-                    text = backend + ": ready";
-            end
+            text = "configured CLI ready";
             return
         end
-        switch backend
-            case "codex"
-                text = "codex: needs Codex CLI";
-            case "gemini"
-                text = "gemini: needs GEMINI_API_KEY";
-            case "local"
-                text = "local: unavailable";
-            otherwise
-                text = backend + ": unsupported";
-        end
-    end
-
-    function backend = parserBackendText(setup)
-        backend = "codex";
-        if isfield(setup, "parser_backend") && strlength(strtrim(setup.parser_backend)) > 0
-            backend = lower(strtrim(string(setup.parser_backend)));
-        end
+        text = "selected CLI missing";
     end
 
     function text = readinessSummaryText(currentState)
@@ -2246,8 +2188,6 @@ refreshAll();
                 setStepStatus(handles.buildStepAgent, "Running", "blue");
             elseif isTruthy(fieldText(currentState.AgentRun, "success"))
                 setStepStatus(handles.buildStepAgent, "Complete", "green");
-            elseif mode == "manual_agent"
-                setStepStatus(handles.buildStepAgent, "Manual agent needed", "yellow");
             else
                 setStepStatus(handles.buildStepAgent, "Needs attention", "red");
             end
@@ -2443,23 +2383,15 @@ refreshAll();
     end
 
     function text = setupOverviewText(setup)
-        agentText = "needs CLI";
+        agentText = "selected CLI missing";
         if strlength(strtrim(setup.configured_agent_command)) > 0
-            agentText = "ready: CITT_AGENT_COMMAND";
-        end
-        for i = 1:numel(setup.agent_clis)
-            if agentText == "needs CLI" && setup.agent_clis(i).available
-                agentText = "ready: " + setup.agent_clis(i).name;
-                break
-            end
+            agentText = "configured CLI ready";
         end
 
         text = strjoin([
             "Ready checks"
             ""
             "Circuit parser: " + parserStatusText(setup)
-            "Gemini API: " + readyNeeds(setup.gemini_key_found)
-            "Gemini model: " + setup.gemini_model
             "Simulink Agentic Toolkit: " + readyNeeds(setup.satk_initialize_available)
             "MATLAB MCP Server: " + readyNeeds(setup.matlab_mcp_available)
             "Simscape: " + readyNeeds(setup.simscape_available)
@@ -2935,10 +2867,6 @@ refreshAll();
         mode = fieldText(runResult, "mode");
         if mode == "external_agent_pending"
             headline = "External SATK agent is running.";
-        elseif mode == "manual_agent"
-            headline = "External SATK agent not launched.";
-        elseif mode == "local_fallback"
-            headline = "Agent build unavailable. Running local Simscape builder.";
         elseif isTruthy(fieldText(runResult, "success"))
             headline = "External SATK agent build complete.";
         else

@@ -30,7 +30,7 @@ Scenario: textbook RC anti-aliasing filter for an ECG-style input before an ADC.
 
 What the demo proves:
 
-- Gemini/CiTT parses the circuit into a structured RC/ADC spec.
+- The selected CLI parses the circuit into a structured RC/ADC spec.
 - The SATK/MCP agent flow builds and opens a Simscape model.
 - The model is manually arranged and captured.
 - Teaching links the cutoff formula to the RC components and `Vout` node.
@@ -43,7 +43,6 @@ Key paths:
 - `submission_assets/live_gui_evidence/benchmark_01_textbook_rc/problem_statement.md`
 - `submission_assets/live_gui_evidence/benchmark_01_textbook_rc/run_notes.md`
 - `submission_assets/live_gui_evidence/benchmark_01_textbook_rc/comparison.md`
-- `submission_assets/live_gui_evidence/benchmark_01_textbook_rc/llm_baseline_output_gemini_no_tools.md`
 - `submission_assets/live_gui_evidence/benchmark_01_textbook_rc/screenshots/03_simscape_model_arranged.png`
 - `submission_assets/live_gui_evidence/benchmark_01_textbook_rc/screenshots/04_teach_cutoff_formula.png`
 - `submission_assets/live_gui_evidence/benchmark_01_textbook_rc/screenshots/05_highlight_signal_path.png`
@@ -60,10 +59,9 @@ Live values recorded in the evidence report:
 - `60 Hz attenuation = -5.1205 dB`
 - `250 Hz attenuation = -16.0298 dB`
 
-Gemini-only baseline contrast:
+Model-grounding contrast:
 
-- Gemini-only performs well on this textbook RC calculation and should not be described as failing.
-- CiTT adds executable model grounding: generated Simscape/Simulink model, visible output-probe placement, focus-map teaching, natural-language probe output, Lab Delta/unit-mistake diagnosis, and annotated Bode evidence.
+- A fluent text answer can solve the textbook RC arithmetic, but CiTT adds executable model grounding: generated Simscape/Simulink model, visible output-probe placement, focus-map teaching, natural-language probe output, Lab Delta/unit-mistake diagnosis, and annotated Bode evidence.
 
 Limitations:
 
@@ -88,7 +86,6 @@ Key paths:
 - `submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/problem_statement.md`
 - `submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/run_notes.md`
 - `submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/comparison.md`
-- `submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/llm_baseline_output_gemini_no_tools.md`
 - `submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/workflow_total_prompt.md`
 - `submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/artifacts/citt_generated_model_tevc.slx`
 - `submission_assets/live_gui_evidence/benchmark_02_tevc_equilibrium/artifacts/citt_focus_map.json`
@@ -105,10 +102,10 @@ Limitations:
 - Numeric simulation/probe values require assigning missing parameters first.
 - The model is a teaching abstraction, not a validated electrophysiology model.
 
-Gemini-only baseline contrast:
+Model-grounding contrast:
 
-- Gemini-only explains the TEVC feedback concept and finite-gain tracking intuition.
-- It also mixes the `Vc` and `Re` limitations: `Vc` prevents an absolute numeric `Vm`, while `Re` is irrelevant under the ideal-buffer DC assumption.
+- A fluent text answer can explain the TEVC feedback concept and finite-gain tracking intuition.
+- Text-only reasoning can also mix the `Vc` and `Re` limitations: `Vc` prevents an absolute numeric `Vm`, while `Re` is irrelevant under the ideal-buffer DC assumption.
 - CiTT adds the generated physical model, decoded focus/probe maps, model-check evidence, and GUI-backed teaching/probe screenshots.
 
 ## Benchmark 3 Mixed-Signal Demo
@@ -130,7 +127,6 @@ Key paths:
 - `submission_assets/live_gui_evidence/benchmark_03_mixed_signal/problem_statement_parameterized.md`
 - `submission_assets/live_gui_evidence/benchmark_03_mixed_signal/run_notes.md`
 - `submission_assets/live_gui_evidence/benchmark_03_mixed_signal/comparison.md`
-- `submission_assets/live_gui_evidence/benchmark_03_mixed_signal/llm_baseline_output_gemini_no_tools.md`
 - `submission_assets/live_gui_evidence/benchmark_03_mixed_signal/artifacts/citt_generated_model.slx`
 - `submission_assets/live_gui_evidence/benchmark_03_mixed_signal/artifacts/benchmark_03_simulation_metrics.json`
 - `submission_assets/live_gui_evidence/benchmark_03_mixed_signal/artifacts/benchmark_03_simulation_report.md`
@@ -168,10 +164,10 @@ Limitations:
 - Parameter-sweep and fault-injection comparison plots are deterministic educational comparisons generated from the benchmark parameter set.
 - Full Lab Delta CSV comparison was not completed because no real external lab CSV was supplied.
 
-Gemini-only baseline contrast:
+Model-grounding contrast:
 
-- Gemini-only correctly states that exact transient waveforms, ADC code sequences, saturation intervals, settling time, and overshoot require executable simulation.
-- It also shows no-tools risks on complex prompts: unit slips, unsupported model assumptions, capacitance-scale mistakes, and over-strong qualitative claims.
+- Text-only reasoning can correctly state that exact transient waveforms, ADC code sequences, saturation intervals, settling time, and overshoot require executable simulation.
+- It also carries no-tools risks on complex prompts: unit slips, unsupported model assumptions, capacitance-scale mistakes, and over-strong qualitative claims.
 - CiTT adds generated model artifacts, highlightable model paths, probe maps, simulation plots, metrics JSON, warnings, and explicit limitation evidence.
 
 ## Suggested Live Narration
@@ -187,5 +183,5 @@ Gemini-only baseline contrast:
 
 - Do not use `bmes_evidence_report_OFFLINE_DRAFT.md` as final proof.
 - Do not claim full Lab Delta comparison unless a real external lab CSV is supplied.
-- Treat Gemini-only no-tools outputs as comparison artifacts, not executable model evidence.
+- Treat text-only outputs as comparison artifacts, not executable model evidence.
 - Do not claim medical-device verification, clinical validity, or patient-specific decision support.

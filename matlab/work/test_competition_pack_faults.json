@@ -1,0 +1,73 @@
+{
+  "success": true,
+  "created_at": "29-Jun-2026 18:00:48",
+  "nominal_cutoff_hz": 40.808959767152658,
+  "rows": [
+    {
+      "fault": "Open lead / disconnected electrode",
+      "injected_change": "Disconnect the input source or electrode path.",
+      "observed_effect": "Output becomes floating, zero, or dominated by noise depending on bias path.",
+      "student_explanation": "The measured signal path is broken before the modeled filter can act.",
+      "risk_mitigation": "Add connectivity checks and teach students to verify reference nodes first.",
+      "status": "READY"
+    },
+    {
+      "fault": "Shorted capacitor",
+      "injected_change": "Force the filter capacitor impedance toward zero.",
+      "observed_effect": "Nominal cutoff 40.81 Hz is no longer meaningful because the output node is effectively shorted.",
+      "student_explanation": "A shorted shunt capacitor can clamp the output node or destroy the intended pole.",
+      "risk_mitigation": "Probe both sides of the capacitor and flag near-zero impedance faults.",
+      "status": "READY"
+    },
+    {
+      "fault": "Wrong capacitor unit: nF vs uF",
+      "injected_change": "Scale capacitance by 1/1000 or 1000.",
+      "observed_effect": "If C is 1000x too small, cutoff shifts from 40.81 Hz to 4.081e+04 Hz; if 1000x too large, it shifts to 0.04081 Hz.",
+      "student_explanation": "Unit-prefix mistakes move the cutoff by orders of magnitude.",
+      "risk_mitigation": "Run a parameter sanity check before simulation and display SI prefixes in reports.",
+      "status": "READY"
+    },
+    {
+      "fault": "Op-amp output saturation",
+      "injected_change": "Limit output to assumed supply rails.",
+      "observed_effect": "Waveform clips; small-signal frequency response no longer predicts output amplitude.",
+      "student_explanation": "Active stages can leave their linear operating region.",
+      "risk_mitigation": "Add output range requirements and inspect saturation source highlights.",
+      "status": "PLAN"
+    },
+    {
+      "fault": "ADC undersampling",
+      "injected_change": "Lower sampling frequency below Nyquist margin.",
+      "observed_effect": "High-frequency content aliases into the measurement band.",
+      "student_explanation": "Sampling is part of the measurement system, not a cosmetic detail.",
+      "risk_mitigation": "Add an fs >= 2*fmax requirement and sweep sampling frequency.",
+      "status": "PLAN"
+    },
+    {
+      "fault": "60 Hz interference too large",
+      "injected_change": "Increase mains interference amplitude.",
+      "observed_effect": "Output shows residual line-frequency content if filtering or shielding is insufficient.",
+      "student_explanation": "Biomedical front-ends are sensitive to common-mode and environmental pickup.",
+      "risk_mitigation": "Measure 60 Hz attenuation and include grounding/shielding assumptions.",
+      "status": "PLAN"
+    },
+    {
+      "fault": "Sensor noise increased",
+      "injected_change": "Increase source or measurement noise.",
+      "observed_effect": "Signal-to-noise ratio drops; small feature detection becomes unreliable.",
+      "student_explanation": "Noise can hide physiological or low-amplitude circuit behavior.",
+      "risk_mitigation": "Log SNR and compare expected versus measured noise floor.",
+      "status": "PLAN"
+    },
+    {
+      "fault": "Load impedance too low",
+      "injected_change": "Decrease load resistance at the output node.",
+      "observed_effect": "The output node is pulled away from the ideal unloaded response.",
+      "student_explanation": "Measurement equipment and downstream stages can alter the circuit under test.",
+      "risk_mitigation": "Add input/load impedance requirements and teach loading as a failure mode.",
+      "status": "PLAN"
+    }
+  ],
+  "report_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_faults.json",
+  "markdown_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_competition_pack_faults.md"
+}

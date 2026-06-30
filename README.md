@@ -22,7 +22,7 @@ citt.checkSetup
 citt
 ```
 
-Option C: use the source fallback package.
+Option C: use the source package.
 
 ```matlab
 unzip("release/CiTT_BMES_2026_Source.zip")
@@ -33,7 +33,7 @@ citt
 
 ## Configure Your Agent CLI
 
-CiTT needs a configured LLM/agent backend for the full read/build workflow. The simplest path is to point CiTT at your own CLI with `CITT_AGENT_COMMAND`.
+CiTT needs a configured LLM/agent CLI command for the full read/build workflow. The simplest path is to point CiTT at your own CLI with `CITT_AGENT_COMMAND`.
 
 If your CLI accepts a task file path:
 
@@ -56,32 +56,9 @@ citt
 
 `{taskPath}` is replaced with the generated CiTT agent task. `{task}` works as an equivalent placeholder. If no placeholder is present, CiTT appends the task path to the end of the command.
 
-## Codex Or Gemini CLI
+## Selected CLI Contract
 
-CiTT can also auto-select a supported CLI backend.
-
-For Codex CLI:
-
-```matlab
-setenv("CITT_AGENT_BACKEND", "codex")
-citt.checkSetup
-```
-
-For Gemini CLI:
-
-```matlab
-setenv("CITT_AGENT_BACKEND", "gemini")
-setenv("GEMINI_MODEL", "gemini-3.5-flash")
-citt.checkSetup
-```
-
-For direct Gemini API parsing, also provide:
-
-```matlab
-setenv("GEMINI_API_KEY", "your_key_here")
-```
-
-Gemini is one supported provider, but CiTT does not require Gemini specifically; the requirement is a configured LLM/agent backend.
+CiTT uses `CITT_AGENT_COMMAND` for circuit parsing, Socratic classification, and SATK task execution. There is no direct API parser, no local model-generation path, and no auto-selected alternate CLI.
 
 ## Make Configuration Persistent
 
@@ -91,21 +68,7 @@ If MATLAB does not inherit shell environment variables, create a local `matlab/.
 CITT_AGENT_COMMAND="your-agent-cli --task {taskPath}"
 ```
 
-For auto-selected Codex or Gemini CLI, use backend variables instead of `CITT_AGENT_COMMAND`:
-
-```text
-CITT_AGENT_BACKEND=codex
-```
-
-or:
-
-```text
-CITT_AGENT_BACKEND=gemini
-GEMINI_MODEL=your_gemini_model
-GEMINI_API_KEY=your_key_here
-```
-
-Only include the variables you need. `CITT_AGENT_COMMAND` takes priority when it is set. You can also configure the agent command from the CiTT UI settings panel.
+Only include the variables you need. You can also configure the selected CLI command from the CiTT UI settings panel.
 
 ## Required MATLAB Components
 

@@ -12,13 +12,13 @@ The structured circuit spec is embedded below; do not read the Source file path.
 - Do not call read_file for /Users/Raalm/.agents/skills or other external skill paths.
 - Do not call run_shell_command; it is not available in this CiTT agent runner.
 - Do not call invoke_agent or delegate to another agent.
-- If the target model does not exist yet, create it with mcp_matlab_model_edit; do not treat an initial model_overview/model_read failure as permission to use a fallback builder.
-- Do not call any CiTT local build helper, including citt.buildLocalSimscapeFallback, buildLocalSimscapeFallback, citt.buildSimscapeModelFromSpec, or buildSimscapeModelFromSpec.
+- If the target model does not exist yet, create it with mcp_matlab_model_edit; do not treat an initial model_overview/model_read failure as permission to bypass SATK.
+- Do not call local CiTT model-construction helpers or generate a model through raw MATLAB scripts.
 - Do not write or run citt_build_simscape_model.m as the model-generation mechanism.
-- If mcp_matlab_model_edit cannot create/edit the model, write an agent report explaining the SATK/MCP failure instead of producing fallback artifacts.
+- If mcp_matlab_model_edit cannot create/edit the model, write an agent report explaining the SATK/MCP failure instead of producing model artifacts.
 
 ## Product Boundary
-Gemini parsed the circuit image/prompt into a structured model specification. Treat that spec as a starting point, not as numerical authority.
+The selected CLI parsed the circuit image/prompt into a structured model specification. Treat that spec as a starting point, not as numerical authority.
 Your job is to build/check the Simulink/Simscape model. Do not write educational prose yet; CiTT will teach after the model exists.
 
 ## Simscape-First Requirements
@@ -68,9 +68,9 @@ Modeling rules:
 - Write focus and probe maps with model/block paths that CiTT can use for hilite_system and open_system.
 - Run checks before finishing and record unresolved issues.
 - Do not write a standalone MATLAB numeric script as the model-generation output.
-- Do not call any CiTT local build helper, including citt.buildLocalSimscapeFallback, buildLocalSimscapeFallback, citt.buildSimscapeModelFromSpec, or buildSimscapeModelFromSpec.
+- Do not call local CiTT model-construction helpers or generate a model through raw MATLAB scripts.
 - Do not write or run citt_build_simscape_model.m as the model-generation mechanism.
-- If mcp_matlab_model_edit cannot create/edit the model, write an agent report explaining the SATK/MCP failure instead of producing fallback artifacts.
+- If mcp_matlab_model_edit cannot create/edit the model, write an agent report explaining the SATK/MCP failure instead of producing model artifacts.
 - Do not write educational prose; CiTT will build the teaching plan after the model exists.
 - Do not call read_file for /Users/Raalm/.agents/skills or other external skill paths.
 - Do not call run_shell_command; it is not available in this CiTT agent runner.

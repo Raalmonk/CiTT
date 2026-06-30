@@ -1,9 +1,9 @@
 # Visual QA Report
 
 Generated image set: `release/prototype_upload_images/`.
-Image 1 generation method: PIL/vector composition using a rendered Gemini SVG circuit image and a CiTT GUI screenshot; no external image-generation background used.
+Image 1 generation method: PIL/vector composition using a rendered circuit image and a CiTT GUI screenshot; no external image-generation background used.
 No absolute local paths, BMES logos, or Medtronic logos are included in the images.
-Image 1 source assets: rendered `gemini-svg.svg` and CiTT GUI screenshot `submission_assets/live_gui_evidence/benchmark_01_textbook_rc/screenshots/04_teach_cutoff_formula.png`.
+Image 1 source assets: rendered circuit SVG and CiTT GUI screenshot `submission_assets/live_gui_evidence/benchmark_01_textbook_rc/screenshots/04_teach_cutoff_formula.png`.
 Regeneration iterations: initial full redesign, Image 2 right column was expanded with tutor and lab-mistake dialogue cards, then Image 3 was expanded with additional Socratic dialogue to fill the right column.
 
 ## 01_workflow_llm_vs_citt.png
