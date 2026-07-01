@@ -28,10 +28,11 @@ assessment = context.LastAssessment;
 if isempty(assessment)
     assessment = readJson(config.AssessmentReportPath);
 end
+studentModel = feval('citt.defaultStudentModel', context.StudentModel);
 
-objectives = buildObjectives(focusItems, probeItems, teachingPlan, modelTests, assessment, config);
+objectives = buildObjectives(focusItems, probeItems, teachingPlan, modelTests, assessment, studentModel, config);
 if isempty(objectives)
-    objectives = fallbackObjective(spec, probeItems, modelTests, assessment, config);
+    objectives = fallbackObjective(spec, probeItems, modelTests, assessment, studentModel, config);
 end
 
 report = struct();
@@ -42,6 +43,8 @@ report.focus_map_path = string(context.FocusMapPath);
 report.probe_map_path = string(context.ProbeMapPath);
 report.model_test_report_path = string(config.ModelTestReportPath);
 report.assessment_report_path = string(config.AssessmentReportPath);
+report.student_model = studentModelSummary(studentModel);
+report.tutor_turns = studentModel.turns;
 report.objectives = objectives;
 report.report_path = string(jsonPath);
 report.markdown_path = string(markdownPath);
@@ -59,6 +62,7 @@ defaults.TeachingPlan = [];
 defaults.LastModelTests = [];
 defaults.LastProbe = [];
 defaults.LastAssessment = [];
+defaults.StudentModel = [];
 names = fieldnames(defaults);
 for i = 1:numel(names)
     name = names{i};
@@ -68,18 +72,18 @@ for i = 1:numel(names)
 end
 end
 
-function objectives = buildObjectives(focusItems, probeItems, teachingPlan, modelTests, assessment, config)
+function objectives = buildObjectives(focusItems, probeItems, teachingPlan, modelTests, assessment, studentModel, config)
 objectives = repmat(emptyObjective(), 0, 1);
 for i = 1:numel(focusItems)
     focus = focusItems(i);
     focusId = firstNonempty(firstFieldText(focus, ["focus_id", "id"], ""), "focus_" + string(i));
     probeIds = matchingProbeIds(probeItems, focusId);
-    objective = baseObjective(i, focusId, focus, probeIds, teachingPlan, modelTests, assessment, config);
+    objective = baseObjective(i, focusId, focus, probeIds, teachingPlan, modelTests, assessment, studentModel, config);
     objectives(end + 1) = objective; %#ok<AGROW>
 end
 end
 
-function objective = fallbackObjective(spec, probeItems, modelTests, assessment, config)
+function objective = fallbackObjective(spec, probeItems, modelTests, assessment, studentModel, config)
 title = firstNonempty(firstFieldText(spec, ["likely_analysis", "circuit_type"], ""), "CiTT generated circuit lesson");
 objective = emptyObjective();
 objective.learning_objective_id = "LO_001";
@@ -91,11 +95,11 @@ objective.block_paths = strings(0, 1);
 objective.probe_ids = idsFromItems(probeItems, ["probe_id", "id"]);
 objective.model_test_scenarios = modelTestScenarios(modelTests, "general_model_behavior");
 objective.simulation_evidence = simulationEvidence(config);
-objective.student_evidence = studentEvidence(assessment);
-objective.mastery_status = masteryStatus(assessment);
+objective.student_evidence = studentEvidence(assessment, studentModel, "general_model_behavior");
+objective.mastery_status = masteryStatus(assessment, studentModel, "general_model_behavior");
 end
 
-function objective = baseObjective(index, focusId, focus, probeIds, teachingPlan, modelTests, assessment, config)
+function objective = baseObjective(index, focusId, focus, probeIds, teachingPlan, modelTests, assessment, studentModel, config)
 objective = emptyObjective();
 objective.learning_objective_id = "LO_" + compose("%03d", index);
 objective.title = firstNonempty( ...
@@ -108,8 +112,8 @@ objective.block_paths = unique(stringList(getField(focus, "block_paths")), "stab
 objective.probe_ids = probeIds;
 objective.model_test_scenarios = modelTestScenarios(modelTests, focusId);
 objective.simulation_evidence = simulationEvidence(config);
-objective.student_evidence = studentEvidence(assessment);
-objective.mastery_status = masteryStatus(assessment);
+objective.student_evidence = studentEvidence(assessment, studentModel, focusId);
+objective.mastery_status = masteryStatus(assessment, studentModel, focusId);
 end
 
 function objective = emptyObjective()
@@ -123,7 +127,15 @@ objective.block_paths = strings(0, 1);
 objective.probe_ids = strings(0, 1);
 objective.model_test_scenarios = strings(0, 1);
 objective.simulation_evidence = strings(0, 1);
-objective.student_evidence = struct("hint_levels_used", 0, "classification", "", "assessment_report", "");
+objective.student_evidence = struct( ...
+    "hint_levels_used", 0, ...
+    "classification", "", ...
+    "assessment_report", "", ...
+    "tutor_turn_count", 0, ...
+    "latest_tutor_level", "", ...
+    "latest_misconception", "", ...
+    "latest_pedagogical_move", "", ...
+    "latest_tool_action", "");
 objective.mastery_status = "";
 end
 
@@ -199,19 +211,71 @@ for i = 1:numel(candidatePaths)
 end
 end
 
-function evidence = studentEvidence(assessment)
+function evidence = studentEvidence(assessment, studentModel, focusId)
 evidence = struct();
 evidence.hint_levels_used = numericField(assessment, "hint_levels_used", 0);
 evidence.classification = firstFieldText(assessment, ["classification", "student_level"], "");
 config = feval('citt.loadConfig');
 evidence.assessment_report = config.AssessmentReportPath;
+turns = turnsForFocus(studentModel, focusId);
+evidence.tutor_turn_count = numel(turns);
+evidence.latest_tutor_level = "";
+evidence.latest_misconception = "";
+evidence.latest_pedagogical_move = "";
+evidence.latest_tool_action = "";
+if ~isempty(turns)
+    latest = turns(end);
+    evidence.latest_tutor_level = firstFieldText(latest, ["student_level"], "");
+    evidence.latest_misconception = firstFieldText(latest, ["misconception"], "");
+    evidence.latest_pedagogical_move = firstFieldText(latest, ["pedagogical_move"], "");
+    evidence.latest_tool_action = firstFieldText(latest, ["tool_action"], "");
+end
 end
 
-function status = masteryStatus(assessment)
+function status = masteryStatus(assessment, studentModel, focusId)
 status = firstFieldText(assessment, ["mastery_status", "classification", "student_level"], "RECORDED");
-if strlength(status) == 0
+turns = turnsForFocus(studentModel, focusId);
+if ~isempty(turns)
+    latestLevel = firstFieldText(turns(end), ["student_level"], "");
+    latestMove = firstFieldText(turns(end), ["pedagogical_move"], "");
+    if strlength(strtrim(latestLevel)) > 0
+        status = upper(latestLevel);
+        if latestMove == "advance"
+            status = "READY_TO_ADVANCE";
+        end
+    end
+elseif strlength(status) == 0
     status = "RECORDED";
 end
+end
+
+function summary = studentModelSummary(studentModel)
+studentModel = feval('citt.defaultStudentModel', studentModel);
+summary = rmfield(studentModel, "turns");
+summary.turn_count = numel(studentModel.turns);
+if isempty(studentModel.turns)
+    summary.latest_intent = "";
+    summary.latest_pedagogical_move = "";
+else
+    latest = studentModel.turns(end);
+    summary.latest_intent = firstFieldText(latest, ["intent"], "");
+    summary.latest_pedagogical_move = firstFieldText(latest, ["pedagogical_move"], "");
+end
+end
+
+function turns = turnsForFocus(studentModel, focusId)
+studentModel = feval('citt.defaultStudentModel', studentModel);
+turns = studentModel.turns;
+if isempty(turns)
+    return
+end
+focusId = string(focusId);
+matched = false(numel(turns), 1);
+for i = 1:numel(turns)
+    turnFocus = firstFieldText(turns(i), ["focus_id"], "");
+    matched(i) = strlength(strtrim(turnFocus)) == 0 || turnFocus == focusId || focusId == "general_model_behavior";
+end
+turns = turns(matched);
 end
 
 function text = renderMarkdown(report)
@@ -246,6 +310,9 @@ end
 parts = [
     "hints=" + string(numericField(value, "hint_levels_used", 0))
     "classification=" + firstFieldText(value, ["classification"], "")
+    "tutor_turns=" + string(numericField(value, "tutor_turn_count", 0))
+    "latest_move=" + firstFieldText(value, ["latest_pedagogical_move"], "")
+    "latest_tool=" + firstFieldText(value, ["latest_tool_action"], "")
 ];
 text = strjoin(parts(strlength(strtrim(parts)) > 0), "<br>");
 end

@@ -1,0 +1,6 @@
+{
+  "agent_command": "/Users/Raalm/.local/bin/citt-codex-agent {taskPath}",
+  "agent_max_attempts": 4,
+  "agent_retry_delay_seconds": 20,
+  "updated_at": "2026-07-01 11:14:00"
+}

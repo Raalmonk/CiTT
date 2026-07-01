@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CiTT Tutor Turn Decision",
+  "type": "object",
+  "required": [
+    "intent",
+    "student_level",
+    "misconception",
+    "mastery_updates",
+    "next_teaching_move",
+    "tool_action",
+    "tool_target",
+    "student_message",
+    "evidence_used",
+    "reveal_allowed",
+    "advance_allowed"
+  ],
+  "properties": {
+    "intent": {
+      "type": "string",
+      "enum": ["answer", "question", "confusion", "measure_request", "reveal_request", "off_track", "challenge"]
+    },
+    "student_level": {
+      "type": "string",
+      "enum": ["novice", "developing", "advanced"]
+    },
+    "misconception": { "type": "string" },
+    "mastery_updates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["unknown", "weak", "partial", "strong"]
+      }
+    },
+    "next_teaching_move": {
+      "type": "string",
+      "enum": ["ask", "hint", "probe", "highlight", "simulate", "compare", "reveal", "advance", "remediate"]
+    },
+    "tool_action": {
+      "type": "string",
+      "enum": ["none", "highlight_focus", "measure_probe", "run_simulation", "run_bode", "next_step", "reveal"]
+    },
+    "tool_target": { "type": "string" },
+    "student_message": { "type": "string" },
+    "evidence_used": { "type": "string" },
+    "evidence_needed": { "type": "string" },
+    "reveal_allowed": { "type": "boolean" },
+    "advance_allowed": { "type": "boolean" }
+  }
+}

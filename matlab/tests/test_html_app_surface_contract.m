@@ -9,6 +9,10 @@ appPath = fullfile(config.MatlabRoot, "+citt", "openHtmlApp.m");
 appText = string(fileread(appPath));
 
 assert(contains(text, "send(""chat_submit"""), "Composer submit should route through chat_submit.");
+assert(~contains(text, "isEnterKey(event) && !event.shiftKey"), ...
+    "Plain Enter in CiTT textareas should insert a newline, not submit.");
+assert(contains(text, "(event.metaKey || event.ctrlKey) && isEnterKey(event)"), ...
+    "Cmd/Ctrl+Enter should remain available as an explicit submit shortcut.");
 assert(~contains(text, "data-action=""run_pipeline"""), "Main HTML must not expose run_pipeline as a visible button action.");
 assert(contains(text, "<section class=""tool-groups"" aria-hidden=""true"">"), ...
     "Advanced tool groups should stay hidden from the primary teaching surface.");

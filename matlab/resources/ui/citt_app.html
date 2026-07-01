@@ -1910,11 +1910,6 @@
       document.getElementById("prompt").addEventListener("input", function() {
         renderPreview("promptPreview", value("prompt"));
       });
-      document.getElementById("prompt").addEventListener("keydown", function(event) {
-        if (isEnterKey(event) && !event.shiftKey) {
-          submitComposer(event);
-        }
-      });
       document.getElementById("studentAnswer").addEventListener("input", function() {
         renderPreview("answerPreview", value("studentAnswer"));
       });
@@ -1922,7 +1917,7 @@
         renderPreview("learningAnswerPreview", value("learningAnswer"));
       });
       document.getElementById("learningAnswer").addEventListener("keydown", function(event) {
-        if (isEnterKey(event) && !event.shiftKey) {
+        if ((event.metaKey || event.ctrlKey) && isEnterKey(event)) {
           event.preventDefault();
           event.stopPropagation();
           runAction("next_hint");

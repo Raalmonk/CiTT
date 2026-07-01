@@ -17,6 +17,7 @@ state.ProbeMapPath = config.ProbeMapPath;
 state.TeachingPlan = [];
 state.TeachingStepIndex = 1;
 state.HintLevel = 0;
+state.StudentModel = feval('citt.defaultStudentModel');
 state.TeachingImagePath = "";
 state.LastSetupReport = [];
 state.LastModelCheck = [];

@@ -11,6 +11,7 @@ testFiles = {
     "test_text_prompt_build_readiness"
     "test_socratic_student_level_contract"
     "test_socratic_verbose_cli_output"
+    "test_tutor_turn_planner_contract"
     "test_teaching_plan_contract"
     "test_lab_delta"
     "test_evidence_pack_export"

@@ -328,6 +328,8 @@ app.TestHooks = struct( ...
                 onRunPipeline();
             case "next_hint"
                 onNextHint();
+            case "tutor_turn"
+                onNextHint();
             case "run_command"
                 onRunCommand(payloadText(routed.payload, "command", text));
             case "export_evidence"
@@ -643,6 +645,7 @@ app.TestHooks = struct( ...
                 state.TeachingPlan = built.plan;
                 state.TeachingStepIndex = 1;
                 state.HintLevel = 0;
+                state.StudentModel = feval('citt.defaultStudentModel', fieldValue(state, "StudentModel", []));
                 lastTeachOutput = currentStepQuestion();
                 lastTeachStatus = "Teaching plan ready.";
                 appendTaskEvent("start_teaching", "completed", "Teaching plan generated automatically.");
@@ -1153,6 +1156,7 @@ app.TestHooks = struct( ...
             state.TeachingPlan = built.plan;
             state.TeachingStepIndex = 1;
             state.HintLevel = 0;
+            state.StudentModel = feval('citt.defaultStudentModel', fieldValue(state, "StudentModel", []));
             lastTeachOutput = currentStepQuestion();
             lastTeachStatus = "Teaching plan ready.";
             setPipeline("Teaching plan ready. Work through the focus step.", 92);
@@ -1172,16 +1176,73 @@ app.TestHooks = struct( ...
             validateTeachingImage();
             setBusy("Reading student answer...", 92);
             answer = teachingSubmissionText();
-            turn = feval('citt.runSocraticTurn', state.TeachingPlan, state.TeachingStepIndex, answer, ...
-                struct("Action", "hint", "HintLevel", state.HintLevel, "AnswerImagePath", state.TeachingImagePath));
+            turn = feval('citt.runTutorTurn', state, struct( ...
+                "Action", "student_message", ...
+                "StudentText", answer, ...
+                "HintLevel", state.HintLevel, ...
+                "AnswerImagePath", state.TeachingImagePath, ...
+                "ExecuteTools", true));
             state.HintLevel = turn.next_hint_level;
-            lastTeachStatus = "Classification: " + turn.classification + " | Level: " + turn.student_level;
+            state.StudentModel = turn.student_model;
+            lastTeachStatus = tutorTurnStatus(turn);
             lastTeachOutput = turn.message;
+            applyTutorToolResult(turn);
+            setPipeline("Tutor turn ready.", 96);
         catch hintError
             lastTeachOutput = "Hint failed: " + string(hintError.message);
             lastTeachStatus = "Hint failed.";
+            setPipeline("Tutor turn failed. Check teaching output.", 90);
         end
         setIdle();
+    end
+
+    function applyTutorToolResult(turn)
+        if ~isstruct(turn) || ~isfield(turn, "tool_result") || isempty(turn.tool_result) || ~isstruct(turn.tool_result)
+            return
+        end
+
+        result = turn.tool_result;
+        action = lower(strtrim(fieldText(result, "action")));
+        if action == "measure"
+            if isfield(result, "details") && isstruct(result.details)
+                state.LastProbe = result.details;
+                lastProbeStatus = fieldText(result, "message");
+                lastProbeOutput = probePlanSummary(result.details);
+            end
+            refreshSnapshotForCommand(result);
+        elseif action == "highlight_focus" || action == "zoom_focus" || action == "clear_highlights"
+            if strlength(strtrim(fieldText(result, "message"))) > 0
+                lastTeachOutput = lastTeachOutput + newline + newline + "Model action: " + fieldText(result, "message");
+            end
+            refreshSnapshotForCommand(result);
+        elseif action == "run_simulation"
+            if isfield(result, "details") && isstruct(result.details)
+                state.LastSimulation = result.details;
+                lastModelStatus = fieldText(result, "message");
+                lastModelOutput = simulationSummary(result.details);
+            end
+        elseif action == "bode_analysis"
+            if isfield(result, "details") && isstruct(result.details)
+                state.LastBode = result.details;
+                lastVerificationStatus = fieldText(result, "message");
+                lastVerificationOutput = bodeSummary(result.details);
+            end
+        elseif strlength(strtrim(fieldText(result, "message"))) > 0 && ~isTruthy(fieldText(result, "success"))
+            lastTeachOutput = lastTeachOutput + newline + newline + fieldText(result, "message");
+        end
+    end
+
+    function text = tutorTurnStatus(turn)
+        parts = [
+            "Move: " + fieldText(turn, "pedagogical_move")
+            "Intent: " + fieldText(turn, "intent")
+            "Level: " + fieldText(turn, "student_level")
+        ];
+        toolAction = fieldText(turn, "tool_action");
+        if strlength(strtrim(toolAction)) > 0 && toolAction ~= "none"
+            parts(end + 1) = "Tool: " + toolAction;
+        end
+        text = strjoin(parts(strlength(strtrim(parts)) > 0), " | ");
     end
 
     function onReveal()
@@ -1190,13 +1251,20 @@ app.TestHooks = struct( ...
         end
         try
             validateTeachingImage();
-            turn = feval('citt.runSocraticTurn', state.TeachingPlan, state.TeachingStepIndex, teachingSubmissionText(), ...
-                struct("Action", "reveal", "AnswerImagePath", state.TeachingImagePath));
+            turn = feval('citt.runTutorTurn', state, struct( ...
+                "Action", "reveal", ...
+                "StudentText", teachingSubmissionText(), ...
+                "HintLevel", state.HintLevel, ...
+                "AnswerImagePath", state.TeachingImagePath, ...
+                "ExecuteTools", false));
+            state.StudentModel = turn.student_model;
             lastTeachStatus = "Reveal shown for " + turn.step_id;
             lastTeachOutput = turn.message;
+            setPipeline("Reveal ready.", 96);
         catch revealError
             lastTeachOutput = "Reveal failed: " + string(revealError.message);
             lastTeachStatus = "Reveal failed.";
+            setPipeline("Reveal failed. Check teaching output.", 90);
         end
         sendState();
     end
@@ -1214,6 +1282,7 @@ app.TestHooks = struct( ...
             state.TeachingStepIndex = state.TeachingStepIndex + 1;
             state.HintLevel = 0;
             state.StudentAnswer = "";
+            state.StudentModel = feval('citt.defaultStudentModel', state.StudentModel);
             lastTeachOutput = currentStepQuestion();
             lastTeachStatus = "Step " + string(state.TeachingStepIndex) + " / " + string(totalSteps);
             lastTeachingFocusApplied = "";
@@ -1744,6 +1813,7 @@ app.TestHooks = struct( ...
         currentState.TeachingPlan = [];
         currentState.TeachingStepIndex = 1;
         currentState.HintLevel = 0;
+        currentState.StudentModel = feval('citt.defaultStudentModel');
         currentState.TeachingImagePath = "";
         currentState.LastModelCheck = [];
         currentState.LastSimulation = [];
@@ -1796,6 +1866,7 @@ app.TestHooks = struct( ...
         state.TeachingPlan = [];
         state.TeachingStepIndex = 1;
         state.HintLevel = 0;
+        state.StudentModel = feval('citt.defaultStudentModel');
         state.TeachingImagePath = "";
         state.LastModelCheck = [];
         state.LastSimulation = [];
@@ -3951,6 +4022,13 @@ app.TestHooks = struct( ...
                     text = "";
                 end
             end
+        end
+    end
+
+    function value = fieldValue(data, fieldName, defaultValue)
+        value = defaultValue;
+        if isstruct(data) && isfield(data, fieldName)
+            value = data.(fieldName);
         end
     end
 
