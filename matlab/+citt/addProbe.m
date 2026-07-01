@@ -49,6 +49,11 @@ if isempty(probe)
 end
 validateProbeEntry(probe, targetId);
 result.used_probe_map = true;
+result.label = getField(probe, "label");
+result.quantity = getField(probe, "quantity");
+result.unit = getField(probe, "unit");
+result.block_paths = getPathList(probe, "block_paths");
+result.model_paths = getPathList(probe, "model_paths");
 
 result.instructions = [result.instructions; probeInstructions(probe)];
 
@@ -358,9 +363,12 @@ if iscell(raw)
     for i = 1:numel(raw)
         paths(end + 1) = string(raw{i}); %#ok<AGROW>
     end
+elseif ischar(raw) || (isstring(raw) && isscalar(raw))
+    paths = string(raw);
 else
     paths = string(raw(:));
 end
+paths = paths(strlength(strtrim(paths)) > 0);
 end
 
 function value = getField(container, fieldName)

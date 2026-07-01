@@ -1,6 +1,6 @@
 # CiTT BOM / Cost + Licensing Reality Plan
 
-Created: 29-Jun-2026 18:00:49
+Created: 01-Jul-2026 03:56:26
 
 ## Deployment
 

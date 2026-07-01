@@ -198,6 +198,18 @@ if numel(rows) < 40
 end
 
 [height, width, ~] = size(imageData);
+rowCounts = sum(contentMask, 2);
+colCounts = sum(contentMask, 1);
+rowThreshold = max(40, round(0.005 * width));
+colThreshold = max(12, round(0.005 * height));
+denseRows = find(rowCounts >= rowThreshold);
+denseCols = find(colCounts >= colThreshold);
+if ~isempty(denseRows)
+    rows = denseRows;
+end
+if ~isempty(denseCols)
+    cols = denseCols(:);
+end
 padX = max(32, round(0.025 * width));
 padY = max(28, round(0.025 * height));
 rowMin = max(1, min(rows) - padY);
@@ -283,9 +295,9 @@ targetRight = max(targetPositions(:, 3));
 targetBottom = max(targetPositions(:, 4));
 targetCenterX = (targetLeft + targetRight) / 2;
 targetCenterY = (targetTop + targetBottom) / 2;
-viewWidth = max(520, (targetRight - targetLeft) + 360);
-viewHeight = max(220, (targetBottom - targetTop) + 240);
-viewAspect = 2.65;
+viewWidth = max(760, (targetRight - targetLeft) + 560);
+viewHeight = max(300, (targetBottom - targetTop) + 320);
+viewAspect = 2.35;
 if viewWidth / viewHeight > viewAspect
     viewHeight = viewWidth / viewAspect;
 else
@@ -296,36 +308,6 @@ coordLeft = targetCenterX - viewWidth / 2;
 coordRight = targetCenterX + viewWidth / 2;
 coordTop = targetCenterY - viewHeight / 2;
 coordBottom = targetCenterY + viewHeight / 2;
-
-otherPositions = positions(~ismember(validBlockPaths, blockPaths), :);
-if ~isempty(otherPositions)
-    rightNeighborLefts = otherPositions(otherPositions(:, 1) > targetRight + 8 & otherPositions(:, 1) < coordRight, 1);
-    if ~isempty(rightNeighborLefts)
-        nearestRight = min(rightNeighborLefts);
-        if nearestRight - targetRight < 80
-            coordRight = min(coordRight, targetRight + 2);
-        else
-            coordRight = min(coordRight, max(targetRight + 10, nearestRight - 10));
-        end
-    end
-    leftNeighborRights = otherPositions(otherPositions(:, 3) < targetLeft - 8 & otherPositions(:, 3) > coordLeft, 3);
-    if ~isempty(leftNeighborRights)
-        nearestLeft = max(leftNeighborRights);
-        if targetLeft - nearestLeft < 80
-            coordLeft = max(coordLeft, targetLeft - 2);
-        else
-            coordLeft = max(coordLeft, min(targetLeft - 10, nearestLeft + 10));
-        end
-    end
-    aboveNeighborBottoms = otherPositions(otherPositions(:, 4) < targetTop - 8 & otherPositions(:, 4) > coordTop, 4);
-    if ~isempty(aboveNeighborBottoms)
-        coordTop = max(coordTop, min(targetTop - 10, max(aboveNeighborBottoms) + 10));
-    end
-    belowNeighborTops = otherPositions(otherPositions(:, 2) > targetBottom + 8 & otherPositions(:, 2) < coordBottom, 2);
-    if ~isempty(belowNeighborTops)
-        coordBottom = min(coordBottom, max(targetBottom + 10, min(belowNeighborTops) - 10));
-    end
-end
 
 colMin = coordToPixel(coordLeft, diagramLeft, diagramRight, width);
 colMax = coordToPixel(coordRight, diagramLeft, diagramRight, width);

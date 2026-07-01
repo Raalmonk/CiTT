@@ -21,6 +21,18 @@ CiTT is a teaching tool first. Every code, model, and UI change should preserve 
 - Test malformed and overly complex LaTeX. Bad LaTeX must degrade to plain text instead of breaking the teaching UI or preview UI.
 - Treat user screenshots as ground truth. If a screenshot looks unreadable, the QA failed even if automated tests passed.
 
+## MATLAB Launch Method
+
+- On this machine, MATLAB is installed as `/Applications/MATLAB_R2026b.app`. Do not conclude MATLAB is unavailable only because `matlab` is not on the shell `PATH`.
+- To open MATLAB interactively, use:
+  `open -a /Applications/MATLAB_R2026b.app`
+- To run MATLAB commands from shell, use the app executable directly:
+  `/Applications/MATLAB_R2026b.app/bin/matlab -batch "addpath('/Users/Raalm/Documents/GitHub/CiTT/matlab'); cd('/Users/Raalm/Documents/GitHub/CiTT/matlab/tests'); results = run_all"`
+- For real UI QA, launch MATLAB R2026b, run:
+  `addpath('/Users/Raalm/Documents/GitHub/CiTT/matlab'); app = citt;`
+  Then interact with the visible CiTT teaching surface as a student would.
+- If MATLAB is already open and MCP attach fails, prefer the direct app executable above before reporting MATLAB as unavailable.
+
 ## Model And Simscape Requirements
 
 - Use Simscape/SATK paths for physical model construction. Do not replace physical circuits with pure Simulink signal-flow substitutes unless the boundary is explicit and educational.

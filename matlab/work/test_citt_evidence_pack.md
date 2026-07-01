@@ -1,6 +1,6 @@
 # CiTT Performance Evidence Pack
 
-Generated: 2026-06-29 18:00:46
+Generated: 2026-07-01 03:56:25
 Purpose: functional proof and technical-feasibility evidence for the CiTT MATLAB plugin workflow.
 
 ## 1. Original Circuit / Prompt
@@ -169,11 +169,32 @@ Report has not been generated yet.
 - **Markdown report:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_scope_guardrail.md (missing)
 Report has not been generated yet.
 
-## 11. Limitations
+## 10G. SATK Behavioral Model Tests
+
+- **Markdown report:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_model_test_report.md (missing)
+Report has not been generated yet.
+
+## 10H. CiTT Teaching Model Review
+
+- **Markdown report:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_teaching_review_report.md (missing)
+Report has not been generated yet.
+
+## 10I. SimulationInput Teaching Scenarios
+
+- **Markdown report:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_simulation_scenarios.md (missing)
+Report has not been generated yet.
+
+## 11. Learning Traceability
+
+This section links learning objectives to focus/probe/model-test/simulation/student evidence.
+- **Markdown report:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_learning_traceability.md (missing)
+Learning traceability has not been generated yet.
+
+## 12. Limitations
 
 - No unresolved limitation was detected from the current evidence artifacts; review model assumptions before external use.
 
-## 12. Risk Table
+## 13. Risk Table
 
 | Risk | Evidence / Trigger | Mitigation | Severity |
 | --- | --- | --- | --- |
@@ -181,7 +202,7 @@ Report has not been generated yet.
 | Patient-connected circuit hazards are under-modeled | Spec appears to involve biosignals or electrodes | Require isolation, leakage-current, EMC, and hardware safety review outside CiTT before patient-connected use. | High |
 | ADC undersampling or aliasing is missed | Spec mentions sampling or ADC behavior | Add a requirement row for Nyquist margin and verify it from logged simulation data. | Medium |
 
-## 13. BMES Functional Proof Draft
+## 14. BMES Functional Proof Draft
 
 CiTT demonstrates functional feasibility by turning a circuit image or prompt into auditable MATLAB evidence rather than a standalone chatbot answer. In the current workflow, the selected CLI produces a structured circuit specification; the build step then hands that specification to a Simulink Agentic Toolkit-compatible task, producing the generated Simscape model at /Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_evidence_model.slx. The Evidence Pack records the original input, the structured spec, model path, focus map, probe map, model-check output, simulation summary, Lab Delta comparison, limitations, and risk controls in one reviewable artifact. For this run, the requirement table contains 10 PASS, 0 WARN, 0 FAIL, and 0 NOT_RUN items. This makes the proof falsifiable: missing model checks, absent signal logging, unresolved topology ambiguity, or unavailable lab measurements are visible instead of hidden. The teaching value comes from connecting each verification artifact back to focus-map highlights and probe locations, allowing students to inspect why a node, component, or requirement matters. The current scope remains educational and proposal-facing, not medical-device verification. The next strongest evidence would be logged performance requirements, parameter sweeps, and a measured lab CSV for the same circuit. Primary current limitation: No unresolved limitation was detected from the current evidence artifacts; review model assumptions before external use.
 
@@ -203,4 +224,9 @@ CiTT demonstrates functional feasibility by turning a circuit image or prompt in
 - **Assessment report:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_learning_assessment_report.md (missing)
 - **Economics plan:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_economics_plan.md (missing)
 - **Scope guardrail:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_scope_guardrail.md (missing)
+- **SATK model tests:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_model_test_report.md (missing)
+- **Teaching model review:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_teaching_review_report.md (missing)
+- **Simulation scenarios:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_simulation_scenarios.md (missing)
+- **Learning traceability:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_learning_traceability.md (missing)
+- **Learning objectives YAML:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_learning_objectives.yaml (missing)
 - **Evidence pack:** /Users/Raalm/Documents/GitHub/CiTT/matlab/work/test_citt_evidence_pack.md

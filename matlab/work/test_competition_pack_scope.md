@@ -1,6 +1,6 @@
 # CiTT Regulatory / Scope Guardrail
 
-Created: 29-Jun-2026 18:00:49
+Created: 01-Jul-2026 03:56:27
 
 - Potential regulatory category: educational design-training tool with patient-connected-topic warnings
 - Patient-connected trigger detected: true

@@ -1,28 +1,15 @@
 function results = run_all()
-%RUN_ALL Run CiTT MATLAB plugin smoke tests.
+%RUN_ALL Run the default CiTT MATLAB test layers.
 
-testFiles = {
-    "test_real_config"
-    "test_agent_task_generation"
-    "test_cli_only_contract"
-    "test_text_prompt_build_readiness"
-    "test_socratic_student_level_contract"
-    "test_socratic_verbose_cli_output"
-    "test_stop_time_parameter_repair"
-    "test_teaching_plan_contract"
-    "test_lab_delta"
-    "test_evidence_pack_export"
-    "test_competition_feature_pack"
-    "test_satk_teaching_evidence_layer"
-};
+addpath(fileparts(mfilename("fullpath")));
+unitResults = run_unit();
+localResults = run_simulink_local();
+results = [unitResults(:); localResults(:)];
 
-results = struct([]);
-for i = 1:numel(testFiles)
-    name = testFiles{i};
-    fprintf("Running %s...\n", name);
-    feval(name);
-    results = [results; struct("name", string(name), "passed", true)]; %#ok<AGROW>
+statuses = string({results.status});
+fprintf("CiTT MATLAB tests: %d passed, %d skipped, %d failed.\n", ...
+    sum(statuses == "passed"), sum(statuses == "skipped"), sum(statuses == "failed"));
+if any(statuses == "failed")
+    error("CiTT:TestsFailed", "One or more default CiTT tests failed.");
 end
-
-fprintf("CiTT MATLAB tests passed: %d\n", numel(results));
 end

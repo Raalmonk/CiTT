@@ -116,10 +116,14 @@ if hasAny(cmd, ["probe", "探针", "测量", "measure", "scope", "观察"])
     end
     result.action = "measure";
     result.details = feval('citt.addProbe', modelPath, probeId, probeMapPath, specPath, struct("PreviewOnly", true, "ShowModel", false));
-    try
-        result.details.measurement = summarizeLoggedMeasurement(modelPath, result.details);
-    catch measurementError
-        result.details.measurement_warning = "Measurement summary unavailable: " + string(measurementError.message);
+    if isfield(result.details, "preview_only") && logical(result.details.preview_only)
+        result.details.measurement = previewOnlyMeasurement(result.details);
+    else
+        try
+            result.details.measurement = summarizeLoggedMeasurement(modelPath, result.details);
+        catch measurementError
+            result.details.measurement_warning = "Measurement summary unavailable: " + string(measurementError.message);
+        end
     end
     result.success = result.details.success;
     result.message = "Highlighted measurement target: " + probeId;
@@ -344,14 +348,43 @@ tokens = strings(0, 1);
 if contains(query, "电极")
     tokens(end + 1) = "electrode";
 end
-if contains(query, "放大") || contains(query, "输入")
+if contains(query, "放大") || contains(query, "跨阻")
     tokens(end + 1) = "amplifier";
+end
+if contains(query, "tia") || contains(query, "transimpedance") || contains(query, "跨阻")
+    tokens(end + 1) = "tia";
+    tokens(end + 1) = "transimpedance";
+    tokens(end + 1) = "voltage";
+end
+if contains(query, "输入")
     tokens(end + 1) = "input";
 end
-if contains(query, "恢复") || contains(query, "ecg") || contains(query, "输出")
+if contains(query, "恢复") || contains(query, "ecg")
     tokens(end + 1) = "recovered";
     tokens(end + 1) = "ecg";
+end
+if contains(query, "输出")
     tokens(end + 1) = "output";
+end
+if contains(query, "浓度")
+    tokens(end + 1) = "concentration";
+end
+if contains(query, "滞后") || contains(query, "膜")
+    tokens(end + 1) = "lagged";
+    tokens(end + 1) = "membrane";
+end
+if contains(query, "传感") || contains(query, "传感器")
+    tokens(end + 1) = "sensor";
+end
+if contains(query, "误差") || contains(query, "稳定") || contains(query, "建立")
+    tokens(end + 1) = "settling";
+    tokens(end + 1) = "error";
+end
+if contains(query, "digital") || contains(query, "converter") || contains(query, "quantizer") || ...
+        contains(query, "代码") || contains(query, "编码") || contains(query, "数字") || contains(query, "模数")
+    tokens(end + 1) = "adc";
+    tokens(end + 1) = "code";
+    tokens(end + 1) = "quantizer";
 end
 if contains(query, "电压")
     tokens(end + 1) = "voltage";
@@ -466,6 +499,21 @@ measurement.late_peak_to_peak_V = max(data(lateMask)) - min(data(lateMask));
 measurement.recovery_time_below_1mV_s = sustainedBelowTime(time, data, 1e-3);
 measurement.recovery_time_below_0p5mV_s = sustainedBelowTime(time, data, 5e-4);
 measurement.message = "Simulation measurement computed from " + blockPath + ".";
+end
+
+function measurement = previewOnlyMeasurement(probeResult)
+measurement = struct();
+measurement.success = false;
+measurement.output_name = measurementOutputName(probeResult);
+measurement.unit = measurementUnit(probeResult);
+measurement.block_path = firstBlockPath(probeResult);
+measurement.min_V = [];
+measurement.max_V = [];
+measurement.final_V = [];
+measurement.late_peak_to_peak_V = [];
+measurement.recovery_time_below_1mV_s = [];
+measurement.recovery_time_below_0p5mV_s = [];
+measurement.message = "Preview-only measurement target matched. No simulation was run and no model changes were made.";
 end
 
 function measurement = summarizeParameterMeasurement(modelPath, probeResult, outputName)
@@ -658,6 +706,18 @@ elseif contains(text, "(v)") || contains(text, " voltage ") || contains(text, "v
     unit = "V";
 else
     unit = "unit";
+end
+end
+
+function path = firstBlockPath(probeResult)
+path = "";
+if ~isstruct(probeResult) || ~isfield(probeResult, "block_paths")
+    return
+end
+paths = string(probeResult.block_paths(:));
+paths = paths(strlength(strtrim(paths)) > 0);
+if ~isempty(paths)
+    path = paths(1);
 end
 end
 

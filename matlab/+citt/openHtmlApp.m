@@ -76,6 +76,7 @@ app.TestHooks = struct( ...
     "setPrompt", @(promptText) setTestPrompt(promptText), ...
     "setImagePath", @(imagePath) setTestImagePath(imagePath), ...
     "navigate", @(pageName) setTestPage(pageName), ...
+    "chatSubmit", @(text) onChatSubmit(text), ...
     "read", @() onParseWithCli(), ...
     "prepareBuild", @() onGenerateAgentTask(), ...
     "buildModel", @() onRunAgent(), ...
@@ -95,6 +96,8 @@ app.TestHooks = struct( ...
     "nextHint", @() onNextHint(), ...
     "reveal", @() onReveal(), ...
     "nextStep", @() onNextTeachingStep(), ...
+    "zoomLearningModel", @(scale) sendClientZoom("learning", scale), ...
+    "resetLearningModelZoom", @() sendClientZoom("learning", 1), ...
     "sendState", @() sendState(), ...
     "state", @() getTestState());
 
@@ -136,6 +139,9 @@ app.TestHooks = struct( ...
                     sendState();
                 case "select_image"
                     onSelectImage();
+                case "chat_submit"
+                    syncPayload(payload);
+                    onChatSubmit(payloadText(payload, "text", ""));
                 case "drop_image"
                     onImageDropped(payload);
                 case "read"
@@ -304,6 +310,45 @@ app.TestHooks = struct( ...
         end
     end
 
+    function onChatSubmit(text)
+        routed = feval('citt.dispatchTutorCommand', text, state);
+        action = fieldText(routed, "action");
+        if isfield(routed, "payload") && isstruct(routed.payload)
+            syncPayload(routed.payload);
+        end
+        if strlength(strtrim(action)) == 0 || action == "none"
+            sendToast(fieldText(routed, "assistant_preview"), "info");
+            sendState();
+            return
+        end
+
+        appendTaskEvent("chat_submit", "routed", fieldText(routed, "assistant_preview"));
+        switch action
+            case "run_pipeline"
+                onRunPipeline();
+            case "next_hint"
+                onNextHint();
+            case "run_command"
+                onRunCommand(payloadText(routed.payload, "command", text));
+            case "export_evidence"
+                onExportEvidencePack();
+            case "run_model_tests"
+                onRunModelTests();
+            case "teaching_review"
+                onRunTeachingReview();
+            case "learning_traceability"
+                onBuildLearningTraceability();
+            case "simulation_scenarios"
+                onRunSimulationScenarios();
+            case "run_simulation"
+                onRunSimulation();
+            case "open_model"
+                onOpenModel();
+            otherwise
+                onRunCommand(text);
+        end
+    end
+
     function setTestStudentAnswer(answerText)
         answerText = string(answerText);
         if strtrim(answerText) ~= strtrim(fieldText(state, "StudentAnswer"))
@@ -346,6 +391,17 @@ app.TestHooks = struct( ...
         currentState = state;
     end
 
+    function sendClientZoom(target, scale)
+        try
+            handles.web.Data = struct( ...
+                "kind", "model_zoom", ...
+                "target", string(target), ...
+                "scale", double(scale));
+            drawnow limitrate;
+        catch
+        end
+    end
+
     function onNewTask()
         currentPosix = posixtime(datetime("now"));
         if currentPosix - lastNewTaskPosix < 1.2
@@ -377,7 +433,9 @@ app.TestHooks = struct( ...
             return
         end
 
-        saveActiveTask("select_task_before_switch");
+        if taskId ~= activeTaskId
+            saveActiveTask("select_task_before_switch");
+        end
         activeTaskId = taskId;
         restoreTaskSnapshot(taskHistory(index));
         setPipeline("Loaded task history: " + taskHistory(index).title, taskHistory(index).progress);
@@ -592,6 +650,37 @@ app.TestHooks = struct( ...
                 lastTeachOutput = "Teaching plan failed: " + string(teachError.message);
                 lastTeachStatus = "Teaching plan failed.";
                 appendTaskEvent("start_teaching", "failed", string(teachError.message));
+            end
+        end
+
+        if isempty(state.LastTeachingReview)
+            try
+                setBusy("Reviewing teaching evidence...", 95);
+                reviewed = feval('citt.runTeachingModelReview', state);
+                state.LastTeachingReview = reviewed;
+                lastVerificationStatus = "Teaching model review ready.";
+                lastVerificationOutput = teachingReviewSummary(reviewed);
+                appendTaskEvent("teaching_review", "completed", "Teaching model review generated automatically.");
+            catch reviewError
+                lastVerificationStatus = "Teaching model review failed.";
+                lastVerificationOutput = "Teaching model review failed: " + string(reviewError.message);
+                appendTaskEvent("teaching_review", "failed", string(reviewError.message));
+            end
+        end
+
+        if isempty(state.LastLearningTraceability)
+            try
+                setBusy("Building learning traceability...", 96);
+                traced = feval('citt.buildLearningTraceability', state);
+                state.LastLearningTraceability = traced;
+                exportedObjectives = feval('citt.exportLearningObjectives', state);
+                lastAssessmentStatus = "Learning traceability ready.";
+                lastAssessmentOutput = learningTraceabilitySummary(traced) + newline + "YAML: " + exportedObjectives.yaml_path;
+                appendTaskEvent("learning_traceability", "completed", "Learning traceability generated automatically.");
+            catch traceError
+                lastAssessmentStatus = "Learning traceability failed.";
+                lastAssessmentOutput = "Learning traceability failed: " + string(traceError.message);
+                appendTaskEvent("learning_traceability", "failed", string(traceError.message));
             end
         end
 
@@ -1358,9 +1447,14 @@ app.TestHooks = struct( ...
             setBusy("Running SimulationInput scenarios...", 96);
             scenarios = feval('citt.runSimulationScenarios', state);
             state.LastSimulationScenarios = scenarios;
-            lastVerificationStatus = "Simulation scenarios ready.";
+            if isTruthy(fieldText(scenarios, "success"))
+                lastVerificationStatus = "Simulation scenarios passed.";
+                setPipeline("Simulation scenarios passed.", 100);
+            else
+                lastVerificationStatus = "Simulation scenarios incomplete.";
+                setPipeline("Simulation scenarios incomplete. See NOT_RUN or FAIL rows.", 94);
+            end
             lastVerificationOutput = simulationScenariosSummary(scenarios);
-            setPipeline("Simulation scenarios ready.", 100);
         catch scenarioError
             lastVerificationStatus = "Simulation scenarios failed.";
             lastVerificationOutput = "Simulation scenarios failed: " + string(scenarioError.message);
@@ -2091,7 +2185,9 @@ app.TestHooks = struct( ...
             lastVerificationStatus = "Plot evidence ready.";
             lastVerificationOutput = bodeSummary(restoredBode);
         end
-        if taskEventCompleted(task, "Start teaching") && isExistingFile(state.Config.TeachingPlanPath)
+        shouldRestoreTeaching = taskEventCompleted(task, "Start teaching") || ...
+            any(lower(string(taskField(task, "stage", ""))) == ["teach", "probe", "evidence"]);
+        if shouldRestoreTeaching && isExistingFile(state.Config.TeachingPlanPath)
             restoredPlan = loadJsonArtifact(state.Config.TeachingPlanPath);
             if artifactMatchesSpec(restoredPlan, state.SpecPath)
                 state.TeachingPlan = restoredPlan;
@@ -4152,6 +4248,7 @@ app.TestHooks = struct( ...
             "SimulationInput scenarios complete."
             "JSON: " + report.report_path
             "Markdown: " + report.markdown_path
+            "Success: " + string(report.success)
             "PASS " + string(s.pass) + " | WARN " + string(s.warn) + " | FAIL " + string(s.fail) + " | NOT_RUN " + string(s.not_run)
             ""
             reportRowsText(report.scenarios, ["id", "type", "status", "error"], 10)

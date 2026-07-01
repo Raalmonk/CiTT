@@ -9,6 +9,25 @@ specPath = prefix + "_spec.json";
 focusPath = prefix + "_focus.json";
 probePath = prefix + "_probe.json";
 modelPath = prefix + "_model.slx";
+artifactPaths = [
+    string(specPath)
+    string(focusPath)
+    string(probePath)
+    string(modelPath)
+    string(prefix + "_tests.feature")
+    string(prefix + "_manifest.json")
+    string(prefix + "_model_test_task.md")
+    string(prefix + "_review.json")
+    string(prefix + "_review.md")
+    string(prefix + "_trace.json")
+    string(prefix + "_trace.md")
+    string(prefix + "_objectives.yaml")
+    string(prefix + "_scenario_spec.json")
+    string(prefix + "_scenarios.json")
+    string(prefix + "_scenarios.md")
+];
+cleanup = onCleanup(@() cleanupFiles(artifactPaths));
+
 writeText(specPath, feval('citt.util.jsonEncode', localSpec()));
 writeText(focusPath, feval('citt.util.jsonEncode', localFocusMap()));
 writeText(probePath, feval('citt.util.jsonEncode', localProbeMap()));
@@ -62,10 +81,22 @@ scenarioReport = feval('citt.runSimulationScenarios', context, struct( ...
     "MarkdownPath", prefix + "_scenarios.md"));
 assert(isfield(scenarioReport, "scenarios"));
 assert(exist(scenarioReport.markdown_path, "file") == 2);
+assert(~scenarioReport.success, "Missing model scenarios must not be reported as successful.");
+assert(scenarioReport.summary.not_run > 0, "Missing model scenarios should be counted as NOT_RUN.");
+scenarioMarkdown = string(fileread(scenarioReport.markdown_path));
+assert(contains(scenarioMarkdown, "Success: false"));
 
 dataset = feval('citt.validateTeachingTasks');
 assert(dataset.success);
 assert(numel(dataset.tasks) >= 3);
+end
+
+function cleanupFiles(paths)
+for i = 1:numel(paths)
+    if exist(paths(i), "file") == 2
+        delete(paths(i));
+    end
+end
 end
 
 function writeText(path, text)

@@ -1,19 +1,24 @@
 {
   "success": true,
-  "model_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_generated_model.slx",
-  "target_id": "probe_i_clamp",
+  "model_path": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_test_probe_preview_20.slx",
+  "target_id": "PR_CONCENTRATION",
   "used_probe_map": true,
   "preview_only": true,
   "instructions": [
-    "Probe target: Clamp current",
-    "Quantity: Current through electrode path from clamp output toward membrane (A)",
-    "Simscape-first action: I_clamp_sensor -> I_clamp_PS_to_SL -> To Workspace variable citt_I_clamp",
+    "Probe target: PK concentration C(t)",
+    "Quantity: concentration (mg/L)",
+    "Simscape-first action: Use the existing local signal for preview.",
     "If using Simscape, add a Voltage Sensor or Current Sensor and route through PS-Simulink Converter for logging.",
-    "Agent instructions: The current sensor is in series between n_clamp_output and R_series_5MOhm; positive sign follows the sensor p-to-n orientation from clamp output toward membrane."
+    "Agent instructions: Preview only; do not run simulation."
   ],
   "automated_actions": [
-    "Matched target block: citt_generated_model/I_clamp_sensor",
+    "Matched target block: citt_test_probe_preview_20/concentration_signal",
     "Preview-only measurement: no probe blocks, logging blocks, lines, or model saves were added."
   ],
-  "warnings": []
+  "warnings": [],
+  "label": "PK concentration C(t)",
+  "quantity": "concentration",
+  "unit": "mg/L",
+  "block_paths": "citt_test_probe_preview_20/concentration_signal",
+  "model_paths": "citt_test_probe_preview_20"
 }

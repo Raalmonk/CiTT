@@ -1,6 +1,6 @@
 {
-  "created_at": "29-Jun-2026 22:24:20",
-  "source_spec": "matlab/work/citt_last_circuit_spec.json",
+  "created_at": "30-Jun-2026 17:03:56",
+  "source_spec": "/Users/Raalm/Documents/GitHub/CiTT/matlab/work/citt_last_circuit_spec.json",
   "model_check_source": "",
   "simulation_source": "",
   "steps": [

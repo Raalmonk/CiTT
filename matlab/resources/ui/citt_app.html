@@ -523,6 +523,30 @@
       color: var(--muted);
     }
 
+    .composer-tool-wrap {
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .composer-more-menu {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 8px);
+      z-index: 24;
+      display: none;
+      width: min(260px, calc(100vw - 48px));
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 18px 54px rgb(35 100 63 / 0.16);
+      padding: 8px;
+    }
+
+    .composer-more-menu.open {
+      display: grid;
+      gap: 6px;
+    }
+
     .icon-btn {
       width: 32px;
       height: 32px;
@@ -800,20 +824,38 @@
       display: grid;
       gap: 6px;
     }
+    .model-preview-frame-wrap,
+    .learning-model-shell {
+      position: relative;
+      display: grid;
+    }
+    .model-preview-frame-wrap > .model-preview-frame,
+    .learning-model-shell > .learning-model {
+      grid-area: 1 / 1;
+    }
     .model-preview-frame {
       min-height: 190px;
       max-height: 460px;
       display: grid;
       place-items: center;
       background: #fbfdf9;
-      overflow: auto;
+      overflow: hidden;
+      position: relative;
+      cursor: grab;
     }
+    .model-preview-frame.zoom-dragging,
+    .learning-model.zoom-dragging { cursor: grabbing; }
     .model-preview-frame img {
       display: block;
+      grid-area: 1 / 1;
       max-width: 100%;
       width: 100%;
       height: auto;
       object-fit: contain;
+      transform-origin: center center;
+      user-select: none;
+      pointer-events: none;
+      will-change: transform;
     }
 
     .learning-surface {
@@ -843,16 +885,55 @@
       background: #ffffff;
       display: grid;
       place-items: center;
-      overflow: auto;
+      overflow: hidden;
       position: relative;
+      cursor: grab;
     }
     .learning-model img {
       display: block;
-      width: 100%;
+      grid-area: 1 / 1;
+      width: auto;
       max-width: 100%;
-      max-height: none;
+      max-height: 100%;
       height: auto;
       object-fit: contain;
+      transform-origin: center center;
+      user-select: none;
+      pointer-events: none;
+      will-change: transform;
+    }
+    .learning-empty { grid-area: 1 / 1; }
+    .model-zoom-controls {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid #2a5b3f;
+      border-radius: 8px;
+      background: rgb(23 63 47 / 0.92);
+      box-shadow: 0 8px 24px rgb(35 100 63 / 0.14);
+    }
+    .model-zoom-controls.inline {
+      flex: 0 0 auto;
+      box-shadow: none;
+    }
+    .model-zoom-btn {
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      border: 1px solid rgb(255 255 255 / 0.32);
+      border-radius: 6px;
+      background: transparent;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .model-zoom-btn:hover,
+    .model-zoom-btn:focus-visible {
+      border-color: var(--line);
+      background: rgb(255 255 255 / 0.16);
+      outline: none;
     }
     .learning-empty {
       color: var(--faint);
@@ -876,6 +957,14 @@
       color: var(--muted);
       font-weight: 800;
       font-size: 13px;
+    }
+    .learning-step-labels {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex: 1;
     }
     .learning-question {
       color: var(--text);
@@ -1015,8 +1104,8 @@
         max-height: none;
       }
       .learning-model img {
-        width: 100%;
-        max-height: none;
+        width: auto;
+        max-height: 100%;
       }
     }
     .probe-bar {
@@ -1451,10 +1540,21 @@
             <textarea id="prompt" class="prompt-input" placeholder="Describe the circuit or lesson to build"></textarea>
             <div class="preview empty" id="promptPreview">LaTeX preview</div>
             <div class="composer-toolbar">
-              <button type="button" class="icon-btn" data-action="select_image" title="Attach image">+</button>
+              <div class="composer-tool-wrap">
+                <button type="button" class="icon-btn" id="composerToolsButton" title="More actions" aria-expanded="false">+</button>
+                <div class="composer-more-menu" id="composerMoreMenu">
+                  <button type="button" class="learning-menu-action" data-action="select_image">Attach image</button>
+                  <button type="button" class="learning-menu-action" data-action="run_model_tests">Run model tests</button>
+                  <button type="button" class="learning-menu-action" data-action="teaching_review">Teaching review</button>
+                  <button type="button" class="learning-menu-action" data-action="learning_traceability">Learning traceability</button>
+                  <button type="button" class="learning-menu-action" data-action="simulation_scenarios">Simulation scenarios</button>
+                  <button type="button" class="learning-menu-action" data-action="export_evidence">Export evidence</button>
+                  <button type="button" class="learning-menu-action" data-action="open_model">Open model</button>
+                </div>
+              </div>
               <span class="image-status" id="imageStatus">No image attached</span>
               <span class="toolbar-spacer"></span>
-              <button type="submit" class="btn primary" data-action="run_pipeline">Run</button>
+              <button type="submit" class="btn primary">Run</button>
             </div>
             <input id="imagePath" type="hidden">
           </div>
@@ -1470,6 +1570,11 @@
             <div class="model-preview-title">Simulink preview <span id="modelPreviewStatus"></span></div>
             <div class="model-preview-actions">
               <select id="previewFocusSelector" title="Focus target"></select>
+              <div class="model-zoom-controls inline" aria-label="Model zoom controls">
+                <button type="button" class="model-zoom-btn" data-zoom-target="preview" data-zoom-action="out" title="Zoom out" aria-label="Zoom out">-</button>
+                <button type="button" class="model-zoom-btn" data-zoom-target="preview" data-zoom-action="reset" title="Fit view" aria-label="Fit view">[]</button>
+                <button type="button" class="model-zoom-btn" data-zoom-target="preview" data-zoom-action="in" title="Zoom in" aria-label="Zoom in">+</button>
+              </div>
               <div class="preview-tool-wrap">
                 <button type="button" class="icon-btn" id="previewToolsButton" title="More model actions" aria-expanded="false">+</button>
                 <div class="preview-more-menu" id="previewMoreMenu">
@@ -1480,20 +1585,31 @@
               </div>
             </div>
           </div>
-          <div class="model-preview-frame">
-            <img id="modelPreviewImage" alt="Simulink model preview">
+          <div class="model-preview-frame-wrap">
+            <div class="model-preview-frame" data-zoom-surface="preview">
+              <img id="modelPreviewImage" alt="Simulink model preview">
+            </div>
           </div>
         </section>
 
         <section class="learning-surface" id="learningSurface">
-          <div class="learning-model" id="learningModel">
-            <img id="learningModelImage" alt="Simscape model view">
-            <div class="learning-empty" id="learningModelEmpty">Model view will appear here.</div>
+          <div class="learning-model-shell">
+            <div class="learning-model" id="learningModel" data-zoom-surface="learning">
+              <img id="learningModelImage" alt="Simscape model view">
+              <div class="learning-empty" id="learningModelEmpty">Model view will appear here.</div>
+            </div>
           </div>
           <div class="learning-dialog">
             <div class="learning-step">
-              <span id="learningStepLabel">Step 1 / 1</span>
-              <span id="learningFocusLabel"></span>
+              <div class="learning-step-labels">
+                <span id="learningStepLabel">Step 1 / 1</span>
+                <span id="learningFocusLabel"></span>
+              </div>
+              <div class="model-zoom-controls inline" aria-label="Model zoom controls">
+                <button type="button" class="model-zoom-btn" data-zoom-target="learning" data-zoom-action="out" title="Zoom out" aria-label="Zoom out">-</button>
+                <button type="button" class="model-zoom-btn" data-zoom-target="learning" data-zoom-action="reset" title="Fit view" aria-label="Fit view">[]</button>
+                <button type="button" class="model-zoom-btn" data-zoom-target="learning" data-zoom-action="in" title="Zoom in" aria-label="Zoom in">+</button>
+              </div>
             </div>
             <div class="learning-question" id="learningQuestion">Teaching question will appear here.</div>
             <div class="learning-concept" id="learningConcept"></div>
@@ -1523,7 +1639,7 @@
           </div>
         </section>
 
-        <section class="tool-groups">
+        <section class="tool-groups" aria-hidden="true">
           <details id="buildTools">
             <summary>Build and model</summary>
             <div class="details-body">
@@ -1711,6 +1827,10 @@
     var learningSurfaceWasShown = false;
     var taskBackStack = [];
     var taskForwardStack = [];
+    var modelZoom = {
+      preview: { scale: 1, x: 0, y: 0, dragging: false, lastX: 0, lastY: 0 },
+      learning: { scale: 1, x: 0, y: 0, dragging: false, lastX: 0, lastY: 0 }
+    };
 
     function setClass(el, name, enabled) {
       if (!el) return;
@@ -1810,8 +1930,11 @@
       });
       document.getElementById("learningToolsButton").addEventListener("click", toggleLearningTools);
       document.getElementById("previewToolsButton").addEventListener("click", togglePreviewTools);
+      document.getElementById("composerToolsButton").addEventListener("click", toggleComposerTools);
+      wireModelZoom();
       document.addEventListener("click", closeLearningToolsFromOutside);
       document.addEventListener("click", closePreviewToolsFromOutside);
+      document.addEventListener("click", closeComposerToolsFromOutside);
       document.querySelector(".main").addEventListener("wheel", routeMainWheel, { passive: false });
       document.getElementById("composerBox").addEventListener("submit", submitComposer);
       document.getElementById("probeAsk").addEventListener("keydown", function(event) {
@@ -1878,6 +2001,25 @@
     function setPreviewToolsOpen(open) {
       var menu = document.getElementById("previewMoreMenu");
       var button = document.getElementById("previewToolsButton");
+      if (menu) menu.classList.toggle("open", !!open);
+      if (button) button.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function toggleComposerTools(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      var menu = document.getElementById("composerMoreMenu");
+      setComposerToolsOpen(!(menu && menu.classList.contains("open")));
+    }
+
+    function closeComposerToolsFromOutside(event) {
+      if (closestElement(event.target, "#composerMoreMenu, #composerToolsButton")) return;
+      setComposerToolsOpen(false);
+    }
+
+    function setComposerToolsOpen(open) {
+      var menu = document.getElementById("composerMoreMenu");
+      var button = document.getElementById("composerToolsButton");
       if (menu) menu.classList.toggle("open", !!open);
       if (button) button.setAttribute("aria-expanded", open ? "true" : "false");
     }
@@ -1963,11 +2105,155 @@
     }
 
     function routeMainWheel(event) {
-      if (closestElement(event.target, "textarea, input, select, .modal-card, .model-preview-frame, .thinking-detail, .message-detail-body, .step-popover")) return;
+      if (closestElement(event.target, "textarea, input, select, .modal-card, .model-preview-frame, .learning-model, .thinking-detail, .message-detail-body, .step-popover")) return;
       var workspace = document.querySelector(".workspace");
       if (!workspace) return;
       workspace.scrollTop += event.deltaY;
       event.preventDefault();
+    }
+
+    function wireModelZoom() {
+      var surfaces = document.querySelectorAll("[data-zoom-surface]");
+      for (var i = 0; i < surfaces.length; i += 1) {
+        wireModelZoomSurface(surfaces[i]);
+      }
+      var buttons = document.querySelectorAll("[data-zoom-action]");
+      for (var j = 0; j < buttons.length; j += 1) {
+        buttons[j].addEventListener("click", function(event) {
+          event.preventDefault();
+          event.stopPropagation();
+          var target = event.currentTarget.getAttribute("data-zoom-target") || "learning";
+          var action = event.currentTarget.getAttribute("data-zoom-action") || "reset";
+          if (action === "in") {
+            changeModelZoom(target, 1.25, null);
+          } else if (action === "out") {
+            changeModelZoom(target, 0.8, null);
+          } else {
+            resetModelZoom(target);
+          }
+        });
+      }
+      applyModelZoom("preview");
+      applyModelZoom("learning");
+    }
+
+    function wireModelZoomSurface(surface) {
+      if (!surface || surface.getAttribute("data-zoom-wired") === "1") return;
+      surface.setAttribute("data-zoom-wired", "1");
+      surface.addEventListener("wheel", function(event) {
+        if (closestElement(event.target, ".model-zoom-controls")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        var target = surface.getAttribute("data-zoom-surface") || "learning";
+        var factor = event.deltaY < 0 ? 1.12 : 0.90;
+        changeModelZoom(target, factor, { x: event.clientX, y: event.clientY });
+      }, { passive: false });
+      surface.addEventListener("dblclick", function(event) {
+        if (closestElement(event.target, ".model-zoom-controls")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        var target = surface.getAttribute("data-zoom-surface") || "learning";
+        changeModelZoom(target, 1.35, { x: event.clientX, y: event.clientY });
+      });
+      surface.addEventListener("pointerdown", function(event) {
+        if (closestElement(event.target, ".model-zoom-controls")) return;
+        var target = surface.getAttribute("data-zoom-surface") || "learning";
+        var zoom = modelZoom[target] || modelZoom.learning;
+        if (zoom.scale <= 1.01) return;
+        event.preventDefault();
+        event.stopPropagation();
+        zoom.dragging = true;
+        zoom.lastX = event.clientX;
+        zoom.lastY = event.clientY;
+        surface.classList.add("zoom-dragging");
+        try { surface.setPointerCapture(event.pointerId); } catch (_err) {}
+      });
+      surface.addEventListener("pointermove", function(event) {
+        var target = surface.getAttribute("data-zoom-surface") || "learning";
+        var zoom = modelZoom[target] || modelZoom.learning;
+        if (!zoom.dragging) return;
+        event.preventDefault();
+        event.stopPropagation();
+        zoom.x += event.clientX - zoom.lastX;
+        zoom.y += event.clientY - zoom.lastY;
+        zoom.lastX = event.clientX;
+        zoom.lastY = event.clientY;
+        clampModelPan(target);
+        applyModelZoom(target);
+      });
+      var endDrag = function(event) {
+        var target = surface.getAttribute("data-zoom-surface") || "learning";
+        var zoom = modelZoom[target] || modelZoom.learning;
+        if (!zoom.dragging) return;
+        zoom.dragging = false;
+        surface.classList.remove("zoom-dragging");
+        try { surface.releasePointerCapture(event.pointerId); } catch (_err) {}
+      };
+      surface.addEventListener("pointerup", endDrag);
+      surface.addEventListener("pointercancel", endDrag);
+      surface.addEventListener("pointerleave", endDrag);
+    }
+
+    function changeModelZoom(target, factor, anchor) {
+      var zoom = modelZoom[target] || modelZoom.learning;
+      setModelZoom(target, zoom.scale * factor, anchor);
+    }
+
+    function setModelZoom(target, scale, anchor) {
+      var zoom = modelZoom[target] || modelZoom.learning;
+      var oldScale = zoom.scale || 1;
+      var newScale = Math.max(1, Math.min(4, Number(scale || 1)));
+      var surface = document.querySelector("[data-zoom-surface=\"" + target + "\"]");
+      if (surface && anchor && newScale > 1.01) {
+        var rect = surface.getBoundingClientRect();
+        var centerX = rect.left + rect.width / 2;
+        var centerY = rect.top + rect.height / 2;
+        var beforeX = (anchor.x - centerX - zoom.x) / oldScale;
+        var beforeY = (anchor.y - centerY - zoom.y) / oldScale;
+        zoom.x = anchor.x - centerX - beforeX * newScale;
+        zoom.y = anchor.y - centerY - beforeY * newScale;
+      }
+      zoom.scale = newScale;
+      if (newScale <= 1.01) {
+        zoom.scale = 1;
+        zoom.x = 0;
+        zoom.y = 0;
+      }
+      clampModelPan(target);
+      applyModelZoom(target);
+    }
+
+    function resetModelZoom(target) {
+      var zoom = modelZoom[target] || modelZoom.learning;
+      zoom.scale = 1;
+      zoom.x = 0;
+      zoom.y = 0;
+      zoom.dragging = false;
+      applyModelZoom(target);
+    }
+
+    function clampModelPan(target) {
+      var zoom = modelZoom[target] || modelZoom.learning;
+      var surface = document.querySelector("[data-zoom-surface=\"" + target + "\"]");
+      if (!surface || zoom.scale <= 1.01) {
+        zoom.x = 0;
+        zoom.y = 0;
+        return;
+      }
+      var maxX = surface.clientWidth * (zoom.scale - 1) * 0.55;
+      var maxY = surface.clientHeight * (zoom.scale - 1) * 0.55;
+      zoom.x = Math.max(-maxX, Math.min(maxX, zoom.x));
+      zoom.y = Math.max(-maxY, Math.min(maxY, zoom.y));
+    }
+
+    function applyModelZoom(target) {
+      var zoom = modelZoom[target] || modelZoom.learning;
+      var surface = document.querySelector("[data-zoom-surface=\"" + target + "\"]");
+      if (!surface) return;
+      var img = surface.querySelector("img");
+      if (!img) return;
+      img.style.transform = "translate(" + zoom.x.toFixed(1) + "px, " + zoom.y.toFixed(1) + "px) scale(" + zoom.scale.toFixed(3) + ")";
+      surface.classList.toggle("zoomed", zoom.scale > 1.01);
     }
 
     function setupDropZone() {
@@ -2029,7 +2315,16 @@
         toast("Add a circuit prompt or image first.");
         return;
       }
-      runActionFromElement(document.querySelector("[data-action='run_pipeline']"), event || { preventDefault: function(){}, stopPropagation: function(){} });
+      send("chat_submit", {
+        text: value("prompt"),
+        imagePath: value("imagePath")
+      });
+      var workspace = document.querySelector(".workspace");
+      var prompt = document.getElementById("prompt");
+      if (workspace && workspace.classList.contains("has-thread") && prompt) {
+        prompt.value = "";
+        renderPreview("promptPreview", "");
+      }
     }
 
     function runActionFromButton(event) {
@@ -2054,6 +2349,7 @@
       lastActionEventAt = now;
       setLearningToolsOpen(false);
       setPreviewToolsOpen(false);
+      setComposerToolsOpen(false);
       runAction(action, button);
     }
 
@@ -2140,6 +2436,10 @@
         toast(data.message || "", data.tone || "");
         return;
       }
+      if (data.kind === "model_zoom") {
+        setModelZoom(data.target || "learning", Number(data.scale || 1), null);
+        return;
+      }
       if (data.kind !== "state") return;
       state = data;
       renderState();
@@ -2149,11 +2449,9 @@
       var paths = (currentState || {}).paths || {};
       var preview = (currentState || {}).modelPreview || {};
       var teach = (currentState || {}).teach || {};
-      var probe = (currentState || {}).probe || {};
       var hasModel = !!(preview.available || paths.modelSnapshotPath);
       var hasTeachingPlan = !!teach.hasPlan || Number(teach.totalSteps || 0) > 0;
-      var hasProbe = hasModel && (!!probe.hasOutput || listHasItems(probe.probeItems));
-      return !!(hasModel || hasTeachingPlan || hasProbe);
+      return !!(hasModel && hasTeachingPlan);
     }
 
     function renderState() {
@@ -2284,6 +2582,7 @@
         if (src && src !== lastLearningModelSrc) {
           img.src = src;
           lastLearningModelSrc = src;
+          resetModelZoom("learning");
         }
         img.style.display = "block";
         empty.style.display = "none";
@@ -2292,6 +2591,7 @@
         img.style.display = "none";
         empty.style.display = "block";
         lastLearningModelSrc = "";
+        resetModelZoom("learning");
       }
 
       var teach = currentState.teach || {};
@@ -2491,18 +2791,13 @@
       var title = String((message || {}).title || "");
       var buttons = [];
       if (title === "Teaching") {
-        buttons.push("<button class=\"btn\" data-panel=\"teachingTools\">Open Teaching</button>");
         buttons.push("<button class=\"btn\" data-action=\"next_hint\">Hint</button>");
         buttons.push("<button class=\"btn\" data-action=\"highlight_focus\">Highlight</button>");
       } else if (title === "Probe and lab delta") {
-        buttons.push("<button class=\"btn\" data-panel=\"probeTools\">Open Probe</button>");
         buttons.push("<button class=\"btn\" data-action=\"add_probe\">Probe</button>");
       } else if (title === "Model build") {
         buttons.push("<button class=\"btn\" data-action=\"open_model\">Open Model</button>");
       } else if (title === "Evidence") {
-        buttons.push("<button class=\"btn\" data-panel=\"probeTools\">Open Evidence</button>");
-        buttons.push("<button class=\"btn\" data-action=\"run_model_tests\">Model Tests</button>");
-        buttons.push("<button class=\"btn\" data-action=\"learning_traceability\">Traceability</button>");
         buttons.push("<button class=\"btn\" data-action=\"export_evidence\">Export Pack</button>");
       }
       if (buttons.length === 0) return "";
@@ -2591,12 +2886,14 @@
           img.removeAttribute("src");
           lastModelPreviewSrc = "";
         }
+        resetModelZoom("preview");
         return;
       }
       var src = preview.dataUri || localFileUrl(preview.path, preview.updatedAt || "");
       if (src && src !== lastModelPreviewSrc) {
         img.src = src;
         lastModelPreviewSrc = src;
+        resetModelZoom("preview");
       }
     }
 

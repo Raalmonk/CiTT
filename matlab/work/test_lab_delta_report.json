@@ -40,10 +40,10 @@
     "final_value": 251.3,
     "time_start": [],
     "time_end": [],
-    "probe_id": "P_VIN",
-    "probe_label": "Input source voltage",
-    "probe_unit": "V",
-    "notes": "CSV unit differs from probe map unit: Hz vs V."
+    "probe_id": "",
+    "probe_label": "",
+    "probe_unit": "",
+    "notes": "No matching probe-map entry was found for this lab quantity."
   },
   "likely_causes": [
     {
@@ -63,27 +63,27 @@
       "next_action": "Check whether one side used Hz and the other used rad/s."
     },
     {
-      "id": "probe_unit_fc_hz",
-      "label": "Probe unit mismatch",
+      "id": "probe_missing_fc_hz",
+      "label": "Lab quantity not covered by probe map",
       "severity": "warning",
-      "explanation": "The CSV unit differs from the probe-map unit.",
-      "evidence": "CSV unit differs from probe map unit: Hz vs V.",
-      "next_action": "Normalize units before comparing numeric values."
+      "explanation": "The CSV quantity does not clearly map to an SATK-generated probe.",
+      "evidence": "fc_hz",
+      "next_action": "Add or rename a probe so lab and simulation signals align."
     },
     {
       "id": "model_assumption_gap",
       "label": "Model assumption may not match lab hardware",
       "severity": "possible",
       "explanation": "The circuit spec includes idealized or simplified assumptions that can produce lab/model mismatch.",
-      "evidence": "{\n  \"circuit_type\": \"single-pole RC low-pass ECG anti-alias front end with sampled ADC output\",\n  \"components\": [\n    {\n      \"id\": \"V_SRC\",\n      \"type\": \"composite_voltage_source\",\n      \"label\": \"ECG-like sensor plus 60 Hz interference\",\n      \"value\": {\n        \"ecg_amplitude\": 1,\n        \"ecg_frequency\": 5,\n        \"interference_frequency\": 60,\n        \"interference_amplitude\": \"unspecified\"\n      },\n      \"unit\": \"mV, Hz\",\n      \"terminals\": [\n        \"p\",\n        \"n\"\n      ],\n      \"confi...",
+      "evidence": "{\n  \"circuit_type\": \"mixed-signal electrochemical biosensor front end driven by one-compartment oral pharmacokinetic concentration profile\",\n  \"components\": [\n    {\n      \"id\": \"SRC_PK\",\n      \"type\": \"signal_source\",\n      \"label\": \"one-compartment oral PK concentration profile C(t)\",\n      \"value\": [],\n      \"unit\": \"uM\",\n      \"terminals\": [\n        \"c_out\"\n      ],\n      \"confidence\": 0.98\n    },\n    {\n      \"id\": \"LAG_M\",\n      \"type\": \"first_order_lag\",\n      \"label\": \"membrane mass-transf...",
       "next_action": "Check which assumptions are invalid in the lab setup before treating the error as a component fault."
     }
   ],
-  "next_probe_suggestion": "Start with fc_hz (INVESTIGATE), then verify probe P_VIN.",
+  "next_probe_suggestion": "Start with fc_hz (INVESTIGATE), then verify probe mapping.",
   "prioritized_next_actions": [
     "Check units, reference node, probe placement, and settling for this quantity first.",
     "Check whether one side used Hz and the other used rad/s.",
-    "Normalize units before comparing numeric values.",
+    "Add or rename a probe so lab and simulation signals align.",
     "Check which assumptions are invalid in the lab setup before treating the error as a component fault."
   ],
   "notes": []

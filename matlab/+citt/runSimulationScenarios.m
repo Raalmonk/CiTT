@@ -21,19 +21,20 @@ for i = 1:numel(scenarioSpec.scenarios)
 end
 
 statuses = string({results.status});
+summary = struct( ...
+    "pass", sum(statuses == "PASS"), ...
+    "warn", sum(statuses == "WARN"), ...
+    "fail", sum(statuses == "FAIL"), ...
+    "not_run", sum(statuses == "NOT_RUN"));
 report = struct();
-report.success = ~any(statuses == "FAIL");
+report.success = summary.fail == 0 && summary.not_run == 0;
 report.created_at = string(datetime("now"));
 report.model_path = string(context.ModelPath);
 report.scenario_spec_path = scenarioSpec.spec_path;
 report.scenarios = results;
 report.report_path = string(jsonPath);
 report.markdown_path = string(markdownPath);
-report.summary = struct( ...
-    "pass", sum(statuses == "PASS"), ...
-    "warn", sum(statuses == "WARN"), ...
-    "fail", sum(statuses == "FAIL"), ...
-    "not_run", sum(statuses == "NOT_RUN"));
+report.summary = summary;
 
 writeJson(jsonPath, report);
 writeText(markdownPath, renderMarkdown(report));
@@ -116,6 +117,7 @@ lines = [
     ""
     "Created: " + report.created_at
     "Model: " + report.model_path
+    "Success: " + string(report.success)
     ""
     "| Scenario | Type | Status | Stop time | Outputs | Error |"
     "| --- | --- | --- | --- | --- | --- |"
